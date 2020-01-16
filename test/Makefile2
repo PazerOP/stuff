@@ -1,12 +1,11 @@
 
 
 # CXX:=clang++
-CXXOPT:=-g -std=c++2a -fPIC -Wall -Wfatal-errors -Werror -I"../cpp/include/"
+CXXOPT:=-g -std=c++2a -fPIC -Wall -Wfatal-errors -pthread -Werror -I"../cpp/include/"
 
 CXXOPT += -fdiagnostics-color=always
 
 ifneq (,$(findstring clang++, $(CXX)))
-CXXFLAGS += -fdiagnostics-absolute-paths
 CXXOPT += --stdlib=libc++
 CXXOPT += -I/usr/lib/llvm-10/include/c++/v1
 # LDFLAGS += /usr/lib/llvm-10/lib/libc++.so /usr/lib/llvm-10/lib/libc++abi.so -L/usr/lib/llvm-10/lib

@@ -9,8 +9,8 @@ BUILD_CONFIGS=clang++-10 clang++-9 g++-9 clang++-8 g++-8 clang++-7
 endif
 
 # https://stackoverflow.com/a/3618308/871842
-export FIX_PATH_STDOUT = | sed -r 's/^.*:[[:digit:]]+:[[:digit:]]+\:/$(notdir $(shell pwd))\/\0/g'
-export FIX_PATH_STDERR = 3>&1 1>&2 2>&3 3>&- $(FIX_PATH_STDOUT)
+# export FIX_PATH_STDOUT = | sed -r 's/^.*:[[:digit:]]+:[[:digit:]]+\:/$(notdir $(shell pwd))\/\0/g'
+# export FIX_PATH_STDERR = 3>&1 1>&2 2>&3 3>&- $(FIX_PATH_STDOUT)
 
 CATCH2_FLAGS = --use-colour yes # --benchmark-samples 1000
 
