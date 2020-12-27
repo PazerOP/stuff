@@ -1,6 +1,5 @@
 #pragma once
 
-#if __has_include(<getopt.h>)
 #include <iomanip>
 #include <ostream>
 #include <stdexcept>
@@ -277,4 +276,3 @@ std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>&
 
 	return os << "\n}";
 }
-#endif
