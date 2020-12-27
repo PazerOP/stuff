@@ -69,6 +69,7 @@ set(MH_STUFF_SOURCES
 )
 
 set(MH_INCLUDE_DIRS "cpp/include")
+set(MH_COMPILE_FEATURES "cxx_std_20")
 
 if (MH_STUFF_COMPILE_LIBRARY)
 	add_library(mh_stuff STATIC
@@ -96,6 +97,7 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	target_sources(mh_stuff PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
 
 	target_include_directories(mh_stuff PUBLIC ${MH_INCLUDE_DIRS})
+	target_compile_features(mh_stuff PUBLIC ${MH_COMPILE_FEATURES})
 
 else()
 	add_library(mh_stuff INTERFACE
@@ -107,9 +109,8 @@ else()
 	)
 
 	target_include_directories(mh_stuff INTERFACE ${MH_INCLUDE_DIRS})
+	target_compile_features(mh_stuff INTERFACE ${MH_COMPILE_FEATURES})
 endif()
-
-target_compile_features(mh_stuff PUBLIC cxx_std_20)
 
 add_library(mh::stuff ALIAS mh_stuff)
 
