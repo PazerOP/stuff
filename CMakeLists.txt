@@ -99,6 +99,10 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	target_include_directories(mh_stuff PUBLIC ${MH_INCLUDE_DIRS})
 	target_compile_features(mh_stuff PUBLIC ${MH_COMPILE_FEATURES})
 
+	if (MSVC)
+		target_compile_options(mh_stuff PRIVATE "/W3")
+	endif()
+
 else()
 	add_library(mh_stuff INTERFACE
 		${MH_STUFF_SOURCES}

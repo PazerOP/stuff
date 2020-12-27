@@ -15,14 +15,6 @@ namespace mh
 		template<typename T> constexpr bool is_utf_v =
 			std::is_same_v<T, char8_t> || std::is_same_v<T, char16_t> || std::is_same_v<T, char32_t>;
 
-#if __cplusplus >= 202000L
-		template<typename T, typename = std::enable_if_t<std::is_same_v<T, char8_t>>>
-		inline auto convert_to_mb(char* buf, T from, std::mbstate_t& state) ->
-			decltype(std::c8rtomb(buf, from, &state))
-		{
-			return std::c8rtomb(buf, from, &state);
-		}
-#endif
 		inline std::size_t convert_to_mb(char* buf, char16_t from, std::mbstate_t& state)
 		{
 			return std::c16rtomb(buf, from, &state);
@@ -32,15 +24,6 @@ namespace mh
 			return std::c32rtomb(buf, from, &state);
 		}
 
-		template<typename T, typename = std::enable_if_t<std::is_same_v<T, char8_t>>>
-		inline auto convert_to_utf(T* buf, const char* mb, std::size_t mbmax, std::mbstate_t& state)
-		{
-#if __cplusplus >= 202000L
-			return std::mbrtoc8(buf, mb, mbmax, &state);
-#else
-			static_assert(false, "std::mbrtoc8 unsupported");
-#endif
-		}
 		inline std::size_t convert_to_utf(char16_t* buf, const char* mb, std::size_t mbmax, std::mbstate_t& state)
 		{
 			return std::mbrtoc16(buf, mb, mbmax, &state);
@@ -323,15 +306,17 @@ namespace mh
 			{
 				std::basic_string<char> retVal;
 
+				const auto MB_CUR_MAX_VAL = MB_CUR_MAX;
+				char* buf = reinterpret_cast<char*>(alloca(MB_CUR_MAX_VAL));
 				std::mbstate_t state{};
 				for (auto it = begin; it != end; )
 				{
-#ifndef MB_LEN_MAX
-					constexpr int MB_LEN_MAX = 64;
-#endif
-					char buf[MB_LEN_MAX];
 					size_t result;
-					wcrtomb_s(&result, buf, sizeof(buf), *it, &state);
+#if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
+					wcrtomb_s(&result, buf, MB_CUR_MAX_VAL, *it, &state);
+#else
+					result = std::wcrtomb(buf, *it, &state);
+#endif
 
 					if (result == -1)
 					{
