@@ -91,7 +91,6 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	foreach(X IN LISTS MH_INL_FILES)
 		file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/library.cpp" "\n#include \"${X}\"")
 	endforeach()
-	message("CMAKE_CURRENT_BINARY_DIR = ${CMAKE_CURRENT_BINARY_DIR}")
 	target_sources(mh_stuff PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
 
 else()
