@@ -8,7 +8,7 @@
 #if __has_include(<bit>)
 #include <bit>
 #endif
-#if (__cpp_impl_three_way_comparison >= 201907) && (__cpp_lib_three_way_comparison >= 201907)
+#if (__cpp_impl_three_way_comparison >= 201907)
 #include <compare>
 #endif
 #include <cstdint>
@@ -347,7 +347,7 @@ namespace mh
 	};
 }
 
-#if (__cpp_impl_three_way_comparison >= 201907) && (__cpp_lib_three_way_comparison >= 201907)
+#if (__cpp_impl_three_way_comparison >= 201907)
 inline constexpr std::strong_ordering operator<=>(
 	const mh::uint128& lhs, const mh::uint128& rhs)
 {
@@ -367,7 +367,7 @@ constexpr std::strong_ordering operator<=>(const mh::uint128& lhs, T rhs)
 	if (!mh::detail::uint128_hpp::is_constant_evaluated())
 	{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
-		return lhs.u128 <=> mh::img::detail::platform_uint128_t(rhs);
+		return lhs.u128 <=> mh::detail::uint128_hpp::platform_uint128_t(rhs);
 #endif
 	}
 
@@ -394,28 +394,6 @@ constexpr std::strong_ordering operator<=>(T lhs, const mh::uint128& rhs)
 }
 #else
 	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator==(const mh::uint128& lhs, T rhs)
-	{
-		return !lhs.get_u64<1>() && lhs.get_u64<0>() == rhs;
-	}
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator==(T lhs, const mh::uint128& rhs)
-	{
-		return rhs == lhs;
-	}
-
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator!=(const mh::uint128& lhs, T rhs)
-	{
-		return !(lhs == rhs);
-	}
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator!=(T lhs, const mh::uint128& rhs)
-	{
-		return !(lhs == rhs);
-	}
-
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
 	constexpr bool operator<(const mh::uint128& lhs, T rhs)
 	{
 		return !lhs.get_u64<1>() && lhs.get_u64<0>() < rhs;
@@ -431,6 +409,31 @@ constexpr std::strong_ordering operator<=>(T lhs, const mh::uint128& rhs)
 		return !(lhs < rhs);
 	}
 #endif
+
+template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+constexpr bool operator==(const mh::uint128& lhs, T rhs)
+{
+	if constexpr (sizeof(T) <= sizeof(uint64_t))
+		return !lhs.get_u64<1>() && lhs.get_u64<0>() == rhs;
+	else
+		return lhs == mh::uint128(rhs);
+}
+template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+constexpr bool operator==(T lhs, const mh::uint128& rhs)
+{
+	return rhs == lhs;
+}
+
+template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+constexpr bool operator!=(const mh::uint128& lhs, T rhs)
+{
+	return !(lhs == rhs);
+}
+template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+constexpr bool operator!=(T lhs, const mh::uint128& rhs)
+{
+	return !(lhs == rhs);
+}
 
 template<typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, const mh::uint128& rhs)
