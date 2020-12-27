@@ -16,7 +16,10 @@ namespace mh
 
 #if __cpp_unicode_characters >= 200704
 		template<typename T> constexpr bool is_utf_v =
-			std::is_same_v<T, char8_t> || std::is_same_v<T, char16_t> || std::is_same_v<T, char32_t>;
+#if __cpp_char8_t >= 201811
+			std::is_same_v<T, char8_t> ||
+#endif
+			std::is_same_v<T, char16_t> || std::is_same_v<T, char32_t>;
 
 		inline std::size_t convert_to_mb(char* buf, char16_t from, std::mbstate_t& state)
 		{
