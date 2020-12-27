@@ -20,11 +20,13 @@ namespace mh
 #endif
 #endif
 
+#if __cpp_concepts >= 201907
 		template<typename T, typename CharT = char, typename Traits = std::char_traits<CharT>>
 		concept StreamInsertable = requires(T t)
 		{
 			{ std::declval<std::basic_ostream<CharT, Traits>>() << t };
 		};
+#endif
 
 #ifndef $MH_DEBUGBREAK
 #ifdef _MSC_VER
@@ -95,8 +97,12 @@ namespace mh
 	private:
 		static constexpr bool can_print_value_impl()
 		{
+#if __cpp_concepts >= 201907
 			// I don't think doing this inline works in MSVC yet, shame
 			return detail::ensure_hpp::StreamInsertable<T>;
+#else
+			return false;
+#endif
 		}
 
 		void print_value_generic(std::ostream& os, const detail::ensure_hpp::ensure_info_base& info) const override final
