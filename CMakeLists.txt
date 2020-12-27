@@ -115,3 +115,6 @@ target_compile_features(mh_stuff PUBLIC cxx_std_20)
 target_include_directories(mh_stuff PUBLIC "cpp/include")
 
 add_library(mh::stuff ALIAS mh_stuff)
+
+include(CTest)
+add_subdirectory("test")

@@ -1,4 +1,6 @@
 #include "mh/io/getopt.hpp"
+
+#if __has_include(<getopt.h>)
 #include "catch2/repo/single_include/catch2/catch.hpp"
 
 #include <array>
@@ -75,3 +77,4 @@ TEST_CASE("getopt")
 	REQUIRE(result == true);
 	REQUIRE(index == actual_arg_count);
 }
+#endif

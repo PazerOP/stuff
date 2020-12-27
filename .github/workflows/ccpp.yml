@@ -32,6 +32,16 @@ jobs:
         sudo apt update
         sudo apt install ${{ matrix.compiler }} libc++-10-dev libc++abi-10-dev -y
 
+    # - name: Run tests
+    #   working-directory: ./test
+    #   run: make -j`grep -c ^processor /proc/cpuinfo` ${{ matrix.compiler }}_test_output.txt
+
     - name: Run tests
-      working-directory: ./test
-      run: make -j`grep -c ^processor /proc/cpuinfo` ${{ matrix.compiler }}_test_output.txt
+      env:
+        CXX: ${{ matrix.compiler }}
+      run: |
+        mkdir build
+        cd build
+        cmake ../ -G Ninja
+        cmake --build .
+        ctest --output-on-failure

@@ -150,7 +150,7 @@ TEST_CASE("bit_float - numeric_limits", "[bit_float]")
 	static_assert(nlh::has_infinity);
 	static_assert(nlh::has_quiet_NaN);
 	static_assert(!nlh::has_signaling_NaN);
-	static_assert(nlh::has_denorm == std::numeric_limits<float>::has_denorm);
+	static_assert(nlh::has_denorm == (std::numeric_limits<float>::has_denorm == std::float_denorm_style::denorm_present));
 	static_assert(nlh::has_denorm_loss == std::numeric_limits<float>::has_denorm_loss);
 	static_assert(nlh::round_style == std::float_round_style::round_toward_zero);
 
