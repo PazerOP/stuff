@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   ci-linux:
-    name: ${{ matrix.compiler }}
+    # name: ${{ matrix.compiler }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
