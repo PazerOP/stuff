@@ -42,7 +42,7 @@ namespace mh
 		std::basic_string<CharT, Traits, Alloc>& m_String;
 	};
 
-#ifdef $MH_COMPILE_LIBRARY
+#ifdef MH_COMPILE_LIBRARY
 	extern template class basic_strwrapperstream<char>;
 	extern template class basic_strwrapperstream<wchar_t>;
 #endif

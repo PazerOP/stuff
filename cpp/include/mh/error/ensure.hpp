@@ -140,6 +140,6 @@ namespace mh
 #endif
 }
 
-#ifndef $MH_COMPILE_LIBRARY
+#ifndef MH_COMPILE_LIBRARY
 #include "ensure.inl"
 #endif

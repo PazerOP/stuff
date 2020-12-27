@@ -39,6 +39,6 @@ namespace mh
 	};
 }
 
-#ifndef $MH_COMPILE_LIBRARY
+#ifndef MH_COMPILE_LIBRARY
 #include "buffer.inl"
 #endif

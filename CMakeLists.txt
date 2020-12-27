@@ -78,15 +78,9 @@ if (MH_STUFF_COMPILE_LIBRARY)
 		"cpp/src/source_location.cpp"
 	)
 
-	# intellisense doesn't work properly with variables that contain dollar signs
-	if (MSVC)
-		set(MH_COMPILE_LIBRARY_WORKAROUND "$MH_COMPILE_LIBRARY")
-		target_compile_definitions(mh_stuff PUBLIC ${MH_COMPILE_LIBRARY_WORKAROUND} "${MH_COMPILE_LIBRARY_WORKAROUND}1")
-	endif()
-
 	target_compile_definitions(mh_stuff PUBLIC
-		"$$MH_COMPILE_LIBRARY"
-		"$$MH_COMPILE_LIBRARY_INLINE="
+		"MH_COMPILE_LIBRARY"
+		"MH_COMPILE_LIBRARY_INLINE="
 	)
 
 	# Create a cpp file of all .inl files and add it to the target
@@ -97,8 +91,8 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	foreach(X IN LISTS MH_INL_FILES)
 		file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/library.cpp" "\n#include \"${X}\"")
 	endforeach()
-
-	target_sources(mh_stuff PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
+	message("CMAKE_CURRENT_BINARY_DIR = ${CMAKE_CURRENT_BINARY_DIR}")
+	target_sources(mh_stuff PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
 
 else()
 	add_library(mh_stuff INTERFACE

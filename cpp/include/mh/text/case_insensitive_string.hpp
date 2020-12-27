@@ -74,7 +74,7 @@ namespace mh
 		}
 	};
 
-#ifdef $MH_COMPILE_LIBRARY
+#ifdef MH_COMPILE_LIBRARY
 	extern template class case_insensitive_char_traits<std::char_traits<char>>;
 	extern template class case_insensitive_char_traits<std::char_traits<wchar_t>>;
 #endif

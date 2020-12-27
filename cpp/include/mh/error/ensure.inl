@@ -6,22 +6,22 @@
 #include <crtdbg.h>
 #endif
 
-#ifdef $MH_COMPILE_LIBRARY
+#ifdef MH_COMPILE_LIBRARY
 #include "mh/error/ensure.hpp"
 #endif
 
-#ifndef $MH_COMPILE_LIBRARY_INLINE
-#define $MH_COMPILE_LIBRARY_INLINE
+#ifndef MH_COMPILE_LIBRARY_INLINE
+#define MH_COMPILE_LIBRARY_INLINE
 #endif
 
 namespace mh::detail::ensure_hpp
 {
-	$MH_COMPILE_LIBRARY_INLINE void ensure_traits_default_base::print_details_label(std::ostream& os, const char* label) const
+	MH_COMPILE_LIBRARY_INLINE void ensure_traits_default_base::print_details_label(std::ostream& os, const char* label) const
 	{
 		os << "\n\t" << std::setw(get_max_details_width()) << std::right << label << " :  ";
 	}
 
-	$MH_COMPILE_LIBRARY_INLINE ensure_trigger_result ensure_traits_default_base::trigger_generic(const ensure_info_base& info) const
+	MH_COMPILE_LIBRARY_INLINE ensure_trigger_result ensure_traits_default_base::trigger_generic(const ensure_info_base& info) const
 	{
 		std::ostringstream ss;
 		ss << "mh_ensure failed: " << info.m_ExpressionText;

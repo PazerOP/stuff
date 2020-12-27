@@ -1,37 +1,37 @@
 #include <cstring>
 #include <stdexcept>
 
-#ifdef $MH_COMPILE_LIBRARY
+#ifdef MH_COMPILE_LIBRARY
 #include "mh/memory/buffer.hpp"
 #endif
 
-#ifndef $MH_COMPILE_LIBRARY_INLINE
-#define $MH_COMPILE_LIBRARY_INLINE
+#ifndef MH_COMPILE_LIBRARY_INLINE
+#define MH_COMPILE_LIBRARY_INLINE inline
 #endif
 
-$MH_COMPILE_LIBRARY_INLINE mh::buffer::buffer(buffer&& other) :
+MH_COMPILE_LIBRARY_INLINE mh::buffer::buffer(buffer&& other) :
 	m_Data(std::move(other.m_Data)),
 	m_Size(std::exchange(other.m_Size, 0))
 {
 }
 
-$MH_COMPILE_LIBRARY_INLINE mh::buffer::buffer(const buffer& other) :
+MH_COMPILE_LIBRARY_INLINE mh::buffer::buffer(const buffer& other) :
 	buffer(other.data(), other.size())
 {
 }
 
-$MH_COMPILE_LIBRARY_INLINE mh::buffer::buffer(size_t initialSize)
+MH_COMPILE_LIBRARY_INLINE mh::buffer::buffer(size_t initialSize)
 {
 	resize(initialSize);
 }
 
-$MH_COMPILE_LIBRARY_INLINE mh::buffer::buffer(const std::byte* ptr, size_t bytes) :
+MH_COMPILE_LIBRARY_INLINE mh::buffer::buffer(const std::byte* ptr, size_t bytes) :
 	buffer(bytes)
 {
 	std::memcpy(data(), ptr, bytes);
 }
 
-$MH_COMPILE_LIBRARY_INLINE void mh::buffer::resize(size_t newSize)
+MH_COMPILE_LIBRARY_INLINE void mh::buffer::resize(size_t newSize)
 {
 	const auto newPtr = std::realloc(m_Data.get(), newSize);
 	if (!newPtr)
@@ -42,7 +42,7 @@ $MH_COMPILE_LIBRARY_INLINE void mh::buffer::resize(size_t newSize)
 	m_Size = newSize;
 }
 
-$MH_COMPILE_LIBRARY_INLINE bool mh::buffer::reserve(size_t minSize)
+MH_COMPILE_LIBRARY_INLINE bool mh::buffer::reserve(size_t minSize)
 {
 	if (size() < minSize)
 	{
@@ -54,7 +54,7 @@ $MH_COMPILE_LIBRARY_INLINE bool mh::buffer::reserve(size_t minSize)
 }
 
 #if (__cpp_lib_three_way_comparison >= 201907) && (__cpp_impl_three_way_comparison >= 201907)
-$MH_COMPILE_LIBRARY_INLINE std::strong_ordering mh::buffer::operator<=>(const buffer& other) const
+MH_COMPILE_LIBRARY_INLINE std::strong_ordering mh::buffer::operator<=>(const buffer& other) const
 {
 	if (auto result = m_Size <=> other.m_Size; std::is_neq(result))
 		return result;
@@ -69,7 +69,7 @@ $MH_COMPILE_LIBRARY_INLINE std::strong_ordering mh::buffer::operator<=>(const bu
 }
 #endif
 
-$MH_COMPILE_LIBRARY_INLINE void mh::buffer::clear()
+MH_COMPILE_LIBRARY_INLINE void mh::buffer::clear()
 {
 	m_Data.reset();
 	m_Size = 0;

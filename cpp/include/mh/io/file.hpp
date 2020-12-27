@@ -40,7 +40,7 @@ namespace mh
 		return write_file(path, std::basic_string_view(string));
 	}
 
-#ifdef $MH_COMPILE_LIBRARY
+#ifdef MH_COMPILE_LIBRARY
 	extern template std::string read_file<char>(const std::filesystem::path&);
 	extern template std::wstring read_file<wchar_t>(const std::filesystem::path&);
 	extern template std::u8string read_file<char8_t>(const std::filesystem::path&);

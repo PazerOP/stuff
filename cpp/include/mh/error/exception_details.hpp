@@ -31,6 +31,6 @@ namespace mh
 	};
 }
 
-#ifndef $MH_COMPILE_LIBRARY
+#ifndef MH_COMPILE_LIBRARY
 #include "exception_details.inl"
 #endif

@@ -438,7 +438,7 @@ namespace mh
 		return impl(input.data(), input.data() + input.size());
 	}
 
-#ifdef $MH_COMPILE_LIBRARY
+#ifdef MH_COMPILE_LIBRARY
 	extern template std::string change_encoding<char, char>(const std::string_view&);
 	extern template std::string change_encoding<char, wchar_t>(const std::wstring_view&);
 	extern template std::string change_encoding<char, char8_t>(const std::u8string_view&);

@@ -10,6 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
+        MH_STUFF_COMPILE_LIBRARY: [true, false]
         compiler: [clang++-11, clang++-10, clang++-9, g++-9, clang++-8, g++-8, clang++-7]
 
     steps:
@@ -42,6 +43,6 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ../ -G Ninja
+        cmake -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} ../ -G Ninja
         cmake --build .
         ctest --output-on-failure
