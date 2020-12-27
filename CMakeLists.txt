@@ -68,6 +68,8 @@ set(MH_STUFF_SOURCES
 	"cpp/include/mh/variant.hpp"
 )
 
+set(MH_INCLUDE_DIRS "cpp/include")
+
 if (MH_STUFF_COMPILE_LIBRARY)
 	add_library(mh_stuff STATIC
 		${MH_STUFF_SOURCES}
@@ -93,6 +95,8 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	endforeach()
 	target_sources(mh_stuff PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
 
+	target_include_directories(mh_stuff PUBLIC ${MH_INCLUDE_DIRS})
+
 else()
 	add_library(mh_stuff INTERFACE
 		${MH_STUFF_SOURCES}
@@ -101,11 +105,11 @@ else()
 	target_compile_definitions(mh_stuff PUBLIC
 		"$$MH_COMPILE_LIBRARY_INLINE=inline"
 	)
+
+	target_include_directories(mh_stuff INTERFACE ${MH_INCLUDE_DIRS})
 endif()
 
 target_compile_features(mh_stuff PUBLIC cxx_std_20)
-
-target_include_directories(mh_stuff PUBLIC "cpp/include")
 
 add_library(mh::stuff ALIAS mh_stuff)
 
