@@ -43,14 +43,20 @@ namespace mh
 #ifdef MH_COMPILE_LIBRARY
 	extern template std::string read_file<char>(const std::filesystem::path&);
 	extern template std::wstring read_file<wchar_t>(const std::filesystem::path&);
-	extern template std::u8string read_file<char8_t>(const std::filesystem::path&);
-	extern template std::u16string read_file<char16_t>(const std::filesystem::path&);
-	extern template std::u32string read_file<char32_t>(const std::filesystem::path&);
 
 	extern template void write_file<char>(const std::filesystem::path&, const std::string_view&);
 	extern template void write_file<wchar_t>(const std::filesystem::path&, const std::wstring_view&);
-	extern template void write_file<char8_t>(const std::filesystem::path&, const std::u8string_view&);
+
+#if __cpp_unicode_characters >= 200704
+	extern template std::u16string read_file<char16_t>(const std::filesystem::path&);
+	extern template std::u32string read_file<char32_t>(const std::filesystem::path&);
 	extern template void write_file<char16_t>(const std::filesystem::path&, const std::u16string_view&);
 	extern template void write_file<char32_t>(const std::filesystem::path&, const std::u32string_view&);
+#endif
+
+#if __cpp_char8_t >= 201811
+	extern template std::u8string read_file<char8_t>(const std::filesystem::path&);
+	extern template void write_file<char8_t>(const std::filesystem::path&, const std::u8string_view&);
+#endif
 #endif
 }
