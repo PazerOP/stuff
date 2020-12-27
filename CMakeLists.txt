@@ -71,6 +71,12 @@ set(MH_STUFF_SOURCES
 set(MH_INCLUDE_DIRS "cpp/include")
 set(MH_COMPILE_FEATURES "cxx_std_20")
 
+if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+	set(MH_COMPILE_OPTIONS "${MH_COMPILE_OPTIONS} -fcoroutines")
+elseif (CMAKE_CXX_COMPILER_ID MATCHES GNU)
+	set(MH_COMPILE_OPTIONS "${MH_COMPILE_OPTIONS} -fcoroutines")
+endif()
+
 if (MH_STUFF_COMPILE_LIBRARY)
 	add_library(mh_stuff STATIC
 		${MH_STUFF_SOURCES}
@@ -98,6 +104,7 @@ if (MH_STUFF_COMPILE_LIBRARY)
 
 	target_include_directories(mh_stuff PUBLIC ${MH_INCLUDE_DIRS})
 	target_compile_features(mh_stuff PUBLIC ${MH_COMPILE_FEATURES})
+	target_compile_options(mh_stuff PUBLIC ${MH_COMPILE_OPTIONS})
 
 	if (MSVC)
 		target_compile_options(mh_stuff PRIVATE "/W3")
@@ -114,6 +121,7 @@ else()
 
 	target_include_directories(mh_stuff INTERFACE ${MH_INCLUDE_DIRS})
 	target_compile_features(mh_stuff INTERFACE ${MH_COMPILE_FEATURES})
+	target_compile_options(mh_stuff INTERFACE ${MH_COMPILE_OPTIONS})
 endif()
 
 add_library(mh::stuff ALIAS mh_stuff)
