@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef MH_COROUTINES_SUPPORTED
+
 #if defined(_MSC_VER) && defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
 #include <experimental/coroutine>
 namespace mh::detail::generator_hpp
@@ -184,3 +186,5 @@ namespace mh
 			co_yield *it;
 	}
 }
+
+#endif

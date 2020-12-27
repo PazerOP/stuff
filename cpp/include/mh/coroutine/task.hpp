@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef MH_COROUTINES_SUPPORTED
+
 #include "coroutine_common.hpp"
 
 #include <atomic>
@@ -113,3 +115,5 @@ namespace mh
 		co_return T(std::forward<TArgs>(args)...);
 	}
 }
+
+#endif

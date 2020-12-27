@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef MH_COROUTINES_SUPPORTED
 #include <cassert>
 #include <condition_variable>
 #include <coroutine>
@@ -373,4 +374,6 @@ MH_ENUM_REFLECT_BEGIN(mh::task_state)
 	MH_ENUM_REFLECT_VALUE(value)
 	MH_ENUM_REFLECT_VALUE(exception)
 MH_ENUM_REFLECT_END()
+#endif
+
 #endif

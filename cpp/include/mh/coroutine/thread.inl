@@ -1,3 +1,5 @@
+#ifdef MH_COROUTINES_SUPPORTED
+
 #ifdef MH_COMPILE_LIBRARY
 #include <mh/coroutine/thread.hpp>
 #endif
@@ -69,3 +71,5 @@ MH_COMPILE_LIBRARY_INLINE mh::detail::coroutine::thread_hpp::task mh::co_create_
 {
 	return { detail::coroutine::thread_hpp::co_create_thread_flags::off_main_thread };
 }
+
+#endif

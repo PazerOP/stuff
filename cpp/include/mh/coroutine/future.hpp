@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef MH_COROUTINES_SUPPORTED
+
 #include "coroutine_common.hpp"
 
 #include <cassert>
@@ -224,3 +226,5 @@ namespace mh
 		return shared_future<T>(std::move(super::m_State));
 	}
 }
+
+#endif

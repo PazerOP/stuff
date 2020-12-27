@@ -35,3 +35,15 @@ function(mh_target_compile_options targetName)
 	endif()
 
 endfunction()
+
+# target_compile_definitions
+function(mh_target_compile_definitions targetName)
+
+	get_target_property(TARGET_TYPE_VALUE ${targetName} TYPE)
+	if (TARGET_TYPE_VALUE STREQUAL "INTERFACE_LIBRARY")
+		target_compile_definitions(${targetName} INTERFACE ${ARGN})
+	else()
+		target_compile_definitions(${targetName} PUBLIC ${ARGN})
+	endif()
+
+endfunction()
