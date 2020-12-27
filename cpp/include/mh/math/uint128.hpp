@@ -347,6 +347,15 @@ namespace mh
 	};
 }
 
+inline constexpr bool operator==(const mh::uint128& lhs, const mh::uint128& rhs)
+{
+	return lhs.get_u64<0>() == rhs.get_u64<0>() && lhs.get_u64<1>() == rhs.get_u64<1>();
+}
+inline constexpr bool operator!=(const mh::uint128& lhs, const mh::uint128& rhs)
+{
+	return !(lhs == rhs);
+}
+
 #if (__cpp_impl_three_way_comparison >= 201907)
 inline constexpr std::strong_ordering operator<=>(
 	const mh::uint128& lhs, const mh::uint128& rhs)
