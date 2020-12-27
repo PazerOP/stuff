@@ -4,6 +4,8 @@ project(mh_stuff CXX)
 
 option(MH_STUFF_COMPILE_LIBRARY "True to compile some code into to a static library for less overhead" ON)
 
+include("cmake/CheckCoroutineSupport.cmake")
+
 set(MH_STUFF_SOURCES
 	"cpp/include/mh/algorithm/algorithm.hpp"
 	"cpp/include/mh/algorithm/multi_compare.hpp"
@@ -11,13 +13,6 @@ set(MH_STUFF_SOURCES
 	"cpp/include/mh/concurrency/async.hpp"
 	"cpp/include/mh/concurrency/main_thread.hpp"
 	"cpp/include/mh/concurrency/thread_pool.hpp"
-
-	"cpp/include/mh/coroutine/coroutine_common.hpp"
-	"cpp/include/mh/coroutine/future.hpp"
-	"cpp/include/mh/coroutine/generator.hpp"
-	"cpp/include/mh/coroutine/task.hpp"
-	"cpp/include/mh/coroutine/thread.hpp"
-	"cpp/include/mh/coroutine/thread.inl"
 
 	"cpp/include/mh/data/bit_float.hpp"
 	"cpp/include/mh/data/bits.hpp"
@@ -67,6 +62,17 @@ set(MH_STUFF_SOURCES
 	"cpp/include/mh/utility.hpp"
 	"cpp/include/mh/variant.hpp"
 )
+
+if (${PROJECT_NAME}_SUPPORTS_COROUTINES)
+	list(APPEND MH_STUFF_SOURCES
+		"cpp/include/mh/coroutine/coroutine_common.hpp"
+		"cpp/include/mh/coroutine/future.hpp"
+		"cpp/include/mh/coroutine/generator.hpp"
+		"cpp/include/mh/coroutine/task.hpp"
+		"cpp/include/mh/coroutine/thread.hpp"
+		"cpp/include/mh/coroutine/thread.inl"
+	)
+endif()
 
 set(MH_INCLUDE_DIRS "cpp/include")
 set(MH_COMPILE_FEATURES "cxx_std_20")

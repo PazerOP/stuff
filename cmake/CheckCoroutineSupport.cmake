@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.17)
+
+include(CheckCXXCompilerFlag)
+
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
+check_cxx_compiler_flag(-fcoroutines COROUTINES_FLAG_FCOROUTINES)
+if (NOT COROUTINES_FLAG_FCOROUTINES)
+	check_cxx_compiler_flag(-fcoroutines-ts COROUTINES_FLAG_FCOROUTINES_TS)
+endif()
+
+if (COROUTINES_FLAG_FCOROUTINES)
+	set(COROUTINES_FLAG -fcoroutines)
+elseif (COROUTINES_FLAG_FCOROUTINES_TS)
+	set(COROUTINES_FLAG -fcoroutines-ts)
+endif()
+
+set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} ${COROUTINES_FLAG})
+set(CMAKE_CXX_STANDARD 20)
+message("${PROJECT_NAME}_SUPPORTS_COROUTINES = ${${PROJECT_NAME}_SUPPORTS_COROUTINES}")
+
+check_cxx_source_compiles(
+"#include <coroutine> \
+int main(int argc, char** argv) { std::coroutine_handle<> handle; return 0; }"
+	${PROJECT_NAME}_SUPPORTS_COROUTINES)
+
+# try_compile(${PROJECT_NAME}_SUPPORTS_COROUTINES ${CMAKE_CURRENT_BINARY_DIR} "${CMAKE_CURRENT_LIST_DIR}/CheckCoroutineSupport.cpp"
+# 	CXX_STANDARD 20)
+
+message("${PROJECT_NAME}_SUPPORTS_COROUTINES = ${${PROJECT_NAME}_SUPPORTS_COROUTINES}")
