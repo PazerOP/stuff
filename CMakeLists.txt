@@ -61,23 +61,6 @@ set(MH_STUFF_SOURCES
 	"cpp/include/mh/variant.hpp"
 )
 
-include("cmake/CheckCoroutineSupport.cmake")
-if (${PROJECT_NAME}_SUPPORTS_COROUTINES)
-	list(APPEND MH_STUFF_SOURCES
-		"cpp/include/mh/coroutine/coroutine_common.hpp"
-		"cpp/include/mh/coroutine/future.hpp"
-		"cpp/include/mh/coroutine/generator.hpp"
-		"cpp/include/mh/coroutine/task.hpp"
-		"cpp/include/mh/coroutine/thread.hpp"
-		"cpp/include/mh/coroutine/thread.inl"
-	)
-
-	set(MH_COMPILE_OPTIONS ${MH_COMPILE_OPTIONS} ${COROUTINES_FLAG})
-endif()
-
-set(MH_INCLUDE_DIRS "cpp/include")
-set(MH_COMPILE_FEATURES "cxx_std_20")
-
 if (MH_STUFF_COMPILE_LIBRARY)
 	add_library(mh_stuff STATIC
 		${MH_STUFF_SOURCES}
@@ -103,10 +86,6 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	endforeach()
 	target_sources(mh_stuff PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
 
-	target_include_directories(mh_stuff PUBLIC ${MH_INCLUDE_DIRS})
-	target_compile_features(mh_stuff PUBLIC ${MH_COMPILE_FEATURES})
-	target_compile_options(mh_stuff PUBLIC ${MH_COMPILE_OPTIONS})
-
 	if (MSVC)
 		target_compile_options(mh_stuff PRIVATE "/W3")
 	endif()
@@ -119,10 +98,26 @@ else()
 	target_compile_definitions(mh_stuff INTERFACE
 		"MH_COMPILE_LIBRARY_INLINE=inline"
 	)
+endif()
 
-	target_include_directories(mh_stuff INTERFACE ${MH_INCLUDE_DIRS})
-	target_compile_features(mh_stuff INTERFACE ${MH_COMPILE_FEATURES})
-	target_compile_options(mh_stuff INTERFACE ${MH_COMPILE_OPTIONS})
+include("cmake/GenericTargetOptions.cmake")
+mh_target_include_directories(mh_stuff "cpp/include")
+mh_target_compile_features(mh_stuff "cxx_std_20")
+
+include("cmake/CheckCoroutineSupport.cmake")
+check_cxx_coroutine_support(SUPPORTS_COROUTINES COROUTINES_FLAGS)
+message("SUPPORTS_COROUTINES = ${SUPPORTS_COROUTINES}")
+if (SUPPORTS_COROUTINES)
+	list(APPEND MH_STUFF_SOURCES
+		"cpp/include/mh/coroutine/coroutine_common.hpp"
+		"cpp/include/mh/coroutine/future.hpp"
+		"cpp/include/mh/coroutine/generator.hpp"
+		"cpp/include/mh/coroutine/task.hpp"
+		"cpp/include/mh/coroutine/thread.hpp"
+		"cpp/include/mh/coroutine/thread.inl"
+	)
+
+	mh_target_compile_options(mh_stuff ${COROUTINES_FLAGS})
 endif()
 
 message("CMAKE_CXX_COMPILER_VERSION = ${CMAKE_CXX_COMPILER_VERSION}")
