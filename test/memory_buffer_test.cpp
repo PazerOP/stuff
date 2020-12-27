@@ -1,6 +1,8 @@
 #include "mh/memory/buffer.hpp"
 #include "catch2/repo/single_include/catch2/catch.hpp"
 
+#include <cstring>
+
 TEST_CASE("buffer - common", "[memory][buffer]")
 {
 	mh::buffer buf;
@@ -43,7 +45,7 @@ TEST_CASE("buffer - resize preserves data", "[memory][buffer]")
 	mh::buffer buf;
 	constexpr const char TEST_STR[] = "don't delete me :(";
 	buf.resize(sizeof(TEST_STR) * 25);
-	memcpy((char*)buf.data(), TEST_STR, sizeof(TEST_STR));
+	std::memcpy((char*)buf.data(), TEST_STR, sizeof(TEST_STR));
 
 	SECTION("Grow")
 	{
