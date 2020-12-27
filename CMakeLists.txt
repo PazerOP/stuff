@@ -94,7 +94,7 @@ if (MH_STUFF_COMPILE_LIBRARY)
 
 	# Create a cpp file of all .inl files and add it to the target
 	file(GLOB_RECURSE MH_INL_FILES "*.inl")
-	message("MH_INL_FILES = ${MH_INL_FILES}")
+	# message("MH_INL_FILES = ${MH_INL_FILES}")
 
 	file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
 	foreach(X IN LISTS MH_INL_FILES)
@@ -123,6 +123,8 @@ else()
 	target_compile_features(mh_stuff INTERFACE ${MH_COMPILE_FEATURES})
 	target_compile_options(mh_stuff INTERFACE ${MH_COMPILE_OPTIONS})
 endif()
+
+message("CMAKE_CXX_COMPILER_VERSION = ${CMAKE_CXX_COMPILER_VERSION}")
 
 add_library(mh::stuff ALIAS mh_stuff)
 
