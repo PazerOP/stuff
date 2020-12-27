@@ -4,8 +4,6 @@ project(mh_stuff CXX)
 
 option(MH_STUFF_COMPILE_LIBRARY "True to compile some code into to a static library for less overhead" ON)
 
-include("cmake/CheckCoroutineSupport.cmake")
-
 set(MH_STUFF_SOURCES
 	"cpp/include/mh/algorithm/algorithm.hpp"
 	"cpp/include/mh/algorithm/multi_compare.hpp"
@@ -63,6 +61,7 @@ set(MH_STUFF_SOURCES
 	"cpp/include/mh/variant.hpp"
 )
 
+include("cmake/CheckCoroutineSupport.cmake")
 if (${PROJECT_NAME}_SUPPORTS_COROUTINES)
 	list(APPEND MH_STUFF_SOURCES
 		"cpp/include/mh/coroutine/coroutine_common.hpp"
@@ -72,16 +71,12 @@ if (${PROJECT_NAME}_SUPPORTS_COROUTINES)
 		"cpp/include/mh/coroutine/thread.hpp"
 		"cpp/include/mh/coroutine/thread.inl"
 	)
+
+	set(MH_COMPILE_OPTIONS ${MH_COMPILE_OPTIONS} ${COROUTINES_FLAG})
 endif()
 
 set(MH_INCLUDE_DIRS "cpp/include")
 set(MH_COMPILE_FEATURES "cxx_std_20")
-
-if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
-	set(MH_COMPILE_OPTIONS ${MH_COMPILE_OPTIONS} -fcoroutines)
-elseif (CMAKE_CXX_COMPILER_ID MATCHES GNU)
-	set(MH_COMPILE_OPTIONS ${MH_COMPILE_OPTIONS} -fcoroutines)
-endif()
 
 if (MH_STUFF_COMPILE_LIBRARY)
 	add_library(mh_stuff STATIC
@@ -121,8 +116,8 @@ else()
 		${MH_STUFF_SOURCES}
 	)
 
-	target_compile_definitions(mh_stuff PUBLIC
-		"$$MH_COMPILE_LIBRARY_INLINE=inline"
+	target_compile_definitions(mh_stuff INTERFACE
+		"MH_COMPILE_LIBRARY_INLINE=inline"
 	)
 
 	target_include_directories(mh_stuff INTERFACE ${MH_INCLUDE_DIRS})
