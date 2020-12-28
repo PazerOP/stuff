@@ -108,6 +108,18 @@ endif()
 mh_target_include_directories(mh_stuff "cpp/include")
 mh_target_compile_features(mh_stuff "cxx_std_20")
 
+# G++ has strange issues with std::forward and variadic templates, check for them here
+try_compile(MH_TEST_VARIADIC_FORWARDING ${CMAKE_CURRENT_BINARY_DIR}
+	${PROJECT_SOURCE_DIR}/cmake/CheckPerfectForwarding.cpp
+	OUTPUT_VARIABLE MH_TEST_VARIADIC_FORWARDING_OUTPUT
+	CXX_STANDARD 20
+)
+message("MH_TEST_VARIADIC_FORWARDING = ${MH_TEST_VARIADIC_FORWARDING}")
+message("MH_TEST_VARIADIC_FORWARDING_OUTPUT = ${MH_TEST_VARIADIC_FORWARDING_OUTPUT}")
+if (NOT MH_TEST_VARIADIC_FORWARDING)
+	mh_target_compile_definitions(mh_stuff "MH_BROKEN_VARIADIC_FORWARDING")
+endif()
+
 check_cxx_compiler_flag(-fconcepts FCONCEPTS_FLAG)
 if (FCONCEPTS_FLAG)
 	mh_target_compile_options(mh_stuff -fconcepts)
