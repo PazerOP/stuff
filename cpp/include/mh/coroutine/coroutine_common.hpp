@@ -7,6 +7,7 @@
 #include <exception>
 #include <future>
 #include <mutex>
+#include <variant>
 #include <vector>
 
 namespace mh

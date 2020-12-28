@@ -37,3 +37,25 @@ endif()
 # add_executable(text_stringops_test "text_stringops_test.cpp")
 # target_link_libraries(text_stringops_test catch2 mh::stuff)
 # add_test(NAME text_stringops_test COMMAND text_stringops_test)
+
+# Make sure all header files can be compiled successfully by themselves
+
+set(MH_CPP_INCLUDE_ROOT "${PROJECT_SOURCE_DIR}/cpp/include")
+file(GLOB_RECURSE MH_HPP_FILES RELATIVE ${MH_CPP_INCLUDE_ROOT} "${MH_CPP_INCLUDE_ROOT}/mh/*.hpp")
+message("MH_HPP_FILES = ${MH_HPP_FILES}")
+foreach (F IN LISTS MH_HPP_FILES)
+	string(REPLACE "/" "_" SAFE_FILENAME ${F})
+	string(REPLACE "\\" "_" SAFE_FILENAME ${SAFE_FILENAME})
+	string(REPLACE "." "_" SAFE_FILENAME ${SAFE_FILENAME})
+
+	set(GENERATED_FILE "${CMAKE_CURRENT_BINARY_DIR}/test_compile_file/${SAFE_FILENAME}.cpp")
+	set(TEST_FILE_NAME ${F})
+	configure_file("${PROJECT_SOURCE_DIR}/test/test_compile_file_base.cpp" ${GENERATED_FILE})
+
+	add_library(test_compile_file_${SAFE_FILENAME} STATIC
+		"${MH_CPP_INCLUDE_ROOT}/${F}"
+		"${GENERATED_FILE}"
+	)
+
+	target_link_libraries(test_compile_file_${SAFE_FILENAME} PUBLIC mh::stuff)
+endforeach()

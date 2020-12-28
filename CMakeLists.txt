@@ -45,6 +45,7 @@ set(MH_STUFF_SOURCES
 	"cpp/include/mh/text/case_insensitive_string.hpp"
 	"cpp/include/mh/text/charconv_helper.hpp"
 	"cpp/include/mh/text/codecvt.hpp"
+	"cpp/include/mh/text/codecvt.inl"
 	"cpp/include/mh/text/fmtstr.hpp"
 	"cpp/include/mh/text/format.hpp"
 	"cpp/include/mh/text/insertion_conversion.hpp"

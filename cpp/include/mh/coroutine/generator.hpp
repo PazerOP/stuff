@@ -19,6 +19,7 @@ namespace mh::detail::generator_hpp
 #include <cassert>
 #include <exception>
 #include <iterator>
+#include <stdexcept>
 #include <variant>
 
 namespace mh

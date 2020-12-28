@@ -68,7 +68,7 @@ namespace mh
 			return m_Length;
 		}
 
-#if __has_include(<mh/text/format.hpp>)
+#if MH_FORMATTER != MH_FORMATTER_NONE
 		template<typename... TArgs>
 		auto fmt(const view_type& fmtStr, const TArgs&... args) ->
 			decltype(mh::format_to_n((CharT*)nullptr, max_size(), fmtStr, args...), size_t{})

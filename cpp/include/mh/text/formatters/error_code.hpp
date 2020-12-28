@@ -4,6 +4,7 @@
 
 #include <mh/text/format.hpp>
 
+#if MH_FORMATTER != MH_FORMATTER_NONE
 #include <system_error>
 
 template<typename T, typename CharT>
@@ -70,5 +71,6 @@ struct mh::formatter<T, CharT, std::enable_if_t<std::is_same_v<T, std::error_cod
 		return it;
 	}
 };
+#endif
 
 #endif
