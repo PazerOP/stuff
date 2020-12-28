@@ -3,6 +3,7 @@
 #include <charconv>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 
 namespace mh
 {
