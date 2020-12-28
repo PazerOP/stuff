@@ -1,6 +1,8 @@
 #pragma once
 
+#if __has_include(<version>)
 #include <version>
+#endif
 
 #if __cpp_lib_bit_cast >= 201806
 #include <bit>
