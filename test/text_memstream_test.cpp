@@ -64,10 +64,23 @@ TEST_CASE("memstream put", "[text][memstream]")
 
 		REQUIRE(ms.seekg(0, std::ios::end));
 		REQUIRE(ms.tellg() == 6);
-		REQUIRE(ms.seekg(0, std::ios::beg));
+		REQUIRE(ms.seekg(0));
 
 		ms << TEST_INT_VALUE;
-		REQUIRE(ms.view() == "487bar");
+		CHECK(ms.tellp() == 3);
+		CHECK(ms.tellg() == 0);
+		CHECK(ms.seekg(0, std::ios::end));
+		CHECK(ms.tellg() == 6);
+		CHECK(ms.seekg(0));
+
+		CHECK(ms.view() == "487bar");
+		CHECK(buf[0] == '4');
+		CHECK(buf[1] == '8');
+		CHECK(buf[2] == '7');
+		CHECK(buf[3] == 'b');
+		CHECK(buf[4] == 'a');
+		CHECK(buf[5] == 'r');
+		CHECK(buf[6] == '\0');
 
 		int testInt;
 		REQUIRE(ms.seekg(0));

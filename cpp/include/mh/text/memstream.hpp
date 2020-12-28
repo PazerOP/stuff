@@ -77,16 +77,43 @@ namespace mh
 
 		pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override
 		{
-			if (dir == std::ios_base::beg)
-			{
+			if (dir == std::ios::beg)
 				return seekpos(off, which);
-			}
-			else if (dir == std::ios_base::end)
-			{
-				if (!(which & std::ios::in) && !(which & std::ios::out))
-					throw std::invalid_argument("'which' must be one or a combination of 'in' and 'out'");
 
-				pos_type result;
+			if (!(which & std::ios::in) && !(which & std::ios::out))
+				throw std::invalid_argument("'which' must be one or a combination of 'in' and 'out'");
+
+			switch (dir)
+			{
+			case std::ios::cur:
+			{
+				if (off == 0) // fast path for tellg() and tellp()
+				{
+					if (which & std::ios::in)
+					{
+						return gcur() - gbeg();
+					}
+					else //if (which & std::ios::out)
+					{
+						assert(which & std::ios::out);
+						return pcur() - pbeg();
+					}
+				}
+
+				pos_type result{};
+
+				if (which & std::ios_base::in)
+					result = seekpos((gcur() - gbeg()) + off, std::ios::in);
+				if (which & std::ios_base::out)
+					result = seekpos((pcur() - pbeg()) + off, std::ios::out);
+
+				return result;
+			}
+
+			case std::ios::end:
+			{
+				pos_type result{};
+
 				if (which & std::ios::in)
 					result = seekpos((gend() - gbeg()) - off, std::ios::in);
 				if (which & std::ios::out)
@@ -94,31 +121,8 @@ namespace mh
 
 				return result;
 			}
-			else if (dir == std::ios_base::cur)
-			{
-				constexpr auto both = std::ios_base::in | std::ios_base::out;
-				if ((which & both) == both)
-				{
-					if (gcur() != pcur())
-					{
-						assert(false);
-						throw std::runtime_error("Cannot seek relative to current position if both in and out are at different offsets!");
-					}
 
-					return seekpos((gcur() - gbeg()) + off, both);
-				}
-				else if (which & std::ios_base::in)
-					return seekpos((gcur() - gbeg()) + off, std::ios_base::in);
-				else if (which & std::ios_base::out)
-					return seekpos((pcur() - pbeg()) + off, std::ios_base::out);
-				else
-				{
-					assert(false);
-					throw std::invalid_argument("Unexpected value for \"which\"");
-				}
-			}
-			else
-			{
+			default:
 				assert(false);
 				throw std::invalid_argument("Unknown seekdir");
 			}
