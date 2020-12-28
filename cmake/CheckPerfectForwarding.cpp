@@ -26,7 +26,6 @@ int main(int argc, char** argv)
 	TestForwarding(3, "hello world", 42.1234f);
 }
 #else
-#pragma once
 
 #include <utility>
 #include <variant>
@@ -89,72 +88,6 @@ namespace mh
 		using value_type = TValue;
 		using error_type = TError;
 
-		static_assert(!std::is_same_v<value_type, void>, "value type cannot be void");
-		static_assert(!std::is_same_v<value_type, expect_t>, "value type cannot be expect_t");
-		static_assert(!std::is_same_v<value_type, unexpect_t>, "value type cannot be unexpect_t");
-
-		static_assert(!std::is_same_v<error_type, void>, "error type cannot be void");
-		static_assert(!std::is_same_v<error_type, expect_t>, "error type cannot be expect_t");
-		static_assert(!std::is_same_v<error_type, unexpect_t>, "error type cannot be unexpect_t");
-
-		constexpr expected()
-			noexcept(std::is_nothrow_default_constructible_v<TValue>)
-			requires std::is_default_constructible_v<TValue>
-		{
-		}
-
-		constexpr expected(value_type&& value) : expected(expect, std::move(value)) {}
-		constexpr expected(const value_type& value) : expected(expect, value) {}
-		constexpr expected(error_type&& error) : expected(unexpect, std::move(error)) {}
-		constexpr expected(const error_type& error) : expected(unexpect, error) {}
-
-		template<typename T>
-		constexpr expected(T&& val)
-			requires std::is_constructible_v<TError, T>
-			: expected(TError(std::forward<T>(val)))
-		{
-		}
-
-		constexpr expected(expect_t&, value_type&& value) : m_State(std::in_place_index_t<VALUE_IDX>{}, std::move(value)) {}
-		constexpr expected(expect_t&, const value_type& value) : m_State(std::in_place_index_t<VALUE_IDX>{}, value) {}
-
-		constexpr expected(unexpect_t&, error_type&& value) : m_State(std::in_place_index_t<ERROR_IDX>{}, std::move(value)) {}
-		constexpr expected(unexpect_t&, const error_type& value) : m_State(std::in_place_index_t<ERROR_IDX>{}, value) {}
-
-		constexpr this_type& operator=(value_type&& value)
-			noexcept(noexcept(emplace(expect, std::move(value))))
-		{
-			emplace(expect, std::move(value));
-			return *this;
-		}
-		constexpr this_type& operator=(const value_type& value)
-			noexcept(noexcept(emplace(expect, value)))
-		{
-			emplace(expect, value);
-			return *this;
-		}
-		constexpr this_type& operator=(error_type&& error)
-			noexcept(noexcept(emplace(unexpect, std::move(error))))
-		{
-			emplace(unexpect, std::move(error));
-			return *this;
-		}
-		constexpr this_type& operator=(const error_type& error)
-			noexcept(noexcept(emplace(unexpect, error)))
-		{
-			emplace(unexpect, error);
-			return *this;
-		}
-
-		template<typename T>
-		constexpr this_type& operator=(T&& error)
-			noexcept(noexcept(emplace(unexpect, std::forward<T>(error))))
-			requires std::is_constructible_v<TError, T>
-		{
-			emplace(unexpect, error);
-			return *this;
-		}
-
 		constexpr bool has_value() const { return m_State.index() == VALUE_IDX; }
 		constexpr operator bool() const { return has_value(); }
 
@@ -164,46 +97,20 @@ namespace mh
 		constexpr error_type& error() { return std::get<ERROR_IDX>(m_State); }
 		constexpr const error_type& error() const { return std::get<ERROR_IDX>(m_State); }
 
-		constexpr value_type* operator->() { return &value(); }
-		constexpr const value_type* operator->() const { return &value(); }
-
 		template<typename... TArgs>
-		value_type& emplace(expect_t&, TArgs&&... args)
+		value_type& emplace(expect_t, TArgs&&... args)
 		{
 			m_State.emplace<VALUE_IDX>(std::forward<TArgs>(args)...);
 			return value();
 		}
 
 		template<typename... TArgs>
-		error_type& emplace(unexpect_t&, TArgs&&... args)
+		error_type& emplace(unexpect_t, TArgs&&... args)
 		{
 			m_State.emplace<ERROR_IDX>(std::forward<TArgs>(args)...);
 			return error();
 		}
 
-		template<typename TFunc>
-		this_type& or_else(TFunc&& func)
-		{
-			if (!has_value())
-				func(error());
-
-			return *this;
-		}
-		template<typename TFunc>
-		const this_type& or_else(TFunc&& func) const
-		{
-			if (!has_value())
-				func(error());
-
-			return *this;
-		}
-
-		template<typename TFunc>
-		decltype(auto) map(TFunc&& func) { return detail::error::expected_hpp::map(*this, std::forward<TFunc>(func)); }
-		template<typename TFunc>
-		decltype(auto) map(TFunc&& func) const { return detail::error::expected_hpp::map(*this, std::forward<TFunc>(func)); }
-
-	private:
 		std::variant<value_type, error_type> m_State;
 	};
 }
@@ -211,6 +118,8 @@ namespace mh
 int main(int argc, char** argv)
 {
 	mh::expected<float, int> test;
+	test.emplace(mh::expect, 42.0f);
+	test.emplace(mh::unexpect, -1);
 }
 
 #endif
