@@ -87,7 +87,7 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	target_sources(mh_stuff PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
 
 	if (MSVC)
-		target_compile_options(mh_stuff PRIVATE "/W3")
+		target_compile_options(mh_stuff PRIVATE /W3 /permissive-)
 	endif()
 
 else()
