@@ -6,6 +6,8 @@
 #include <string>
 #include <string.h>
 
+#include <iostream>
+
 namespace mh
 {
 	namespace detail::memstream_hpp
@@ -16,6 +18,7 @@ namespace mh
 	template<typename CharT = char, typename Traits = std::char_traits<CharT>>
 	class basic_memstreambuf : public std::basic_streambuf<CharT, Traits>
 	{
+		using sv_type = std::basic_string_view<CharT, Traits>;
 	public:
 		using base_streambuf_type = std::basic_streambuf<CharT, Traits>;
 		using int_type = typename base_streambuf_type::int_type;
@@ -33,8 +36,8 @@ namespace mh
 			this->setg(buf, buf, buf + existingSize);
 		}
 
-		auto view() const { return std::basic_string_view<CharT, Traits>(gcur(), gend() - gcur()); }
-		auto view_full() const { return std::basic_string_view<CharT, Traits>(gbeg(), gend() - gbeg()); }
+		sv_type view() const { return sv_type(gcur(), gend() - gcur()); }
+		sv_type view_full() const { return sv_type(gbeg(), gend() - gbeg()); }
 
 	protected:
 		base_streambuf_type* setbuf(CharT* s, std::streamsize n) override
@@ -130,6 +133,7 @@ namespace mh
 
 		std::streamsize xsputn(const CharT* s, std::streamsize count) override
 		{
+			std::cerr << __func__ << "(): count = " << +count << ", s = " << sv_type(s, count) << std::endl;
 			count = detail::memstream_hpp::min<off_t>(count, remaining_p());
 			auto ptr = pcur();
 			for (std::streamsize i = 0; i < count; i++)
@@ -152,6 +156,7 @@ namespace mh
 
 		int_type overflow(int_type ch = Traits::eof()) override
 		{
+			std::cerr << __func__ << "(): ch = " << +ch << std::endl;
 			if (ch != Traits::eof())
 			{
 				if (pcur() == pend())
@@ -181,6 +186,7 @@ namespace mh
 
 		void update_get_area_size()
 		{
+			std::cerr << __func__ << "()" << std::endl;
 			//auto getAreaSize = gend() - gbeg();
 			auto minPutAreaSize = pcur() - pbeg();
 			//if (getAreaSize < minPutAreaSize)
