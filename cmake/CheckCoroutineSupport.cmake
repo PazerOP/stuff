@@ -22,7 +22,7 @@ function(check_cxx_coroutine_support IS_SUPPORTED COROUTINES_FLAGS)
 	check_cxx_source_compiles(
 	"#include <coroutine> \
 	int main(int argc, char** argv) { std::coroutine_handle<> handle; return 0; }"
-		IS_SUPPORTED)
+		${IS_SUPPORTED})
 
 	# try_compile(${PROJECT_NAME}_SUPPORTS_COROUTINES ${CMAKE_CURRENT_BINARY_DIR} "${CMAKE_CURRENT_LIST_DIR}/CheckCoroutineSupport.cpp"
 	# 	CXX_STANDARD 20)

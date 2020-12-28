@@ -481,8 +481,8 @@ namespace mh
 		if constexpr (loop_bytes > 1)
 		{
 			debug([]{ std::cerr << "post-loop\n"; });
-			constexpr bool dst_multibyte = !((dst_offset_bits + bits_to_copy) % BITS_PER_BYTE);
-			constexpr bool src_multibyte = !((src_offset_bits + bits_to_copy) % BITS_PER_BYTE);
+			constexpr bool dst_multibyte = !!((dst_offset_bits + bits_to_copy) % BITS_PER_BYTE);
+			constexpr bool src_multibyte = !!((src_offset_bits + bits_to_copy) % BITS_PER_BYTE);
 
 			constexpr size_t remaining_bits = (dst_offset_bits + bits_to_copy) - ((loop_bytes - 1) * BITS_PER_BYTE);
 			constexpr uint_fast16_t mask = BIT_MASKS<uint_fast16_t>[remaining_bits]

@@ -171,7 +171,7 @@ namespace mh
 	}
 }
 
-#if __has_include(<mh/coroutine/generator.hpp>) && (__cpp_impl_coroutine >= 201902)
+#ifdef MH_COROUTINES_SUPPORTED
 #include <mh/coroutine/generator.hpp>
 namespace mh
 {
