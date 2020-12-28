@@ -132,7 +132,7 @@ endif()
 # build with correct stdlib for complier
 if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	mh_target_compile_options(mh_stuff -stdlib=libc++)
-	mh_target_link_options(mh_stuff -stdlib=libc++)
+	mh_target_link_options(mh_stuff -stdlib=libc++ -lc++abi)
 endif()
 
 message("CMAKE_CXX_COMPILER_VERSION = ${CMAKE_CXX_COMPILER_VERSION}")
