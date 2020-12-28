@@ -9,7 +9,7 @@ TEST_CASE("memstream put", "[text][memstream]")
 	constexpr std::string_view TEST_STRING = "my test string";
 	ms << TEST_STRING;
 
-	REQUIRE_THAT(buf, Catch::Equals(TEST_STRING.data()));
+	REQUIRE(std::memcmp(buf, TEST_STRING.data(), TEST_STRING.size()) == 0);
 	REQUIRE(ms.view() == TEST_STRING);
 	CHECK(!ms.fail());
 	CHECK(ms.good());
@@ -19,8 +19,10 @@ TEST_CASE("memstream put", "[text][memstream]")
 
 	ms.seekp(7);
 	ms << " foo";
-	REQUIRE(ms.view() == "my test foo");
-	REQUIRE_THAT(buf, Catch::Equals("my test foo"));
+
+	constexpr std::string_view TEST_STRING_FOO = "my test foo";
+	REQUIRE(ms.view() == TEST_STRING_FOO);
+	REQUIRE(std::memcmp(buf, TEST_STRING_FOO.data(), TEST_STRING_FOO.size()) == 0);
 
 	{
 		REQUIRE(ms.seekg(2));
@@ -80,7 +82,6 @@ TEST_CASE("memstream put", "[text][memstream]")
 		CHECK(buf[3] == 'b');
 		CHECK(buf[4] == 'a');
 		CHECK(buf[5] == 'r');
-		CHECK(buf[6] == '\0');
 
 		int testInt;
 		REQUIRE(ms.seekg(0));

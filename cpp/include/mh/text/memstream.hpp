@@ -148,7 +148,6 @@ namespace mh
 			}
 
 			this->pbump(count);
-			ptr[count] = {};
 
 			update_get_area_size();
 			return count;
