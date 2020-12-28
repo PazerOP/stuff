@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.17)
 
 project(mh_stuff CXX)
 
+include("cmake/GenericTargetOptions.cmake")
+include("cmake/CheckCoroutineSupport.cmake")
+include(CheckCXXCompilerFlag)
+
 option(MH_STUFF_COMPILE_LIBRARY "True to compile some code into to a static library for less overhead" ON)
 
 set(MH_STUFF_SOURCES
@@ -101,11 +105,14 @@ else()
 	)
 endif()
 
-include("cmake/GenericTargetOptions.cmake")
 mh_target_include_directories(mh_stuff "cpp/include")
 mh_target_compile_features(mh_stuff "cxx_std_20")
 
-include("cmake/CheckCoroutineSupport.cmake")
+check_cxx_compiler_flag(-fconcepts CONCEPTS_FLAG)
+if (CONCEPTS_FLAG)
+	MH_TARGET_COMPILE_OPTIONS(mh_stuff ${CONCEPTS_FLAG})
+endif()
+
 check_cxx_coroutine_support(SUPPORTS_COROUTINES COROUTINES_FLAGS)
 message("SUPPORTS_COROUTINES = ${SUPPORTS_COROUTINES}")
 if (SUPPORTS_COROUTINES)
