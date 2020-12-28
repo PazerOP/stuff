@@ -10,12 +10,12 @@ namespace mh
 #if __cpp_lib_remove_cvref >= 201711
 		template<typename T> using remove_cvref_t = std::remove_cvref_t<T>;
 #else
-		template<typename T> using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>
+		template<typename T> using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 #endif
 
 		template<typename EF, typename Fn, typename TSelf>
 		concept ConstructibleFunc =
-			!std::is_same_v<std::remove_cvref_t<Fn>, TSelf> &&
+			!std::is_same_v<remove_cvref_t<Fn>, TSelf> &&
 			std::is_constructible_v<EF, Fn>;
 
 		template<typename EF, typename Fn, typename TSelf>
