@@ -171,8 +171,9 @@ namespace mh
 	}
 }
 
-#ifdef MH_COROUTINES_SUPPORTED
+#if __has_include(<mh/coroutine/generator.hpp>)
 #include <mh/coroutine/generator.hpp>
+#ifdef MH_COROUTINES_SUPPORTED
 namespace mh
 {
 	template<typename CharT, typename Traits>
@@ -195,4 +196,5 @@ namespace mh
 		return split_string(sv(string), sv(splitChars));
 	}
 }
+#endif
 #endif
