@@ -59,13 +59,18 @@ TEST_CASE("memstream put", "[text][memstream]")
 		constexpr int TEST_INT_VALUE = 487;
 
 		REQUIRE(ms.view() == "foobar");
-		ms.seekp(0);
+		REQUIRE(ms.seekp(0));
 		REQUIRE(ms.tellp() == 0);
+
+		REQUIRE(ms.seekg(0, std::ios::end));
+		REQUIRE(ms.tellg() == 6);
+		REQUIRE(ms.seekg(0, std::ios::beg));
+
 		ms << TEST_INT_VALUE;
 		REQUIRE(ms.view() == "487bar");
 
 		int testInt;
-		ms.seekg(0);
+		REQUIRE(ms.seekg(0));
 		ms >> testInt;
 		REQUIRE(testInt == TEST_INT_VALUE);
 	}

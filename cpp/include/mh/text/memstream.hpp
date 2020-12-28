@@ -54,9 +54,23 @@ namespace mh
 		pos_type seekpos(pos_type pos, std::ios_base::openmode which) override
 		{
 			if (which & std::ios_base::in)
-				this->setg(gbeg(), gbeg() + pos, gend());
+			{
+				const auto newPos = gbeg() + pos;
+				[[maybe_unused]] const auto startDelta = newPos - gbeg();
+				[[maybe_unused]] const auto endDelta = length_g() - pos;
+				assert(startDelta >= 0);
+				assert(endDelta >= 0);
+				this->setg(gbeg(), newPos, gend());
+			}
 			if (which & std::ios_base::out)
-				this->setp(pbeg(), pbeg() + pos, pend());
+			{
+				const auto newPos = pbeg() + pos;
+				[[maybe_unused]] const auto startDelta = newPos - pbeg();
+				[[maybe_unused]] const auto endDelta = length_p() - pos;
+				assert(startDelta >= 0);
+				assert(endDelta >= 0);
+				this->setp(pbeg(), newPos, pend());
+			}
 
 			return pos;
 		}
@@ -64,9 +78,22 @@ namespace mh
 		pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override
 		{
 			if (dir == std::ios_base::beg)
+			{
 				return seekpos(off, which);
+			}
 			else if (dir == std::ios_base::end)
-				return seekpos((pend() - pbeg()) - off, which);
+			{
+				if (!(which & std::ios::in) && !(which & std::ios::out))
+					throw std::invalid_argument("'which' must be one or a combination of 'in' and 'out'");
+
+				pos_type result;
+				if (which & std::ios::in)
+					result = seekpos((gend() - gbeg()) - off, std::ios::in);
+				if (which & std::ios::out)
+					result = seekpos((pend() - pbeg()) - off, std::ios::out);
+
+				return result;
+			}
 			else if (dir == std::ios_base::cur)
 			{
 				constexpr auto both = std::ios_base::in | std::ios_base::out;
@@ -143,6 +170,8 @@ namespace mh
 		CharT* gcur() const { return this->gptr(); }
 		CharT* gend() const { return this->egptr(); }
 
+		off_type length_p() const { return pend() - pbeg(); }
+		off_type length_g() const { return gend() - gbeg(); }
 		off_type remaining_p() const { return pend() - pcur() - 1; }
 		off_type remaining_g() const { return gend() - gcur() - 1; }
 
