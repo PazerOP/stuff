@@ -79,8 +79,6 @@ jobs:
         submodules: recursive
 
     - name: Run tests
-      env:
-        CXX: ${{ matrix.compiler.exe }}
       run: |
         mkdir build
         cd build
