@@ -1,5 +1,7 @@
 #pragma once
 
+#if __cpp_concepts >= 201907
+
 #include <utility>
 #include <variant>
 
@@ -179,3 +181,5 @@ namespace mh
 		std::variant<value_type, error_type> m_State;
 	};
 }
+
+#endif
