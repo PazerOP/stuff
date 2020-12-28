@@ -110,9 +110,9 @@ namespace mh
 	public:
 		using base_type = base_format_string<N, CharT, Traits>;
 		using this_type = printf_string;
-		using value_type = base_type::value_type;
-		using traits_type = base_type::traits_type;
-		using view_type = base_type::view_type;
+		using value_type = typename base_type::value_type;
+		using traits_type = typename base_type::traits_type;
+		using view_type = typename base_type::view_type;
 
 		constexpr printf_string() = default;
 		printf_string(const value_type* fmtStr, ...)
@@ -139,10 +139,10 @@ namespace mh
 	public:
 		using base_type = base_format_string<N, CharT, Traits>;
 		using this_type = format_string;
-		using value_type = base_type::value_type;
-		using traits_type = base_type::traits_type;
-		using view_type = base_type::view_type;
-		using array_type = base_type::array_type;
+		using value_type = typename base_type::value_type;
+		using traits_type = typename base_type::traits_type;
+		using view_type = typename base_type::view_type;
+		using array_type = typename base_type::array_type;
 
 		constexpr format_string() = default;
 		template<typename... TArgs, typename = decltype(mh::format(std::declval<view_type>(), std::declval<TArgs>()...))>
