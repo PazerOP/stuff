@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.16.3)
 
 add_subdirectory("catch2/repo")
 include("catch2/repo/contrib/Catch.cmake")
@@ -7,6 +7,12 @@ include("catch2/repo/contrib/Catch.cmake")
 # target_compile_features(catch2_static PUBLIC cxx_std_20)
 target_compile_features(Catch2WithMain PUBLIC cxx_std_20)
 # target_link_libraries(catch2_static Catch2::Catch2)
+
+# build with correct stdlib for complier
+if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+	target_compile_options(Catch2WithMain PUBLIC -stdlib=libc++)
+	target_link_options(Catch2WithMain PUBLIC -stdlib=libc++ -lc++abi)
+endif()
 
 function(mh_test name)
 	add_executable(${name} "${name}.cpp")

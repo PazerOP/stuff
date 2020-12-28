@@ -47,6 +47,7 @@ namespace mh
 	extern template void write_file<char>(const std::filesystem::path&, const std::string_view&);
 	extern template void write_file<wchar_t>(const std::filesystem::path&, const std::wstring_view&);
 
+#ifndef MH_BROKEN_UNICODE
 #if __cpp_unicode_characters >= 200704
 	extern template std::u16string read_file<char16_t>(const std::filesystem::path&);
 	extern template std::u32string read_file<char32_t>(const std::filesystem::path&);
@@ -57,6 +58,7 @@ namespace mh
 #if __cpp_char8_t >= 201811
 	extern template std::u8string read_file<char8_t>(const std::filesystem::path&);
 	extern template void write_file<char8_t>(const std::filesystem::path&, const std::u8string_view&);
+#endif
 #endif
 #endif
 }

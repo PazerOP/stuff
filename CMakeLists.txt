@@ -1,9 +1,17 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.16.3)
 
 project(mh_stuff CXX)
 
+# build with correct stdlib for complier
+if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+	add_compile_options(-stdlib=libc++)
+	add_link_options(-stdlib=libc++ -lc++abi)
+	set(CMAKE_CXX_OPTIONS)
+endif()
+
 include("cmake/GenericTargetOptions.cmake")
 include("cmake/CheckCoroutineSupport.cmake")
+include("cmake/CheckUnicodeSupport.cmake")
 include(CheckCXXCompilerFlag)
 
 option(MH_STUFF_COMPILE_LIBRARY "True to compile some code into to a static library for less overhead" ON)
@@ -129,11 +137,10 @@ if (SUPPORTS_COROUTINES)
 	mh_target_compile_definitions(mh_stuff "MH_COROUTINES_SUPPORTED")
 endif()
 
-# build with correct stdlib for complier
-# if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
-# 	mh_target_compile_options(mh_stuff -stdlib=libc++)
-# 	mh_target_link_options(mh_stuff -stdlib=libc++ -lc++abi)
-# endif()
+check_cxx_unicode_support(SUPPORTS_UNICODE)
+if (NOT SUPPORTS_UNICODE)
+	mh_target_compile_definitions(mh_stuff "MH_BROKEN_UNICODE")
+endif()
 
 message("CMAKE_CXX_COMPILER_VERSION = ${CMAKE_CXX_COMPILER_VERSION}")
 
