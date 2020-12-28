@@ -82,6 +82,10 @@ jobs:
       with:
         submodules: recursive
 
+    - uses: seanmiddleditch/gha-setup-ninja@v3
+    - name: Setup compiler paths
+      uses: ilammy/msvc-dev-cmd@v1.5.0
+
     - name: Run tests
       run: |
         mkdir build
