@@ -3,10 +3,24 @@
 #include <fstream>
 #include <string>
 
+template<typename CharT, typename Traits = std::char_traits<CharT>, typename Alloc = std::allocator<CharT>>
+std::basic_string<CharT, Traits, Alloc> TestFunc(const std::filesystem::path& path)
+{
+	std::basic_ifstream<CharT, Traits> file;
+	file.open(path);
+
+	file.seekg(0, std::ios::end);
+	const auto length = file.tellg();
+	file.seekg(0);
+
+	std::basic_string<CharT, Traits, Alloc> retVal(length, ' ');
+	file.read(retVal.data(), length);
+
+	return retVal;
+}
+
 int main(int argc, char** argv)
 {
-	std::basic_ifstream<char16_t> c16;
-	std::basic_string<char16_t> s16;
-	std::basic_ifstream<char32_t> c32;
-	std::basic_string<char32_t> s32;
+	TestFunc<char16_t>("hello_char16");
+	TestFunc<char32_t>("hello_char32");
 }

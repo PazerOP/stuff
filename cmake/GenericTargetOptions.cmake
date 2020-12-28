@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.16.3)
 # target_include_directories
 function(mh_target_include_directories targetName)
 
+	message("mh_target_include_directories(${targetName} ${ARGN})")
 	get_target_property(TARGET_TYPE_VALUE ${targetName} TYPE)
 	if (TARGET_TYPE_VALUE STREQUAL "INTERFACE_LIBRARY")
 		target_include_directories(${targetName} INTERFACE ${ARGN})
@@ -15,6 +16,7 @@ endfunction()
 # target_compile_features
 function(mh_target_compile_features targetName)
 
+	message("mh_target_compile_features(${targetName} ${ARGN})")
 	get_target_property(TARGET_TYPE_VALUE ${targetName} TYPE)
 	if (TARGET_TYPE_VALUE STREQUAL "INTERFACE_LIBRARY")
 		target_compile_features(${targetName} INTERFACE ${ARGN})
@@ -27,8 +29,8 @@ endfunction()
 # target_compile_options
 function(mh_target_compile_options targetName)
 
-	get_target_property(TARGET_TYPE_VALUE ${targetName} TYPE)
 	message("mh_target_compile_options(${targetName} ${ARGN})")
+	get_target_property(TARGET_TYPE_VALUE ${targetName} TYPE)
 	if (TARGET_TYPE_VALUE STREQUAL "INTERFACE_LIBRARY")
 		target_compile_options(${targetName} INTERFACE ${ARGN})
 	else()
@@ -40,6 +42,7 @@ endfunction()
 # target_link_options
 function(mh_target_link_options targetName)
 
+	message("mh_target_link_options(${targetName} ${ARGN})")
 	get_target_property(TARGET_TYPE_VALUE ${targetName} TYPE)
 	if (TARGET_TYPE_VALUE STREQUAL "INTERFACE_LIBRARY")
 		target_link_options(${targetName} INTERFACE ${ARGN})
@@ -52,6 +55,7 @@ endfunction()
 # target_compile_definitions
 function(mh_target_compile_definitions targetName)
 
+	message("mh_target_compile_definitions(${targetName} ${ARGN})")
 	get_target_property(TARGET_TYPE_VALUE ${targetName} TYPE)
 	if (TARGET_TYPE_VALUE STREQUAL "INTERFACE_LIBRARY")
 		target_compile_definitions(${targetName} INTERFACE ${ARGN})
