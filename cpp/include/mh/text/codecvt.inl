@@ -2,6 +2,10 @@
 #include "codecvt.hpp"
 #endif
 
+#if __has_include(<cuchar>)
+#include <cuchar>
+#endif
+
 #ifndef MH_COMPILE_LIBRARY_INLINE
 #define MH_COMPILE_LIBRARY_INLINE inline
 #endif

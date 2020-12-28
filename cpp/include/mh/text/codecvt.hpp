@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cassert>
-#include <cuchar>
 #include <cwchar>
 #include <stdexcept>
 #include <string>
