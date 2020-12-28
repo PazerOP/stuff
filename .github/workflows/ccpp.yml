@@ -63,3 +63,27 @@ jobs:
         cmake -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} ../ -G Ninja
         cmake --build .
         ctest --output-on-failure
+
+
+
+  ci-windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        MH_STUFF_COMPILE_LIBRARY: [true, false]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Run tests
+      env:
+        CXX: ${{ matrix.compiler.exe }}
+      run: |
+        mkdir build
+        cd build
+        cmake -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} ../ -G Ninja
+        cmake --build .
+        ctest --output-on-failure
