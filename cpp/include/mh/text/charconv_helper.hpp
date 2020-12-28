@@ -1,6 +1,9 @@
 #pragma once
 
+#if __has_include(<charconv>)
 #include <charconv>
+
+#if __cpp_lib_to_chars >= 201611
 #include <optional>
 #include <string_view>
 #include <type_traits>
@@ -96,3 +99,6 @@ namespace mh
 		return std::to_chars(array, array + size, value, base);
 	}
 }
+
+#endif
+#endif
