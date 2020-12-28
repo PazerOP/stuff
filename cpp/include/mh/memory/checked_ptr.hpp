@@ -1,6 +1,8 @@
 #pragma once
 
+#if __has_include(<compare>)
 #include <compare>
+#endif
 
 #ifdef _DEBUG
 #include <cassert>
@@ -45,32 +47,33 @@ namespace mh
 #endif
 	};
 
+#if __has_include(<compare>)
 	template<typename T>
 	inline constexpr std::strong_ordering operator<=>(const checked_ptr<T>& lhs, const checked_ptr<T>& rhs)
 	{
 		return lhs.m_Ptr <=> rhs.m_Ptr;
 	}
 	template<typename T>
-	inline constexpr std::strong_ordering operator==(const checked_ptr<T>& lhs, const checked_ptr<T>& rhs)
-	{
-		return lhs.m_Ptr == rhs.m_Ptr;
-	}
-
-	template<typename T>
 	inline constexpr std::strong_ordering operator<=>(const T* lhs, const checked_ptr<T>& rhs)
 	{
 		return lhs <=> rhs.m_Ptr;
 	}
 	template<typename T>
-	inline constexpr std::strong_ordering operator==(const T* lhs, const checked_ptr<T>& rhs)
-	{
-		return lhs == rhs.m_Ptr;
-	}
-
-	template<typename T>
 	inline constexpr std::strong_ordering operator<=>(const checked_ptr<T>& lhs, const T* rhs)
 	{
 		return lhs.m_Ptr <=> rhs;
+	}
+#endif
+
+	template<typename T>
+	inline constexpr std::strong_ordering operator==(const checked_ptr<T>& lhs, const checked_ptr<T>& rhs)
+	{
+		return lhs.m_Ptr == rhs.m_Ptr;
+	}
+	template<typename T>
+	inline constexpr std::strong_ordering operator==(const T* lhs, const checked_ptr<T>& rhs)
+	{
+		return lhs == rhs.m_Ptr;
 	}
 	template<typename T>
 	inline constexpr std::strong_ordering operator==(const checked_ptr<T>& lhs, const T* rhs)
