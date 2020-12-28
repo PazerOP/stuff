@@ -49,41 +49,16 @@ namespace mh
 	inline constexpr detail::error::expected_hpp::expect_t expect;
 	inline constexpr static detail::error::expected_hpp::unexpect_t unexpect;
 
-	namespace detail::error::expected_hpp
-	{
-		template<typename TExpected, typename TFunc>
-		decltype(auto) map(TExpected&& exp, TFunc&& func)
-		{
-			using new_value_type = std::decay_t<decltype(func(exp.value()))>;
-
-			if constexpr (std::is_same_v<new_value_type, void>)
-			{
-				if (exp.has_value())
-					func(exp.value());
-
-				return std::forward<TExpected>(exp);
-			}
-			else
-			{
-				using ret_type = expected<new_value_type, typename std::decay_t<TExpected>::error_type>;
-				if (exp.has_value())
-					return ret_type(expect, func(exp.value()));
-				else
-					return ret_type(unexpect, exp.error());
-			}
-		}
-	}
-
 	template<typename TValue, typename TError>
 	class expected final
 	{
+	public:
 		using expect_t = detail::error::expected_hpp::expect_t;
 		using unexpect_t = detail::error::expected_hpp::unexpect_t;
 
 		static constexpr size_t VALUE_IDX = 0;
 		static constexpr size_t ERROR_IDX = 1;
 
-	public:
 		using this_type = expected<TValue, TError>;
 		using value_type = TValue;
 		using error_type = TError;
@@ -98,6 +73,11 @@ namespace mh
 		constexpr const error_type& error() const { return std::get<ERROR_IDX>(m_State); }
 
 		template<typename... TArgs>
+		void arg_eater(TArgs&&... args)
+		{
+		}
+
+		template<typename... TArgs>
 		value_type& emplace(expect_t, TArgs&&... args)
 		{
 			m_State.emplace<VALUE_IDX>(std::forward<TArgs>(args)...);
@@ -107,7 +87,8 @@ namespace mh
 		template<typename... TArgs>
 		error_type& emplace(unexpect_t, TArgs&&... args)
 		{
-			m_State.emplace<ERROR_IDX>(std::forward<TArgs>(args)...);
+			//m_State.emplace<ERROR_IDX>(std::forward<TArgs>(args)...);
+			arg_eater(std::forward<TArgs>(args)...);
 			return error();
 		}
 
