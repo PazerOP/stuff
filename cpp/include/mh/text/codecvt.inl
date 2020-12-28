@@ -37,8 +37,65 @@ namespace mh
 			return std::mbrtoc32(buf, mb, mbmax, &state);
 		}
 
+		MH_COMPILE_LIBRARY_INLINE char32_t convert_to_u32(const char16_t*& it, const char16_t* end)
+		{
+			// https://en.wikipedia.org/wiki/UTF-16#Description
+			constexpr uint16_t TOP6_MASK = 0xFC00;
+
+			const uint16_t firstByte = uint16_t(*it++);
+			if ((firstByte & TOP6_MASK) == 0xD800)
+			{
+				uint32_t retVal = uint32_t(firstByte & (~TOP6_MASK)) << 10;
+
+				if (it != end)
+					retVal |= uint32_t(uint32_t(*it++) & (~TOP6_MASK));
+
+				return 0x10000 + retVal;
+			}
+
+			return firstByte;
+		}
+
+		MH_COMPILE_LIBRARY_INLINE size_t convert_to_u16(char32_t in, char16_t out[2])
+		{
+			constexpr uint16_t TOP6_MASK = 0xFC00;
+			constexpr uint16_t BYTE0_MARKER = 0xD800;
+			constexpr uint16_t BYTE1_MARKER = 0xDC00;
+
+			uint32_t in_raw = in;
+			if (in_raw > 0xFFFF || ((in_raw & TOP6_MASK) == BYTE0_MARKER))
+			{
+				in_raw -= 0x10000;
+
+				// Two bytes
+				out[0] = BYTE0_MARKER | ((in_raw >> 10) & (~TOP6_MASK));
+				out[1] = BYTE1_MARKER | (in_raw & (~TOP6_MASK));
+				return 2;
+			}
+			else
+			{
+				// One byte
+				out[0] = in_raw & 0xFFFF;
+				return 1;
+			}
+		}
+
+		MH_COMPILE_LIBRARY_INLINE size_t convert_to_uc(char32_t in, std::basic_string<char16_t>& out)
+		{
+			char16_t buf[2];
+			const size_t chars = convert_to_u16(in, buf);
+			out.append(buf, chars);
+			return chars;
+		}
+		MH_COMPILE_LIBRARY_INLINE size_t convert_to_uc(char32_t in, std::basic_string<char32_t>& out)
+		{
+			out += in;
+			return 1;
+		}
+
 #if __cpp_char8_t >= 201811
-		[[nodiscard]] MH_COMPILE_LIBRARY_INLINE constexpr char32_t convert_to_u32(const char8_t*& it, const char8_t* end)
+		[[nodiscard]] MH_COMPILE_LIBRARY_INLINE char32_t convert_to_u32(
+			const char8_t*& it, const char8_t* end)
 		{
 			unsigned continuationBytes = 0;
 
