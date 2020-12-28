@@ -169,7 +169,7 @@ namespace mh
 		return false;
 	}
 
-	template<typename T, typename = typename typename enum_type<T>::value_type>
+	template<typename T, typename = typename enum_type<T>::value_type>
 	struct enum_fmt_t final
 	{
 		using value_type = T;
