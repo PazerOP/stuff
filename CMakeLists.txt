@@ -119,10 +119,11 @@ if (SUPPORTS_COROUTINES)
 
 	mh_target_compile_options(mh_stuff ${COROUTINES_FLAGS})
 	mh_target_compile_definitions(mh_stuff "MH_COROUTINES_SUPPORTED")
+endif()
 
-	if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
-		mh_target_compile_options(mh_stuff --stdlib=libc++)
-	endif()
+# build with correct stdlib for complier
+if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+	mh_target_compile_options(mh_stuff --stdlib=libc++)
 endif()
 
 message("CMAKE_CXX_COMPILER_VERSION = ${CMAKE_CXX_COMPILER_VERSION}")
