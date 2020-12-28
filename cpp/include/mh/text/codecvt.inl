@@ -15,6 +15,7 @@ namespace mh
 	namespace detail::codecvt_hpp
 	{
 #if __cpp_unicode_characters >= 200704
+#if __has_include(<cuchar>)
 		MH_COMPILE_LIBRARY_INLINE std::size_t convert_to_mb(char* buf, char16_t from,
 			std::mbstate_t& state)
 		{
@@ -36,6 +37,7 @@ namespace mh
 		{
 			return std::mbrtoc32(buf, mb, mbmax, &state);
 		}
+#endif
 
 		MH_COMPILE_LIBRARY_INLINE char32_t convert_to_u32(const char16_t*& it, const char16_t* end)
 		{
