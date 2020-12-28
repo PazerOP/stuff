@@ -142,14 +142,14 @@ namespace mh
 		template<typename... TArgs>
 		value_type& emplace(expect_t&, TArgs&&... args)
 		{
-			m_State.emplace<VALUE_IDX>(std::forward<TArgs>(args)...);
+			m_State.template emplace<VALUE_IDX>(std::forward<TArgs>(args)...);
 			return value();
 		}
 
 		template<typename... TArgs>
 		error_type& emplace(unexpect_t&, TArgs&&... args)
 		{
-			m_State.emplace<ERROR_IDX>(std::forward<TArgs>(args)...);
+			m_State.template emplace<ERROR_IDX>(std::forward<TArgs>(args)...);
 			return error();
 		}
 
