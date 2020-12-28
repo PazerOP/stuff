@@ -47,7 +47,7 @@ namespace mh
 #endif
 	};
 
-#if __has_include(<compare>)
+#if __has_include(<compare>) && (__cpp_impl_three_way_comparison >= 201907)
 	template<typename T>
 	inline constexpr std::strong_ordering operator<=>(const checked_ptr<T>& lhs, const checked_ptr<T>& rhs)
 	{
