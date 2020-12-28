@@ -72,10 +72,16 @@ namespace mh
 		constexpr error_type& error() { return std::get<ERROR_IDX>(m_State); }
 		constexpr const error_type& error() const { return std::get<ERROR_IDX>(m_State); }
 
+		template<size_t I, typename... TArgs>
+		void arg_eater(TArgs&&... args)
+		{
+		}
+
 		template<typename... TArgs>
 		value_type& emplace(expect_t, TArgs&&... args)
 		{
-			m_State.emplace<0>(std::forward<TArgs>(args)...);
+			//m_State.emplace<0>(std::forward<TArgs>(args)...);
+			arg_eater<0>(std::forward<TArgs>(args)...);
 			return value();
 		}
 
