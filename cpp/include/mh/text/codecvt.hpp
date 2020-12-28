@@ -105,8 +105,8 @@ namespace mh
 		[[nodiscard]] char32_t convert_to_u32(const char16_t*& it, const char16_t* end);
 		[[nodiscard]] size_t convert_to_u16(char32_t in, char16_t out[2]);
 
-		inline size_t convert_to_uc(char32_t in, std::basic_string<char16_t>& out);
-		inline size_t convert_to_uc(char32_t in, std::basic_string<char32_t>& out);
+		size_t convert_to_uc(char32_t in, std::basic_string<char16_t>& out);
+		size_t convert_to_uc(char32_t in, std::basic_string<char32_t>& out);
 
 		template<typename From, typename To>
 		struct change_encoding_impl<From, To, std::enable_if_t<!std::is_same_v<From, To>&& is_utf_v<From>&& is_utf_v<To>>>
