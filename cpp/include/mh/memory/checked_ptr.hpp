@@ -66,17 +66,17 @@ namespace mh
 #endif
 
 	template<typename T>
-	inline constexpr std::strong_ordering operator==(const checked_ptr<T>& lhs, const checked_ptr<T>& rhs)
+	inline constexpr bool operator==(const checked_ptr<T>& lhs, const checked_ptr<T>& rhs)
 	{
 		return lhs.m_Ptr == rhs.m_Ptr;
 	}
 	template<typename T>
-	inline constexpr std::strong_ordering operator==(const T* lhs, const checked_ptr<T>& rhs)
+	inline constexpr bool operator==(const T* lhs, const checked_ptr<T>& rhs)
 	{
 		return lhs == rhs.m_Ptr;
 	}
 	template<typename T>
-	inline constexpr std::strong_ordering operator==(const checked_ptr<T>& lhs, const T* rhs)
+	inline constexpr bool operator==(const checked_ptr<T>& lhs, const T* rhs)
 	{
 		return lhs.m_Ptr == rhs;
 	}
