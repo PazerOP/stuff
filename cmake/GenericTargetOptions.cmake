@@ -36,6 +36,18 @@ function(mh_target_compile_options targetName)
 
 endfunction()
 
+# target_link_options
+function(mh_target_link_options targetName)
+
+	get_target_property(TARGET_TYPE_VALUE ${targetName} TYPE)
+	if (TARGET_TYPE_VALUE STREQUAL "INTERFACE_LIBRARY")
+		target_link_options(${targetName} INTERFACE ${ARGN})
+	else()
+		target_link_options(${targetName} PUBLIC ${ARGN})
+	endif()
+
+endfunction()
+
 # target_compile_definitions
 function(mh_target_compile_definitions targetName)
 
