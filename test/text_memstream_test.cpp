@@ -1,6 +1,8 @@
 #include "mh/text/memstream.hpp"
 #include "catch2/repo/single_include/catch2/catch.hpp"
 
+#include <cstring>
+
 TEST_CASE("memstream put", "[text][memstream]")
 {
 	char buf[128];
