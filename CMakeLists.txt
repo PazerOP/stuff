@@ -131,6 +131,7 @@ if (SUPPORTS_COROUTINES)
 		"cpp/include/mh/coroutine/thread.inl"
 	)
 
+	message("COROUTINES_FLAGS = ${COROUTINES_FLAGS}")
 	mh_target_compile_options(mh_stuff ${COROUTINES_FLAGS})
 	mh_target_compile_definitions(mh_stuff "MH_COROUTINES_SUPPORTED")
 endif()
