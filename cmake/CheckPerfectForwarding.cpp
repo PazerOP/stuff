@@ -80,8 +80,8 @@ namespace mh
 		template<typename... TArgs>
 		value_type& emplace(expect_t, TArgs&&... args)
 		{
-			//m_State.emplace<0>(std::forward<TArgs>(args)...);
-			arg_eater<0>(std::forward<TArgs>(args)...);
+			m_State.template emplace<0>(std::forward<TArgs>(args)...);
+			//arg_eater<0>(std::forward<TArgs>(args)...);
 			return value();
 		}
 
