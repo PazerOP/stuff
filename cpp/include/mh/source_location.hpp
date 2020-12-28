@@ -4,8 +4,6 @@
 
 #if __has_include(<source_location>)
 #include <source_location>
-#elif __has_include(<experimental/source_location>)
-#include <experimental/source_location>
 #endif
 
 namespace mh
@@ -13,11 +11,6 @@ namespace mh
 #if __cpp_lib_source_location >= 201907
 
 	using source_location = std::source_location;
-#define MH_SOURCE_LOCATION_CURRENT() ::mh::source_location::current()
-
-#elif __has_include(<experimental/source_location>)
-
-	using source_location = std::experimental::source_location;
 #define MH_SOURCE_LOCATION_CURRENT() ::mh::source_location::current()
 
 #else
