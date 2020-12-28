@@ -22,7 +22,7 @@ TEST_CASE("memstream put", "[text][memstream]")
 	ms.seekp(7);
 	ms << " foo";
 
-	constexpr std::string_view TEST_STRING_FOO = "my test foo";
+	constexpr std::string_view TEST_STRING_FOO = "my test fooing";
 	REQUIRE(ms.view() == TEST_STRING_FOO);
 	REQUIRE(std::memcmp(buf, TEST_STRING_FOO.data(), TEST_STRING_FOO.size()) == 0);
 
@@ -35,7 +35,7 @@ TEST_CASE("memstream put", "[text][memstream]")
 
 		REQUIRE(ms >> testWord);
 		REQUIRE(ms.eof());
-		REQUIRE(testWord == "foo");
+		REQUIRE(testWord == "fooing");
 
 		ms.clear(ms.rdstate() & ~std::ios_base::eofbit);
 		REQUIRE(ms.good());
@@ -45,48 +45,44 @@ TEST_CASE("memstream put", "[text][memstream]")
 
 		REQUIRE(ms.write("foo", 3));
 		REQUIRE(ms.good());
-		REQUIRE(ms.view_full() == "foo");
+		REQUIRE(ms.view_full() == "footest fooing");
 		REQUIRE(ms.view() == "");
 		REQUIRE(ms.seekg(1));
-		REQUIRE(ms.view() == "oo");
+		REQUIRE(ms.view() == "ootest fooing");
 
 		REQUIRE(ms.seekg(0));
 		REQUIRE(ms.good());
-		REQUIRE(ms.view() == "foo");
+		REQUIRE(ms.view() == "footest fooing");
 
 		REQUIRE(ms << "bar");
-		REQUIRE(ms.view() == "foobar");
+		REQUIRE(ms.view() == "foobart fooing");
 		REQUIRE(ms.good());
 	}
 
 	{
 		constexpr int TEST_INT_VALUE = 487;
 
-		REQUIRE(ms.view() == "foobar");
-		REQUIRE(ms.seekp(0));
-		REQUIRE(ms.tellp() == 0);
+		REQUIRE(ms.view() == "foobart fooing");
+		REQUIRE(ms.seekp(1, std::ios::beg));
+		REQUIRE(ms.seekp(5, std::ios::cur));
+		REQUIRE(ms.tellp() == 6);
 
 		REQUIRE(ms.seekg(0, std::ios::end));
-		REQUIRE(ms.tellg() == 6);
+		REQUIRE(ms.tellg() == 14);
 		REQUIRE(ms.seekg(0));
 
 		ms << TEST_INT_VALUE;
-		CHECK(ms.tellp() == 3);
+		CHECK(ms.tellp() == 9);
 		CHECK(ms.tellg() == 0);
 		CHECK(ms.seekg(0, std::ios::end));
-		CHECK(ms.tellg() == 6);
+		CHECK(ms.tellg() == 14);
 		CHECK(ms.seekg(0));
 
-		CHECK(ms.view() == "487bar");
-		CHECK(buf[0] == '4');
-		CHECK(buf[1] == '8');
-		CHECK(buf[2] == '7');
-		CHECK(buf[3] == 'b');
-		CHECK(buf[4] == 'a');
-		CHECK(buf[5] == 'r');
+		CHECK(ms.view() == "foobar487ooing");
+		CHECK(ms.view_full() == "foobar487ooing");
 
 		int testInt;
-		REQUIRE(ms.seekg(0));
+		REQUIRE(ms.seekg(6));
 		ms >> testInt;
 		REQUIRE(testInt == TEST_INT_VALUE);
 	}

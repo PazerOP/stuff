@@ -13,6 +13,7 @@ namespace mh
 	namespace detail::memstream_hpp
 	{
 		template<typename T> const T& min(const T& a, const T& b) { return a < b ? a : b; }
+		template<typename T> const T& max(const T& a, const T& b) { return a > b ? a : b; }
 	}
 
 	template<typename CharT = char, typename Traits = std::char_traits<CharT>>
@@ -186,13 +187,7 @@ namespace mh
 		void update_get_area_size()
 		{
 			std::cerr << __func__ << "()" << std::endl;
-			//auto getAreaSize = gend() - gbeg();
-			auto minPutAreaSize = pcur() - pbeg();
-			//if (getAreaSize < minPutAreaSize)
-			{
-				const auto newEnd = gbeg() + minPutAreaSize;
-				this->setg(gbeg(), detail::memstream_hpp::min(gcur(), newEnd), newEnd);
-			}
+			this->setg(gbeg(), gcur(), detail::memstream_hpp::max(pcur(), gend()));
 		}
 	};
 
