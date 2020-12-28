@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -131,6 +132,7 @@ namespace mh
 	template<size_t N, typename CharT = char, typename Traits = std::char_traits<CharT>>
 	using pfstr = printf_string<N, CharT, Traits>;
 
+#if MH_FORMATTER != MH_FORMATTER_NONE
 	template<size_t N, typename CharT = char, typename Traits = std::char_traits<CharT>>
 	class format_string : public base_format_string<N, CharT, Traits>
 	{
@@ -157,6 +159,7 @@ namespace mh
 	};
 	template<size_t N, typename CharT = char, typename Traits = std::char_traits<CharT>>
 	using fmtstr = format_string<N, CharT, Traits>;
+#endif
 }
 
 template<typename CharT, typename Traits, size_t N>
