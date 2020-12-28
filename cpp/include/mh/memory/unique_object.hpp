@@ -1,14 +1,23 @@
 #pragma once
 
+#if __has_include(<version>)
+#include <version>
+#endif
+
 #if __cpp_impl_three_way_comparison >= 201907
 #include <compare>
 #endif
+
+#if __has_include(<concepts>)
+#include <concepts>
+#endif
+
 #include <ostream>
 #include <utility>
 
 namespace mh
 {
-#ifdef __cpp_concepts
+#ifdef (__cpp_concepts >= 201907) && __has_include(<concepts>)
 	template<typename Traits, typename Object>
 	concept UniqueObjectTraits = requires(Traits t, Object o)
 	{
@@ -19,7 +28,7 @@ namespace mh
 #endif
 
 	template<typename T, typename Traits>
-#ifdef __cpp_concepts
+#ifdef (__cpp_concepts >= 201907) && __has_include(<concepts>)
 	requires UniqueObjectTraits<Traits, T>
 #endif
 	class unique_object
