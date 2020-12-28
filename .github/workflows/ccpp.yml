@@ -2,6 +2,10 @@ name: C/C++ CI
 
 on: [push]
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   ci-linux:
     # name: ${{ matrix.compiler }}
