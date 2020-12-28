@@ -12,7 +12,7 @@ function(mh_test name)
 	add_executable(${name} "${name}.cpp")
 
 	target_link_libraries(${name} Catch2::Catch2WithMain mh::stuff)
-	catch_discover_tests(${name})
+	catch_discover_tests(${name} TEST_PREFIX "${PROJECT_NAME}.")
 endfunction()
 
 mh_test(algorithm_algorithm_test)
