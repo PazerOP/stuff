@@ -114,8 +114,16 @@ namespace mh
 
 		private:
 			bool m_Active = true;
-			[[no_unique_address]] EF m_Func;
-			[[no_unique_address]] Traits m_Traits;
+
+#if __has_cpp_attribute(no_unique_address)
+			[[no_unique_address]]
+#endif
+			EF m_Func;
+
+#if __has_cpp_attribute(no_unique_address)
+			[[no_unique_address]]
+#endif
+			Traits m_Traits;
 		};
 	}
 
