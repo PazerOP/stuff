@@ -4,16 +4,15 @@ include(CheckCXXSourceCompiles)
 
 function(check_cxx_unicode_support IS_SUPPORTED)
 
-	set(CMAKE_REQUIRED_FLAGS)
-	if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
-		set(CMAKE_REQUIRED_FLAGS "-stdlib=libc++ -lc++abi")
-	endif()
+	get_directory_property(DIRECTORY_CXX_OPTS COMPILE_OPTIONS)
+	get_directory_property(DIRECTORY_LINK_OPTS LINK_OPTIONS)
 
 	try_compile(${IS_SUPPORTED}
 		${CMAKE_CURRENT_BINARY_DIR}
 		"${PROJECT_SOURCE_DIR}/cmake/CheckUnicodeSupport.cpp"
 		CXX_STANDARD 20
-		COMPILE_DEFINITIONS ${CMAKE_REQUIRED_FLAGS}
+		COMPILE_DEFINITIONS ${DIRECTORY_CXX_OPTS}
+		LINK_OPTIONS ${DIRECTORY_LINK_OPTS}
 		OUTPUT_VARIABLE TRY_COMPILE_OUTPUT)
 
 	message("check_cxx_unicode_support IS_SUPPORTED = ${${IS_SUPPORTED}}")
