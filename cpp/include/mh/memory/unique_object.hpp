@@ -17,7 +17,7 @@
 
 namespace mh
 {
-#ifdef (__cpp_concepts >= 201907) && __has_include(<concepts>)
+#if (__cpp_concepts >= 201907) && __has_include(<concepts>)
 	template<typename Traits, typename Object>
 	concept UniqueObjectTraits = requires(Traits t, Object o)
 	{
@@ -28,7 +28,7 @@ namespace mh
 #endif
 
 	template<typename T, typename Traits>
-#ifdef (__cpp_concepts >= 201907) && __has_include(<concepts>)
+#if (__cpp_concepts >= 201907) && __has_include(<concepts>)
 	requires UniqueObjectTraits<Traits, T>
 #endif
 	class unique_object
