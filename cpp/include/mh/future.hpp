@@ -22,12 +22,12 @@ namespace mh
 	template<typename T>
 	std::future<T> make_ready_future(const T& value)
 	{
-		return emplace_ready_future<T>(T(value));
+		return make_ready_future<T>(T(value));
 	}
 	template<typename T>
 	std::future<T> make_ready_future()
 	{
-		return emplace_ready_future<T>(T{});
+		return make_ready_future<T>(T{});
 	}
 
 	template<typename T>
