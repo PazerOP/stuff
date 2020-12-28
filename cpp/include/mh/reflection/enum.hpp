@@ -131,33 +131,33 @@ namespace mh
 		}; \
 	};
 
-	template<typename T, typename TReflect = enum_type<std::decay_t<T>>::this_type>
+	template<typename T, typename TReflect = typename enum_type<std::decay_t<T>>::this_type>
 	inline constexpr std::string_view find_enum_value_name(T val)
 	{
 		return TReflect::find_name(val);
 	}
-	template<typename T, typename TReflect = enum_type<std::decay_t<T>>::this_type>
+	template<typename T, typename TReflect = typename enum_type<std::decay_t<T>>::this_type>
 	inline constexpr std::string_view try_find_enum_value_name(T val)
 	{
 		return TReflect::try_find_name(val);
 	}
 
-	template<typename T, typename TReflect = enum_type<std::decay_t<T>>::this_type>
+	template<typename T, typename TReflect = typename enum_type<std::decay_t<T>>::this_type>
 	inline constexpr T find_enum_value(const std::string_view& name)
 	{
 		return TReflect::find_value(name);
 	}
-	template<typename T, typename TReflect = enum_type<std::decay_t<T>>::this_type>
+	template<typename T, typename TReflect = typename enum_type<std::decay_t<T>>::this_type>
 	inline constexpr void find_enum_value(const std::string_view& name, T& value)
 	{
 		value = find_enum_value<T>(name);
 	}
-	template<typename T, typename TReflect = enum_type<std::decay_t<T>>::this_type>
+	template<typename T, typename TReflect = typename enum_type<std::decay_t<T>>::this_type>
 	inline constexpr std::optional<T> try_find_enum_value(const std::string_view& name)
 	{
 		return TReflect::try_find_value(name);
 	}
-	template<typename T, typename TReflect = enum_type<std::decay_t<T>>::this_type>
+	template<typename T, typename TReflect = typename enum_type<std::decay_t<T>>::this_type>
 	inline constexpr bool try_find_enum_value(const std::string_view& name, T& value)
 	{
 		if (auto found = try_find_enum_value<T>(name))
@@ -169,7 +169,7 @@ namespace mh
 		return false;
 	}
 
-	template<typename T, typename = typename enum_type<T>::value_type>
+	template<typename T, typename = typename typename enum_type<T>::value_type>
 	struct enum_fmt_t final
 	{
 		using value_type = T;
