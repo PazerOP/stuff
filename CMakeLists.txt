@@ -108,9 +108,9 @@ endif()
 mh_target_include_directories(mh_stuff "cpp/include")
 mh_target_compile_features(mh_stuff "cxx_std_20")
 
-check_cxx_compiler_flag(-fconcepts CONCEPTS_FLAG)
-if (CONCEPTS_FLAG)
-	MH_TARGET_COMPILE_OPTIONS(mh_stuff ${CONCEPTS_FLAG})
+check_cxx_compiler_flag(-fconcepts FCONCEPTS_FLAG)
+if (FCONCEPTS_FLAG)
+	mh_target_compile_options(mh_stuff -fconcepts)
 endif()
 
 check_cxx_coroutine_support(SUPPORTS_COROUTINES COROUTINES_FLAGS)
