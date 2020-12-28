@@ -1,5 +1,7 @@
 #pragma once
 
+#if __cpp_concepts >= 201907
+
 #include <exception>
 #include <type_traits>
 
@@ -151,3 +153,5 @@ namespace mh
 	};
 	template<typename EF> scope_success(EF) -> scope_success<EF>;
 }
+
+#endif
