@@ -6,7 +6,6 @@ project(mh_stuff CXX)
 if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	add_compile_options(-stdlib=libc++)
 	add_link_options(-stdlib=libc++ -lc++abi)
-	set(CMAKE_CXX_OPTIONS)
 endif()
 
 include("cmake/GenericTargetOptions.cmake")
