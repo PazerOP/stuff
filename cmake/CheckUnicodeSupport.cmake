@@ -16,8 +16,8 @@ function(check_cxx_unicode_support IS_SUPPORTED_OUT)
 		LINK_OPTIONS ${DIRECTORY_LINK_OPTS}
 		OUTPUT_VARIABLE TRY_COMPILE_OUTPUT)
 
-	message("check_cxx_unicode_support ${IS_SUPPORTED_OUT} = ${IS_SUPPORTED}")
-	if (NOT ${${IS_SUPPORTED}})
+	message("check_cxx_unicode_support ${IS_SUPPORTED_OUT}=${IS_SUPPORTED}")
+	if (NOT IS_SUPPORTED)
 		message("check_cxx_unicode_support output = ${TRY_COMPILE_OUTPUT}")
 	endif()
 

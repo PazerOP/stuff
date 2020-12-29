@@ -31,7 +31,7 @@ function(check_cxx_coroutine_support IS_SUPPORTED_OUT REQUIRED_FLAGS_OUT)
 	)
 
 	message("check_cxx_coroutine_support(${IS_SUPPORTED_OUT}=${IS_SUPPORTED} ${REQUIRED_FLAGS_OUT}=${REQUIRED_FLAGS})")
-	if (NOT ${${IS_SUPPORTED}})
+	if (NOT IS_SUPPORTED)
 		message("check_cxx_coroutine_support output = ${TRY_COMPILE_OUTPUT}")
 	endif()
 

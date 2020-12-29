@@ -117,7 +117,7 @@ namespace mh
 
 #define MH_ENUM_REFLECT_BEGIN(enumType) \
 	template<> \
-	class ::mh::enum_type<enumType> final : \
+	class mh::enum_type<enumType> final : \
 		public ::mh::detail::reflection::enum_hpp::enum_type_base<::mh::enum_type<enumType>, enumType> \
 	{ \
 	public: \

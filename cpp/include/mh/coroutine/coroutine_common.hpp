@@ -147,7 +147,7 @@ namespace mh
 				if constexpr (!std::is_void_v<T>)
 				{
 					auto value = std::move(std::get<IDX_VALUE>(m_State));
-					m_State.emplace<IDX_INVALID>();
+					m_State.template emplace<IDX_INVALID>();
 					return std::move(value);
 				}
 			}
@@ -190,7 +190,7 @@ namespace mh
 				auto waiters = std::move(std::get<IDX_WAITERS>(m_State));
 
 				static_assert(IDX == IDX_VALUE || IDX == IDX_EXCEPTION);
-				m_State.emplace<IDX>(std::move(value));
+				m_State.template emplace<IDX>(std::move(value));
 
 				m_ValueReadyCV.notify_all();
 				for (const auto& waiter : waiters)

@@ -109,7 +109,7 @@ namespace mh
 
 			void set_exception(std::exception_ptr p)
 			{
-				return get_state().set_state<state_t::IDX_EXCEPTION>(std::move(p));
+				return get_state().template set_state<state_t::IDX_EXCEPTION>(std::move(p));
 			}
 
 		protected:
@@ -128,7 +128,7 @@ namespace mh
 			template<typename TValue>
 			void try_set_value(TValue&& value)
 			{
-				return get_state().set_state<state_t::IDX_VALUE>(std::move(value));
+				return get_state().template set_state<state_t::IDX_VALUE>(std::move(value));
 			}
 
 		private:
