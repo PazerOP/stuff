@@ -195,7 +195,7 @@ namespace mh
 				m_State.template emplace<IDX>(std::move(value));
 
 				m_ValueReadyCV.notify_all();
-				for (const auto& waiter : waiters)
+				for (auto& waiter : waiters)
 					waiter.resume();
 			}
 
