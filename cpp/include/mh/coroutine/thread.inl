@@ -33,7 +33,7 @@ namespace mh::detail::coroutine::thread_hpp
 
 namespace mh::detail::coroutine::thread_hpp
 {
-	MH_COMPILE_LIBRARY_INLINE bool task::await_suspend(std::coroutine_handle<> waiter)
+	MH_COMPILE_LIBRARY_INLINE bool task::await_suspend(coro::coroutine_handle<> waiter)
 	{
 		if (m_Flags == co_create_thread_flags::none ||
 			(m_Flags == co_create_thread_flags::off_main_thread && is_main_thread()))

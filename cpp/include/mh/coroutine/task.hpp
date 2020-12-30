@@ -21,7 +21,7 @@ namespace mh
 
 			[[nodiscard]] constexpr bool await_ready() const noexcept { return !m_Suspend; }
 
-			constexpr void await_suspend(std::coroutine_handle<>) const noexcept {}
+			constexpr void await_suspend(coro::coroutine_handle<>) const noexcept {}
 			constexpr void await_resume() const noexcept {}
 
 			bool m_Suspend;
@@ -30,7 +30,7 @@ namespace mh
 		template<typename T>
 		struct promise : public co_promise_base<T>
 		{
-			constexpr std::suspend_never initial_suspend() const noexcept { return {}; }
+			constexpr coro::suspend_never initial_suspend() const noexcept { return {}; }
 			constexpr suspend_sometimes final_suspend() const noexcept
 			{
 				// If m_RefCount == 0, we are in charge of our own destiny (all referencing tasks have gone out of
@@ -60,7 +60,7 @@ namespace mh
 		struct task_state
 		{
 			using promise_type = promise<T>;
-			using coroutine_type = std::coroutine_handle<promise_type>;
+			using coroutine_type = coro::coroutine_handle<promise_type>;
 
 			task_state() noexcept = default;
 			task_state(std::nullptr_t) noexcept : m_Handle(nullptr) {}
@@ -132,7 +132,7 @@ namespace mh
 	template<typename T>
 	inline constexpr task<T> detail::task_hpp::promise<T>::get_return_object()
 	{
-		return { std::coroutine_handle<detail::task_hpp::promise<T>>::from_promise(*this) };
+		return { coro::coroutine_handle<detail::task_hpp::promise<T>>::from_promise(*this) };
 	}
 
 	template<typename T, typename... TArgs>

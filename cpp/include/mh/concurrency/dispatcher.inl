@@ -21,7 +21,7 @@ namespace mh
 			mutable std::condition_variable m_TaskCompleteCV;
 			std::atomic<bool> m_IsTaskComplete = false;
 
-			std::coroutine_handle<> m_Handle;
+			coro::coroutine_handle<> m_Handle;
 		};
 
 		struct thread_data
@@ -35,7 +35,7 @@ namespace mh
 
 			mutable std::mutex m_TasksMutex;
 			std::condition_variable m_TasksAvailableCV;
-			std::queue<std::coroutine_handle<>> m_Tasks;
+			std::queue<coro::coroutine_handle<>> m_Tasks;
 
 			const std::thread::id m_OwnerThread = std::this_thread::get_id();
 		};
@@ -58,7 +58,7 @@ namespace mh
 			//m_TaskData->m_TaskCompleteCV.wait(lock, [&] { return !m_TaskData->m_IsTaskComplete; });
 		}
 
-		MH_COMPILE_LIBRARY_INLINE bool co_dispatch_task::await_suspend(std::coroutine_handle<> handle)
+		MH_COMPILE_LIBRARY_INLINE bool co_dispatch_task::await_suspend(coro::coroutine_handle<> handle)
 		{
 			// Should never hit this, await_ready() should prevent suspension of coroutines
 			// that are already on the correct thread (unless we are not single threaded, in which case we *want*
@@ -104,7 +104,7 @@ namespace mh
 
 		if (!m_ThreadData->m_Tasks.empty())
 		{
-			std::coroutine_handle<> task;
+			mh::detail::coro::coroutine_handle<> task;
 			{
 				std::lock_guard lock(m_ThreadData->m_TasksMutex);
 				if (m_ThreadData->m_Tasks.empty())

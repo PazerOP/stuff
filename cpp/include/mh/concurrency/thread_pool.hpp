@@ -10,11 +10,8 @@
 #include <mh/coroutine/task.hpp>
 
 #include <chrono>
-#include <condition_variable>
 #include <exception>
 #include <functional>
-#include <mutex>
-#include <queue>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -31,18 +28,11 @@ namespace mh
 		template<typename T> using future_type = std::future<T>;
 #endif
 
-		struct task
-		{
-			std::coroutine_handle<> m_Handle;
-		};
-
 		struct thread_data
 		{
 			bool m_IsShuttingDown = false;
 
 			mh::dispatcher m_Dispatcher{ false };
-			std::condition_variable m_TasksCV;
-
 			std::vector<std::thread> m_Threads;
 		};
 

@@ -160,7 +160,7 @@ namespace mh
 			}
 
 			bool await_ready() const { return is_ready(); }
-			bool await_suspend(std::coroutine_handle<> parent)
+			bool await_suspend(coro::coroutine_handle<> parent)
 			{
 				if (is_ready())
 				{
@@ -205,7 +205,7 @@ namespace mh
 		protected:
 			mutable std::mutex m_Mutex;
 			mutable std::condition_variable m_ValueReadyCV;
-			std::variant<std::vector<std::coroutine_handle<>>, std::monostate, storage_type, std::exception_ptr> m_State;
+			std::variant<std::vector<coro::coroutine_handle<>>, std::monostate, storage_type, std::exception_ptr> m_State;
 		};
 	}
 

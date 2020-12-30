@@ -1,22 +1,8 @@
 #pragma once
 
-#include "coroutine_common.hpp"
+#include "coroutine_include.hpp"
 
 #ifdef MH_COROUTINES_SUPPORTED
-
-#if defined(_MSC_VER) && defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
-#include <experimental/coroutine>
-namespace mh::detail::generator_hpp
-{
-	namespace coro = std::experimental;
-}
-#else
-#include <coroutine>
-namespace mh::detail::generator_hpp
-{
-	namespace coro = std;
-}
-#endif
 
 #include <cassert>
 #include <exception>
@@ -45,12 +31,12 @@ namespace mh
 
 		public:
 
-			constexpr detail::generator_hpp::coro::suspend_always initial_suspend() const noexcept { return {}; }
-			constexpr detail::generator_hpp::coro::suspend_always final_suspend() const noexcept { return {}; }
+			constexpr detail::coro::suspend_always initial_suspend() const noexcept { return {}; }
+			constexpr detail::coro::suspend_always final_suspend() const noexcept { return {}; }
 
 			constexpr generator<T> get_return_object();
 
-			constexpr detail::generator_hpp::coro::suspend_always yield_value(io_type value)
+			constexpr detail::coro::suspend_always yield_value(io_type value)
 			{
 				m_State = std::addressof(value);
 				return {};
@@ -108,7 +94,7 @@ namespace mh
 			using pointer = typename promise<T>::pointer;
 
 			using self_type = iterator<T>;
-			using handle_type = detail::generator_hpp::coro::coroutine_handle<promise<T>>;
+			using handle_type = detail::coro::coroutine_handle<promise<T>>;
 
 			iterator(handle_type handle) : m_Handle(std::move(handle)) {}
 
@@ -139,7 +125,7 @@ namespace mh
 	{
 	public:
 		using promise_type = detail::generator_hpp::promise<T>;
-		using coroutine_type = detail::generator_hpp::coro::coroutine_handle<promise_type>;
+		using coroutine_type = detail::coro::coroutine_handle<promise_type>;
 
 		generator(coroutine_type handle) : m_Handle(std::move(handle)) {}
 

@@ -34,7 +34,7 @@ namespace mh
 
 			constexpr bool await_ready() const { return false; }
 			constexpr void await_resume() const {}
-			bool await_suspend(std::coroutine_handle<> parent);
+			bool await_suspend(coro::coroutine_handle<> parent);
 
 		private:
 			co_create_thread_flags m_Flags;
