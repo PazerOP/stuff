@@ -1,7 +1,12 @@
 #pragma once
 
+#if __has_include(<mh/coroutine/coroutine_include.hpp>)
+#include <mh/coroutine/coroutine_include.hpp>
+#endif
+
+#ifdef MH_COROUTINES_SUPPORTED
+
 #include <chrono>
-#include <coroutine>
 #include <memory>
 
 namespace mh
@@ -89,4 +94,6 @@ namespace mh
 
 #ifndef MH_COMPILE_LIBRARY
 #include "dispatcher.inl"
+#endif
+
 #endif

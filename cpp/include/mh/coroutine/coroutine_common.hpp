@@ -1,9 +1,11 @@
 #pragma once
 
+#include "coroutine_include.hpp"
+
 #ifdef MH_COROUTINES_SUPPORTED
+
 #include <cassert>
 #include <condition_variable>
-#include <coroutine>
 #include <exception>
 #include <future>
 #include <mutex>

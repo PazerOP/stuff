@@ -1,5 +1,7 @@
 #pragma once
 
+#include "coroutine_common.hpp"
+
 #ifdef MH_COROUTINES_SUPPORTED
 
 #if defined(_MSC_VER) && defined(_RESUMABLE_FUNCTIONS_SUPPORTED)
