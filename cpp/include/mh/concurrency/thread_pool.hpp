@@ -1,5 +1,9 @@
 #pragma once
 
+#include <mh/coroutine/coroutine_include.hpp>
+
+#ifdef MH_COROUTINES_SUPPORTED
+
 #if __has_include(<mh/coroutine/future.hpp>)
 #include <mh/coroutine/future.hpp>
 #else
@@ -104,4 +108,6 @@ namespace mh
 
 #ifndef MH_COMPILE_LIBRARY
 #include "thread_pool.inl"
+#endif
+
 #endif
