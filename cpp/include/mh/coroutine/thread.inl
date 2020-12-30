@@ -38,7 +38,7 @@ namespace mh::detail::coroutine::thread_hpp
 		if (m_Flags == co_create_thread_flags::none ||
 			(m_Flags == co_create_thread_flags::off_main_thread && is_main_thread()))
 		{
-			std::thread t([waiter]() { waiter.resume(); });
+			std::thread t([](coro::coroutine_handle<> waiter) { waiter.resume(); }, waiter);
 			t.detach();
 
 			// always suspend
