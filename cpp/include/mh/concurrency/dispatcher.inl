@@ -4,6 +4,8 @@
 #define MH_COMPILE_LIBRARY_INLINE inline
 #endif
 
+#ifdef MH_COROUTINES_SUPPORTED
+
 #include <atomic>
 #include <cassert>
 #include <condition_variable>
@@ -140,3 +142,5 @@ namespace mh
 		return threadData->m_TasksAvailableCV.wait_for(lock, duration, [&]() { return !threadData->m_Tasks.empty(); });
 	}
 }
+
+#endif

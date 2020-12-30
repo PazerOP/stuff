@@ -4,6 +4,8 @@
 #define MH_COMPILE_LIBRARY_INLINE inline
 #endif
 
+#ifdef MH_COROUTINES_SUPPORTED
+
 namespace mh
 {
 	MH_COMPILE_LIBRARY_INLINE thread_pool::thread_pool(size_t threadCount)
@@ -54,3 +56,4 @@ namespace mh
 		}
 	}
 }
+#endif
