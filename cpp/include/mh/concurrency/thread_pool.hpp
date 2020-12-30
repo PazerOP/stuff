@@ -24,7 +24,7 @@ namespace mh
 {
 	namespace detail::thread_pool_hpp
 	{
-#if __has_include(<mh/coroutine/future.hpp>) && MH_COROUTINES_SUPPORTED
+#if __has_include(<mh/coroutine/future.hpp>)
 		template<typename T> using promise_type = mh::promise<T>;
 		template<typename T> using future_type = mh::shared_future<T>;
 #else
@@ -38,43 +38,6 @@ namespace mh
 
 			mh::dispatcher m_Dispatcher{ false };
 			std::vector<std::thread> m_Threads;
-		};
-
-		struct [[nodiscard]] co_task
-		{
-			co_task(std::shared_ptr<thread_data> poolData) : m_PoolData(std::move(poolData)) {}
-
-			struct [[nodiscard]] promise_type
-			{
-				constexpr std::suspend_never initial_suspend() const noexcept { return {}; }
-				constexpr std::suspend_always final_suspend() const noexcept { return {}; }
-			};
-
-			constexpr bool await_ready() const { return false; }
-			constexpr void await_resume() const {}
-			bool await_suspend(std::coroutine_handle<> parent)
-			{
-#if 0
-				std::lock_guard lock(m_PoolData->m_TasksMutex);
-
-				auto func = std::bind([](std::coroutine_handle<> handle)
-					{
-						__debugbreak();
-						handle.resume();
-					}, parent);
-
-				using function_type = typename traits<T>::function_type;
-
-				m_PoolData->m_Tasks.push(function_type(std::move(func)));
-#else
-				throw "Not implemented, waiting for type-erased thread_pool rewrite";
-#endif
-
-				return true; // always suspend
-			}
-
-		private:
-			std::shared_ptr<thread_data> m_PoolData;
 		};
 	}
 
