@@ -16,6 +16,6 @@ namespace mh::detail
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
 {
-	mh::detail::coro::coroutine_handle<> handle;
+	[[maybe_unused]] mh::detail::coro::coroutine_handle<> handle;
 	return 0;
 }

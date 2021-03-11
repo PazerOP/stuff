@@ -272,18 +272,18 @@ namespace mh
 						state = {};
 						++it;
 					}
-					else if (result == -3)
+					else if (result == static_cast<std::size_t>(-3))
 					{
 						// Another charN_t needs to be written to the output stream
 						convert_to_uc(u32, retVal);
 					}
-					else if (result == -2)
+					else if (result == static_cast<std::size_t>(-2))
 					{
 						// FIXME is this correct? "...forms an incomplete, but so far valid, multibyte character"
 						// https://en.cppreference.com/w/cpp/string/multibyte/mbrtoc32
 						throw std::invalid_argument("Segment forms invalid UTF character sequence");
 					}
-					else if (result == -1)
+					else if (result == static_cast<std::size_t>(-1))
 					{
 						throw std::runtime_error("Encoding error");
 					}
@@ -360,11 +360,11 @@ namespace mh
 						state = {};
 						++it;
 					}
-					else if (result == -2)
+					else if (result == static_cast<std::size_t>(-2))
 					{
 						throw std::invalid_argument("Segment forms invalid multibyte character sequence");
 					}
-					else if (result == -1)
+					else if (result == static_cast<std::size_t>(-1))
 					{
 						throw std::runtime_error("Encoding error");
 					}
@@ -397,7 +397,7 @@ namespace mh
 					result = std::wcrtomb(buf, *it, &state);
 #endif
 
-					if (result == -1)
+					if (result == static_cast<std::size_t>(-1))
 					{
 						throw std::invalid_argument("Invalid wide character");
 					}
