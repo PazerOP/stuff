@@ -14,14 +14,6 @@ namespace mh
 
 	namespace detail::ensure_hpp
 	{
-#ifndef $MH_NOINLINE
-#ifdef _MSC_VER
-#define $MH_NOINLINE __declspec(noinline)
-#else
-#define $MH_NOINLINE
-#endif
-#endif
-
 #if __cpp_concepts >= 201907
 		template<typename T, typename CharT = char, typename Traits = std::char_traits<CharT>>
 		concept StreamInsertable = requires(T t)
@@ -30,11 +22,11 @@ namespace mh
 		};
 #endif
 
-#ifndef $MH_DEBUGBREAK
+#ifndef MH_ERROR_ENSURE_HPP_DEBUGBREAK
 #ifdef _MSC_VER
-#define $MH_DEBUGBREAK()  __debugbreak()
+#define MH_ERROR_ENSURE_HPP_DEBUGBREAK()  __debugbreak()
 #else
-#define $MH_DEBUGBREAK()  raise(SIGTRAP)
+#define MH_ERROR_ENSURE_HPP_DEBUGBREAK()  raise(SIGTRAP)
 #endif
 #endif
 
@@ -122,7 +114,7 @@ namespace mh
 			\
 			const auto result = traits.trigger(info); \
 			if (result == ::mh::ensure_trigger_result::debugger_break) \
-				$MH_DEBUGBREAK(); \
+				MH_ERROR_ENSURE_HPP_DEBUGBREAK(); \
 		} \
 		return std::move(value); \
 	}(expr, MH_SOURCE_LOCATION_CURRENT()))
