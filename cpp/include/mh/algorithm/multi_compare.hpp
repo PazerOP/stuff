@@ -39,12 +39,12 @@ namespace mh
 		return all_compare(comparer, lhs, rhs...); \
 	}
 
-	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(eq, [](const auto& lhs, const auto& rhs) { return lhs == rhs; });
-	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(neq, [](const auto& lhs, const auto& rhs) { return lhs != rhs; });
-	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(greater, [](const auto& lhs, const auto& rhs) { return lhs > rhs; });
-	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(greater_equal, [](const auto& lhs, const auto& rhs) { return lhs >= rhs; });
-	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(less, [](const auto& lhs, const auto& rhs) { return lhs < rhs; });
-	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(less_equal, [](const auto& lhs, const auto& rhs) { return lhs <= rhs; });
+	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(eq, [](const auto& lhs, const auto& rhs) { return lhs == rhs; })
+	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(neq, [](const auto& lhs, const auto& rhs) { return lhs != rhs; })
+	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(greater, [](const auto& lhs, const auto& rhs) { return lhs > rhs; })
+	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(greater_equal, [](const auto& lhs, const auto& rhs) { return lhs >= rhs; })
+	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(less, [](const auto& lhs, const auto& rhs) { return lhs < rhs; })
+	MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER(less_equal, [](const auto& lhs, const auto& rhs) { return lhs <= rhs; })
 
 #undef MH_ALGORITHM_MULTI_COMPARE_HPP_HELPER
 }
