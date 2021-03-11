@@ -45,7 +45,7 @@ namespace
 #define U32_SV_REF const dummy&
 #endif
 
-static void CompareExpected3(U8_SV_REF v1, U16_SV_REF v2, U32_SV_REF v3)
+static void CompareExpected3([[maybe_unused]] U8_SV_REF v1, [[maybe_unused]] U16_SV_REF v2, [[maybe_unused]] U32_SV_REF v3)
 {
 #if MH_HAS_UNICODE
 #if MH_HAS_CHAR8
