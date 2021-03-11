@@ -39,7 +39,11 @@ namespace mh
 		private:
 			time_point_type m_NextUpdate{};
 			duration_type m_UpdateInterval{};
-			[[no_unique_address]] TUpdateFunc m_UpdateFunc{};
+
+#if __has_cpp_attribute(no_unique_address)
+			[[no_unique_address]]
+#endif
+			TUpdateFunc m_UpdateFunc{};
 
 		protected:
 			template<typename... TArgs>
