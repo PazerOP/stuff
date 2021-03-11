@@ -107,7 +107,7 @@ namespace mh
 		template<typename T> constexpr auto intprint(T value) { return +value; }
 		constexpr auto intprint(std::byte value) { return unsigned(value); }
 
-		template<typename TFunc> constexpr void debug(const TFunc& f)
+		template<typename TFunc> constexpr void debug([[maybe_unused]] const TFunc& f)
 		{
 #if (__cpp_lib_is_constant_evaluated >= 201811)
 			//if (!std::is_constant_evaluated())

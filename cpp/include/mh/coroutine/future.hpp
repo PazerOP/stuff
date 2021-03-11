@@ -44,12 +44,14 @@ namespace mh
 			bool is_ready() const { return m_State && m_State->is_ready(); }
 			bool valid() const { return m_State && m_State->valid(); }
 
+#if 0
 			template<typename TFunc>
 			auto then(TFunc&& func)
 			{
 				//using continuation_t = std::invoke_result_t<TFunc,
 				throw std::runtime_error("Not implemented");
 			}
+#endif
 
 			void wait() const { return get_state().wait(); }
 
