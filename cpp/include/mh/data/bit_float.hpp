@@ -250,7 +250,7 @@ namespace mh
 				bits_to_mantissa(bits).value != 0;
 		}
 
-		static constexpr bits_t components_to_bits(mantissa_t mantissa, exponent_t exponent, bool sign_bit)
+		static constexpr bits_t components_to_bits(mantissa_t mantissa, exponent_t exponent, [[maybe_unused]] bool sign_bit)
 		{
 			bits_ut ret{};
 			ret |= bits_ut(mantissa.value & mantissa_t::MASK) << MANTISSA_OFFSET;
