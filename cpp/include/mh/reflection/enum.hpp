@@ -179,7 +179,7 @@ namespace mh
 	template<typename T, typename TWrapper = enum_fmt_t<T>>
 	constexpr auto enum_fmt(T val)
 	{
-		return TWrapper{ .m_Value = val };
+		return TWrapper{ val };
 	}
 
 	template<typename CharT, typename Traits, typename TEnum>
