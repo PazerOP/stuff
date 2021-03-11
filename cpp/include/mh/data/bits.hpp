@@ -392,18 +392,18 @@ namespace mh
 		using TSrcR = std::conditional_t<std::is_same_v<TSrc, std::byte>, ubyte_t, TSrc>;
 		using TDstR = std::conditional_t<std::is_same_v<TDst, std::byte>, ubyte_t, TDst>;
 
-		constexpr size_t bits_per_src = sizeof(TSrcR) * BITS_PER_BYTE;
-		constexpr size_t bits_per_dst = sizeof(TDstR) * BITS_PER_BYTE;
+		[[maybe_unused]] constexpr size_t bits_per_src = sizeof(TSrcR) * BITS_PER_BYTE;
+		[[maybe_unused]] constexpr size_t bits_per_dst = sizeof(TDstR) * BITS_PER_BYTE;
 
-		constexpr size_t src_offset_bits = src_offset % bits_per_src;
-		constexpr size_t src_offset_bytes = src_offset / BITS_PER_BYTE;
-		constexpr size_t src_offset_obj = src_offset / bits_per_src;
-		constexpr size_t dst_offset_bits = dst_offset % bits_per_dst;
-		constexpr size_t dst_offset_bytes = dst_offset / BITS_PER_BYTE;
-		constexpr size_t dst_offset_obj = dst_offset / bits_per_dst;
+		[[maybe_unused]] constexpr size_t src_offset_bits = src_offset % bits_per_src;
+		[[maybe_unused]] constexpr size_t src_offset_bytes = src_offset / BITS_PER_BYTE;
+		[[maybe_unused]] constexpr size_t src_offset_obj = src_offset / bits_per_src;
+		[[maybe_unused]] constexpr size_t dst_offset_bits = dst_offset % bits_per_dst;
+		[[maybe_unused]] constexpr size_t dst_offset_bytes = dst_offset / BITS_PER_BYTE;
+		[[maybe_unused]] constexpr size_t dst_offset_obj = dst_offset / bits_per_dst;
 
-		constexpr size_t dst_touched_bits = dst_offset_bits + bits_to_copy;
-		constexpr size_t src_touched_bits = src_offset_bits + bits_to_copy;
+		[[maybe_unused]] constexpr size_t dst_touched_bits = dst_offset_bits + bits_to_copy;
+		[[maybe_unused]] constexpr size_t src_touched_bits = src_offset_bits + bits_to_copy;
 
 		if constexpr (clear_mode == bit_clear_mode::clear_objects)
 		{

@@ -31,7 +31,7 @@ namespace mh
 #endif
 		}
 
-		template<typename TFunc> static constexpr void debug(const TFunc& f)
+		template<typename TFunc> static constexpr void debug([[maybe_unused]] const TFunc& f)
 		{
 #if __cpp_lib_is_constant_evaluated >= 201811
 			//if (!detail::is_constant_evaluated())
