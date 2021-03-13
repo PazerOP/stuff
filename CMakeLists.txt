@@ -39,6 +39,7 @@ add_library(stuff ${MH_INTERFACE_OR_EMPTY}
 	"cpp/include/mh/concurrency/dispatcher.inl"
 	"cpp/include/mh/concurrency/locked_value.hpp"
 	"cpp/include/mh/concurrency/main_thread.hpp"
+	"cpp/include/mh/concurrency/mutex_debug.hpp"
 	"cpp/include/mh/concurrency/thread_pool.hpp"
 	"cpp/include/mh/concurrency/thread_pool.inl"
 	"cpp/include/mh/concurrency/thread_sentinel.hpp"

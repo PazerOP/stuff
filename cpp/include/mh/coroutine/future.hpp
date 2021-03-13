@@ -1,151 +1,98 @@
 #pragma once
 
-#include "coroutine_common.hpp"
+#include "task.hpp"
 
 #ifdef MH_COROUTINES_SUPPORTED
-
-#include <cassert>
-#include <condition_variable>
-#include <exception>
-#include <future>
-#include <mutex>
-#include <stdexcept>
-#include <type_traits>
-#include <variant>
-#include <vector>
 
 namespace mh
 {
 	template<typename T> class future;
+	template<typename T> class shared_future;
+	template<typename T> class promise;
 
 	namespace detail::future_hpp
 	{
 		template<typename T>
-		struct future_state : co_promise_base<T>
+		class future_obj_base
 		{
-		};
-
-		template<typename T>
-		class future_base : public co_promise_traits<T>
-		{
-			using state_t = future_state<T>;
-			using state_ptr = std::shared_ptr<state_t>;
-
 		public:
-			future_base() = default;
-			future_base(state_ptr state) : m_State(std::move(state)) {}
+			future_obj_base() noexcept = default;
 
-			future_base(const future_base&) = default;
-			future_base& operator=(const future_base&) = default;
-
-			future_base(future_base&&) noexcept = default;
-			future_base& operator=(future_base&&) noexcept = default;
-
-			bool is_ready() const { return m_State && m_State->is_ready(); }
-			bool valid() const { return m_State && m_State->valid(); }
-
-#if 0
-			template<typename TFunc>
-			auto then(TFunc&& func)
+			explicit future_obj_base(detail::promise<T>* promise) noexcept :
+				m_Promise(promise)
 			{
-				//using continuation_t = std::invoke_result_t<TFunc,
-				throw std::runtime_error("Not implemented");
+				if (m_Promise)
+					m_Promise->add_ref();
 			}
-#endif
-
-			void wait() const { return get_state().wait(); }
-
-			template<typename Rep, typename Period>
-			std::future_status wait_for(const std::chrono::duration<Rep, Period>& timeout_duration) const
+			explicit future_obj_base(const future_obj_base& other) noexcept : future_obj_base(other.m_Promise) {}
+			future_obj_base& operator=(const future_obj_base& other) noexcept
 			{
-				return get_state().wait_for(timeout_duration);
-			}
-			template<typename Clock, typename Period>
-			std::future_status wait_until(const std::chrono::time_point<Clock, Period>& timeout_time) const
-			{
-				return get_state().wait_until(timeout_time);
+				release_promise();
+				m_Promise = other.m_Promise;
+				if (m_Promise)
+					m_Promise->add_ref();
+
+				return *this;
 			}
 
-			const state_t& operator co_await() const { return get_state(); }
-			state_t& operator co_await() { return get_state(); }
-
-		protected:
-			const future_state<T>& get_state() const
+			explicit future_obj_base(future_obj_base&& other) noexcept :
+				m_Promise(std::exchange(other.m_Promise, nullptr))
 			{
-				if (!m_State)
-					throw std::future_error(std::future_errc::no_state);
-
-				return *m_State;
+				assert(std::addressof(other) != this);
 			}
-			future_state<T>& get_state()
+			future_obj_base& operator=(future_obj_base&& other) noexcept
 			{
-				return const_cast<future_state<T>&>(const_cast<const future_base<T>*>(this)->get_state());
+				assert(std::addressof(other) != this);
+				release_promise();
+				m_Promise = std::exchange(other.m_Promise, nullptr);
+				return *this;
 			}
 
-			state_ptr m_State;
-		};
-
-		template<typename T>
-		class promise_base
-		{
-			using state_t = detail::future_hpp::future_state<T>;
-			using state_ptr = std::shared_ptr<state_t>;
-		public:
-			promise_base() = default;
-			promise_base(const promise_base&) = delete;
-			promise_base(promise_base&&) noexcept = default;
-			promise_base& operator=(const promise_base&) = delete;
-			promise_base& operator=(promise_base&&) noexcept = default;
-
-			future<T> get_future()
+			~future_obj_base()
 			{
-				if (!m_State)
-					throw std::future_error(std::future_errc::no_state);
-				if (m_FutureRetrieved)
-					throw std::future_error(std::future_errc::future_already_retrieved);
-
-				m_FutureRetrieved = true;
-				return future<T>(m_State);
-			}
-
-			void set_exception(std::exception_ptr p)
-			{
-				return get_state().template set_state<state_t::IDX_EXCEPTION>(std::move(p));
+				release_promise();
 			}
 
 		protected:
-			const state_t& get_state() const
+			mh::detail::promise<T>& get_promise() { return const_cast<mh::detail::promise<T>&>(std::as_const(*this).get_promise()); }
+			const mh::detail::promise<T>& get_promise() const
 			{
-				if (!m_State)
+				if (!m_Promise)
 					throw std::future_error(std::future_errc::no_state);
 
-				return *m_State;
-			}
-			state_t& get_state()
-			{
-				return const_cast<state_t&>(const_cast<const promise_base*>(this)->get_state());
+				return *m_Promise;
 			}
 
-			template<typename TValue>
-			void try_set_value(TValue&& value)
+			void create_promise()
 			{
-				return get_state().template set_state<state_t::IDX_VALUE>(std::move(value));
+				assert(!m_Promise);
+				release_promise();
+				m_Promise = new mh::detail::promise<T>;
 			}
+
+			bool valid() const noexcept { return m_Promise && m_Promise->get_task_state() != task_state::empty; }
+
+			void release_promise()
+			{
+				if (m_Promise && m_Promise->remove_ref())
+					delete m_Promise;
+
+				m_Promise = nullptr;
+			}
+
+			mh::detail::promise<T>* try_get_promise() { return m_Promise; }
+			const mh::detail::promise<T>* try_get_promise() const { return m_Promise; }
 
 		private:
-			state_ptr m_State = std::make_shared<state_t>();
-			bool m_FutureRetrieved = false;
+			mh::detail::promise<T>* m_Promise = nullptr;
 		};
 	}
 
-	template<typename T> class shared_future;
-
 	template<typename T>
-	class future : public detail::future_hpp::future_base<T>
+	class future final : detail::future_hpp::future_obj_base<T>
 	{
-		using super = detail::future_hpp::future_base<T>;
 	public:
-		using super::super;
+		future() noexcept = default;
 
 		future(future&&) noexcept = default;
 		future& operator=(future&&) noexcept = default;
@@ -154,61 +101,40 @@ namespace mh
 		future(const future&) = delete;
 		future& operator=(const future&) = delete;
 
-		shared_future<T> share();
+		using detail::future_hpp::future_obj_base<T>::valid;
+
+		shared_future<T> share() noexcept;
+
+		void wait() const { return this->promise().wait(); }
+		template<typename Rep, typename Period>
+		std::future_status wait_for(const std::chrono::duration<Rep, Period>& timeout_duration) const
+		{
+			return this->get_promise().wait_for(timeout_duration);
+		}
+		template<typename Clock, typename Period>
+		std::future_status wait_until(const std::chrono::time_point<Clock, Period>& timeout_time) const
+		{
+			return this->get_promise().wait_until(timeout_time);
+		}
 
 		T get()
 		{
-			auto value = super::get_state().take_value();
-			super::m_State.reset();
+			auto value = std::move(this->get_promise().get_value());
+			this->release_promise();
 			return std::move(value);
 		}
 		T await_resume() { return get(); }
+
+	private:
+		template<typename T> friend class promise;
+		using detail::future_hpp::future_obj_base<T>::future_obj_base;
 	};
 
 	template<typename T>
-	class promise : public detail::future_hpp::promise_base<T>
+	class shared_future final : detail::future_hpp::future_obj_base<T>
 	{
-		using super = detail::future_hpp::promise_base<T>;
 	public:
-		using super::super;
-		void set_value(const T& value)
-		{
-			super::try_set_value(value);
-		}
-		void set_value(T&& value)
-		{
-			super::try_set_value(std::move(value));
-		}
-	};
-	template<typename T>
-	class promise<T&> : public detail::future_hpp::promise_base<T&>
-	{
-		using super = detail::future_hpp::promise_base<T&>;
-	public:
-		using super::super;
-		void set_value(T& value)
-		{
-			super::try_set_value(&value);
-		}
-	};
-	template<>
-	class promise<void> : public detail::future_hpp::promise_base<void>
-	{
-		using super = detail::future_hpp::promise_base<void>;
-	public:
-		using super::super;
-		void set_value()
-		{
-			super::try_set_value(std::monostate{});
-		}
-	};
-
-	template<typename T>
-	class shared_future : public detail::future_hpp::future_base<T>
-	{
-		using super = detail::future_hpp::future_base<T>;
-	public:
-		using super::super;
+		shared_future() noexcept = default;
 		shared_future(future<T>&& f) : shared_future(f.share()) {}
 
 		shared_future(shared_future&&) noexcept = default;
@@ -217,29 +143,57 @@ namespace mh
 		shared_future(const shared_future&) = default;
 		shared_future& operator=(const shared_future&) = default;
 
-		typename super::const_reference get() const { return super::get_state().get_value(); }
-		typename super::const_reference await_resume() const { return get(); }
-	};
+		using detail::future_hpp::future_obj_base<T>::valid;
 
-	template<>
-	class shared_future<void> : public detail::future_hpp::future_base<void>
-	{
-		using super = detail::future_hpp::future_base<void>;
-	public:
-		using super::super;
-		shared_future(future<void>&& f) : shared_future(f.share()) {}
+		void wait() const { return this->promise().wait(); }
+		template<typename Rep, typename Period>
+		std::future_status wait_for(const std::chrono::duration<Rep, Period>& timeout_duration) const
+		{
+			return this->get_promise().wait_for(timeout_duration);
+		}
+		template<typename Clock, typename Period>
+		std::future_status wait_until(const std::chrono::time_point<Clock, Period>& timeout_time) const
+		{
+			return this->get_promise().wait_until(timeout_time);
+		}
 
-		shared_future(shared_future&&) noexcept = default;
-		shared_future& operator=(shared_future&&) noexcept = default;
+		const T& get() const { return this->get_promise().get_value(); }
+		const T& await_resume() const { return get(); }
 
-		shared_future(const shared_future&) = default;
-		shared_future& operator=(const shared_future&) = default;
+	private:
+		template<typename T> friend class promise;
+		using detail::future_hpp::future_obj_base<T>::future_obj_base;
 	};
 
 	template<typename T>
-	shared_future<T> future<T>::share()
+	class promise final : detail::future_hpp::future_obj_base<T>
 	{
-		return shared_future<T>(std::move(super::m_State));
+	public:
+		promise()
+		{
+			this->create_promise();
+		}
+
+		using detail::future_hpp::future_obj_base<T>::valid;
+		mh::future<T> get_future()
+		{
+			return mh::future<T>(&this->get_promise());
+		}
+
+		void set_value(T value)
+		{
+			this->get_promise().set_state<detail::promise<T>::IDX_VALUE>(std::move(value));
+		}
+		void set_exception(std::exception_ptr p)
+		{
+			this->get_promise().set_state<detail::promise<T>::IDX_EXCEPTION>(p);
+		}
+	};
+
+	template<typename T>
+	shared_future<T> future<T>::share() noexcept
+	{
+		return shared_future<T>(this->try_get_promise());
 	}
 }
 #else

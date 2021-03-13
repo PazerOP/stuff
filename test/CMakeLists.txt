@@ -32,6 +32,7 @@ function(mh_test name)
 endfunction()
 
 mh_test(algorithm_algorithm_test)
+mh_test(coroutine_task_test)
 mh_test(data_bit_float_test)
 mh_test(data_bits_test)
 mh_test(data_variable_pusher_test)

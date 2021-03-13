@@ -1,8 +1,13 @@
 #pragma once
 
+#if 1
+#include "task.hpp"
+#else
 #include "coroutine_include.hpp"
 
 #ifdef MH_COROUTINES_SUPPORTED
+
+#include <mh/concurrency/mutex_debug.hpp>
 
 #include <cassert>
 #include <condition_variable>
@@ -184,6 +189,8 @@ namespace mh
 			template<size_t IDX, typename TValue>
 			void set_state(TValue&& value)
 			{
+				// FIXME: Need to keep our reference count valid here, since there's a chance that one of the resumes below could
+				// send us out of scope and cause issues (specifically, attempting to destroy this mutex while we're still holding it)
 				std::lock_guard lock(m_Mutex);
 
 				if (is_ready())
@@ -203,8 +210,8 @@ namespace mh
 			storage_type* try_get_value() { return std::get_if<IDX_VALUE>(&m_State); }
 
 		protected:
-			mutable std::mutex m_Mutex;
-			mutable std::condition_variable m_ValueReadyCV;
+			mutable mh::mutex_debug<> m_Mutex;
+			mutable std::condition_variable_any m_ValueReadyCV;
 			std::variant<std::vector<coro::coroutine_handle<>>, std::monostate, storage_type, std::exception_ptr> m_State;
 		};
 	}
@@ -382,4 +389,5 @@ MH_ENUM_REFLECT_BEGIN(mh::task_state)
 MH_ENUM_REFLECT_END()
 #endif
 
+#endif
 #endif
