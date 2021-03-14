@@ -15,6 +15,8 @@ namespace mh
 		template<typename T>
 		class future_obj_base
 		{
+			using promise_type = mh::detail::promise<T>;
+
 		public:
 			future_obj_base() noexcept = default;
 
@@ -54,8 +56,8 @@ namespace mh
 			}
 
 		protected:
-			mh::detail::promise<T>& get_promise() { return const_cast<mh::detail::promise<T>&>(std::as_const(*this).get_promise()); }
-			const mh::detail::promise<T>& get_promise() const
+			promise_type& get_promise() { return const_cast<promise_type&>(std::as_const(*this).get_promise()); }
+			const promise_type& get_promise() const
 			{
 				if (!m_Promise)
 					throw std::future_error(std::future_errc::no_state);
@@ -68,20 +70,27 @@ namespace mh
 				assert(!m_Promise);
 				release_promise();
 				m_Promise = new mh::detail::promise<T>;
+				m_Promise->add_ref();
+				assert(m_Promise->get_ref_count() == 1);
 			}
 
 			bool valid() const noexcept { return m_Promise && m_Promise->get_task_state() != task_state::empty; }
 
 			void release_promise()
 			{
-				if (m_Promise && m_Promise->remove_ref())
-					delete m_Promise;
+				if (m_Promise)
+				{
+					m_Promise->release_promise_ref([&]
+						{
+							delete m_Promise;
+						});
 
-				m_Promise = nullptr;
+					m_Promise = nullptr;
+				}
 			}
 
-			mh::detail::promise<T>* try_get_promise() { return m_Promise; }
-			const mh::detail::promise<T>* try_get_promise() const { return m_Promise; }
+			promise_type* try_get_promise() { return m_Promise; }
+			const promise_type* try_get_promise() const { return m_Promise; }
 
 		private:
 			mh::detail::promise<T>* m_Promise = nullptr;

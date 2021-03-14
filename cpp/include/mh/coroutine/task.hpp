@@ -321,7 +321,20 @@ namespace mh
 			}
 
 			auto lock() { return std::unique_lock(m_Mutex); }
-			bool final_suspend_has_run() const { return m_FinalSuspendHasRun; }
+			bool final_suspend_has_run() const noexcept { return m_FinalSuspendHasRun; }
+			int32_t get_ref_count() const noexcept { return m_RefCount; }
+
+			template<typename TFreeFunc>
+			void release_promise_ref(TFreeFunc&& freeFunc)
+			{
+				auto scopeLock = lock();
+
+				if (remove_ref() && final_suspend_has_run())
+				{
+					scopeLock.unlock();
+					freeFunc();
+				}
+			}
 
 		protected:
 			std::atomic_int32_t m_RefCount = REFCOUNT_UNSET;
@@ -502,14 +515,10 @@ namespace mh
 #if 1
 				if (m_Handle)
 				{
-					promise_type& prom = get_promise();
-					auto lock = prom.lock();
-
-					if (prom.remove_ref() && prom.final_suspend_has_run())
-					{
-						lock.unlock();
-						m_Handle.destroy();
-					}
+					get_promise().release_promise_ref([&]
+						{
+							m_Handle.destroy();
+						});
 
 					m_Handle = nullptr;
 				}
