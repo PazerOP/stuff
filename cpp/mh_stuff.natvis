@@ -10,4 +10,12 @@
 			<Item Name="[value]">c_str()</Item>
 		</Expand>
 	</Type>
+
+	<Type Name="std::coroutine_handle&lt;*&gt;" Priority="Low">
+		<Intrinsic Name="promise" Expression="($T1 *)((char*)_Ptr + 0x10)" />
+		<DisplayString>{*promise()}</DisplayString>
+		<Expand>
+			<Item Name="[promise]">promise()</Item>
+		</Expand>
+	</Type>
 </AutoVisualizer>

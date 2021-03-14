@@ -119,6 +119,76 @@ TEST_CASE("task - standard threaded std::nested_expection sanity check")
 	}
 }
 
+#if 0
+TEST_CASE("task - exception rethrow bug minimal example")
+{
+	struct test_exception
+	{
+
+	};
+
+	struct throwing_coroutine
+	{
+		bool await_ready() const { return true; }
+		void await_resume() const
+		{
+			throw test_exception{};
+		}
+		void await_suspend(std::coroutine_handle<>)
+		{
+			assert(!"Should never get here");
+		}
+	};
+
+	struct rethrowing_coroutine
+	{
+		rethrowing_coroutine()
+		{
+			try
+			{
+				throw test_exception{};
+			}
+			catch (...)
+			{
+				m_Exception = std::current_exception();
+			}
+		}
+
+		bool await_ready() const { return true; }
+		void await_resume() const
+		{
+			std::rethrow_exception(m_Exception);
+		}
+		void await_suspend(std::coroutine_handle<>)
+		{
+			assert(!"Should never get here");
+		}
+
+		std::exception_ptr m_Exception;
+	};
+
+	mh::thread_pool tp(2);
+	int test_value = 0;
+	auto task = [](mh::thread_pool& tp, int& test_value) -> mh::task<>
+	{
+		//std::this_thread::sleep_for(1s);
+		co_await tp.co_add_task();
+
+		rethrowing_coroutine example;
+		try
+		{
+			co_await example;
+		}
+		catch (const test_exception& e)
+		{
+			test_value = 1234;
+		}
+	}(tp, test_value);
+
+	REQUIRE(test_value == 1234);
+}
+#endif
+
 TEST_CASE("task - exceptions from other threads")
 {
 	constexpr int EXPECTED_INT = 2342;
@@ -146,7 +216,7 @@ TEST_CASE("task - exceptions from other threads")
 			//throw dummy_exception(__LINE__);
 		}
 
-		__debugbreak();
+		//__debugbreak();
 	}(producerTask, eValue, tp);
 
 	const auto& address = consumerTask.m_Handle.address();

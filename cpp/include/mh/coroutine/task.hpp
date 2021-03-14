@@ -78,7 +78,16 @@ namespace mh
 		public:
 			~promise_base()
 			{
+#if defined(_DEBUG) && defined(_MSC_VER)
+				if (m_BreakOnDestruct)
+				{
+					//auto test = reinterpret_cast<std::shared_ptr<const _EXCEPTION_DATA*>>(exception_ptr);
+					//__debugbreak();
+				}
+#endif
+
 				assert(m_RefCount == 0);
+				m_Deleted = true;
 			}
 
 			static constexpr size_t IDX_WAITERS = 0;
@@ -101,7 +110,8 @@ namespace mh
 
 			std::exception_ptr get_exception() const noexcept
 			{
-				return std::get_if<IDX_EXCEPTION>(&m_State);
+				auto result = std::get_if<IDX_EXCEPTION>(&m_State);
+				return result ? *result : nullptr;
 			}
 
 			task_state get_task_state() const
@@ -119,11 +129,11 @@ namespace mh
 
 			void wait() const
 			{
+				if (!valid())
+					throw std::future_error(std::future_errc::no_state);
+
 				if (!is_ready())
 				{
-					if (!valid())
-						throw std::future_error(std::future_errc::no_state);
-
 					std::unique_lock lock(m_Mutex);
 					m_ValueReadyCV.wait(lock, [&] { return is_ready(); });
 					assert(is_ready());
@@ -132,12 +142,12 @@ namespace mh
 			template<typename Rep, typename Period>
 			std::future_status wait_for(const std::chrono::duration<Rep, Period>& timeout_duration) const
 			{
+				if (!valid())
+					throw std::future_error(std::future_errc::no_state);
+
 				std::unique_lock lock(m_Mutex);
 				if (is_ready())
 					return std::future_status::ready;
-
-				if (!valid())
-					throw std::future_error(std::future_errc::no_state);
 
 				if (!m_ValueReadyCV.wait_for(lock, timeout_duration, [&] { return is_ready(); }))
 					return std::future_status::timeout;
@@ -148,12 +158,12 @@ namespace mh
 			template<typename Clock, typename Period>
 			std::future_status wait_until(const std::chrono::time_point<Clock, Period>& timeout_time) const
 			{
+				if (!valid())
+					throw std::future_error(std::future_errc::no_state);
+
 				std::unique_lock lock(m_Mutex);
 				if (is_ready())
 					return std::future_status::ready;
-
-				if (!valid())
-					throw std::future_error(std::future_errc::no_state);
 
 				if (!m_ValueReadyCV.wait_until(lock, timeout_time, [&] { return is_ready(); }))
 					return std::future_status::timeout;
@@ -164,8 +174,12 @@ namespace mh
 
 			void rethrow_if_exception() const
 			{
+				std::lock_guard lock(m_Mutex);
 				if (auto ex = std::get_if<IDX_EXCEPTION>(&m_State))
+				{
+					m_BreakOnDestruct = true;
 					std::rethrow_exception(*ex);
+				}
 			}
 
 			T take_value()
@@ -222,21 +236,21 @@ namespace mh
 			template<size_t IDX, typename TValue>
 			void set_state(TValue&& value)
 			{
-				std::vector<coro::coroutine_handle<>> waiters;
+				//std::vector<coro::coroutine_handle<>> waiters;
 
-				{
+				//{
 					std::lock_guard lock(m_Mutex);
 
 					if (is_ready())
 						throw std::future_error(std::future_errc::promise_already_satisfied);
 
-					waiters = std::move(std::get<IDX_WAITERS>(m_State));
+					auto waiters = std::move(std::get<IDX_WAITERS>(m_State));
 
 					static_assert(IDX == IDX_VALUE || IDX == IDX_EXCEPTION);
 					m_State.template emplace<IDX>(std::move(value));
 
 					m_ValueReadyCV.notify_all();
-				}
+				//}
 
 #ifdef _DEBUG
 				//mh::variable_pusher breakOnRemoveRef(m_BreakOnRemoveRef, true);
@@ -261,7 +275,7 @@ namespace mh
 			}
 			[[nodiscard]] bool remove_ref()
 			{
-#ifdef _DEBUG
+#if defined(_DEBUG) && defined(_MSC_VER)
 				if (m_BreakOnRemoveRef)
 					__debugbreak();
 #endif
@@ -278,9 +292,10 @@ namespace mh
 			std::variant<std::vector<coro::coroutine_handle<>>, std::monostate, storage_type, std::exception_ptr> m_State;
 
 #ifdef _DEBUG
-			bool m_BreakOnDestruct = false;
+			mutable bool m_BreakOnDestruct = false;
 			bool m_BreakOnRemoveRef = false;
 			mutable bool m_FinalSuspendHasRun = false;
+			mutable bool m_Deleted = false;
 #endif
 		};
 	}
@@ -415,7 +430,8 @@ namespace mh
 			promise_type& operator co_await() { return get_promise(); }
 			const promise_type& operator co_await() const { return get_promise(); }
 
-		protected:
+			// TEMP: public
+		//protected:
 			promise_type& get_promise() { return const_cast<promise_type&>(std::as_const(*this).get_promise()); }
 			const promise_type& get_promise() const
 			{

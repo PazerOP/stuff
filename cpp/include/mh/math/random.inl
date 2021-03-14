@@ -6,6 +6,9 @@
 
 #include <random>
 
+#undef min
+#undef max
+
 namespace mh
 {
 	namespace detail::random_hpp
