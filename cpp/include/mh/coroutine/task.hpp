@@ -96,7 +96,7 @@ namespace mh
 				assert(m_RefCount == 0);
 			}
 
-			promise_base() noexcept = default;
+			promise_base() noexcept {}
 			promise_base(const promise_base<T>&) = delete;
 			promise_base(promise_base<T>&&) = delete;
 
