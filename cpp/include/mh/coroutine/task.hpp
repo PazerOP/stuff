@@ -228,7 +228,7 @@ namespace mh
 			}
 
 			constexpr coro::suspend_never initial_suspend() const noexcept { return {}; }
-			constexpr suspend_sometimes final_suspend() const noexcept
+			suspend_sometimes final_suspend() const noexcept
 			{
 				std::lock_guard lock(m_Mutex);
 
