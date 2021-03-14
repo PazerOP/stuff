@@ -230,7 +230,7 @@ TEST_CASE("task - exception rethrow bug minimal example")
 #if 1
 TEST_CASE("task - exceptions from other threads")
 {
-	[[maybe_unused]] auto index = GENERATE(range(0, 500));
+	[[maybe_unused]] auto index = GENERATE(range(0, 50));
 
 	//constexpr int EXPECTED_INT = 2342;
 	constexpr int THROWN_INT = 9876;
@@ -243,7 +243,7 @@ TEST_CASE("task - exceptions from other threads")
 		throw dummy_exception{ THROWN_INT };
 	}(tp);
 
-	assert(!producerTask.m_Handle.done());
+	CHECK(!producerTask.m_Handle.done());
 
 	//producerTask.wait();
 
@@ -278,13 +278,15 @@ TEST_CASE("task - exceptions from other threads")
 
 	// Just some random waits that should be valid
 	producerTask.wait();
-	assert(producerTask.m_Handle.done());
+	CHECK(producerTask.m_Handle.done());
 	consumerTask.wait();
+	CHECK(consumerTask.m_Handle.done());
 	REQUIRE(eValue == THROWN_INT);
 
 	consumerTask.wait();
+	CHECK(consumerTask.m_Handle.done());
 	producerTask.wait();
-	assert(producerTask.m_Handle.done());
+	CHECK(producerTask.m_Handle.done());
 	REQUIRE(eValue == THROWN_INT);
 }
 #endif
