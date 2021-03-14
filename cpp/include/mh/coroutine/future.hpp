@@ -126,7 +126,7 @@ namespace mh
 		T await_resume() { return get(); }
 
 	private:
-		template<typename T> friend class promise;
+		template<typename T2> friend class promise;
 		using detail::future_hpp::future_obj_base<T>::future_obj_base;
 	};
 
@@ -161,7 +161,7 @@ namespace mh
 		const T& await_resume() const { return get(); }
 
 	private:
-		template<typename T> friend class promise;
+		template<typename T2> friend class promise;
 		using detail::future_hpp::future_obj_base<T>::future_obj_base;
 	};
 
