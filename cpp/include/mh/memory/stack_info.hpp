@@ -11,10 +11,15 @@ namespace mh
 	MH_STUFF_API bool is_variable_on_current_stack(const void* var);
 
 	// Checks if a variable is on the current thread's stack
-	template<typename T>
+	template<typename T, typename = std::enable_if_t<!std::is_pointer_v<T>>>
 	inline bool is_variable_on_current_stack(const T& var)
 	{
 		return is_variable_on_current_stack((const void*)&var);
+	}
+	template<typename T>
+	inline bool is_variable_on_current_stack(const T* var)
+	{
+		return is_variable_on_current_stack((const void*)var);
 	}
 #endif
 }

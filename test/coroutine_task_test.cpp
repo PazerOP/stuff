@@ -129,20 +129,20 @@ TEST_CASE("task - exception rethrow bug minimal example")
 
 	struct throwing_coroutine
 	{
-		bool await_ready() const { return true; }
+		bool await_ready() const { return false; }
 		void await_resume() const
 		{
 			throw test_exception{};
 		}
-		void await_suspend(std::coroutine_handle<>)
+		void await_suspend(std::coroutine_handle<> parent)
 		{
-			assert(!"Should never get here");
+			parent.resume();
 		}
-	};
+	} static s_ThrowingCoroutine;
 
-	struct rethrowing_coroutine
+	struct rethrowing_promise
 	{
-		rethrowing_coroutine()
+		rethrowing_promise()
 		{
 			try
 			{
@@ -167,14 +167,46 @@ TEST_CASE("task - exception rethrow bug minimal example")
 		std::exception_ptr m_Exception;
 	};
 
+	struct rethrowing_coroutine
+	{
+#if 0
+		rethrowing_coroutine()
+		{
+			try
+			{
+				throw test_exception{};
+			}
+			catch (...)
+			{
+				m_Exception = std::current_exception();
+			}
+		}
+
+		bool await_ready() const { return true; }
+		void await_resume() const
+		{
+			std::rethrow_exception(m_Exception);
+		}
+		void await_suspend(std::coroutine_handle<>)
+		{
+			assert(!"Should never get here");
+		}
+
+		std::exception_ptr m_Exception;
+#else
+		using promise_type = rethrowing_promise;
+		promise_type operator co_await() const { return rethrowing_promise{}; }
+#endif
+	};
+
 	mh::thread_pool tp(2);
 	int test_value = 0;
 	auto task = [](mh::thread_pool& tp, int& test_value) -> mh::task<>
 	{
 		//std::this_thread::sleep_for(1s);
-		co_await tp.co_add_task();
+		//co_await tp.co_add_task();
 
-		rethrowing_coroutine example;
+		throwing_coroutine example;
 		try
 		{
 			co_await example;
@@ -185,12 +217,16 @@ TEST_CASE("task - exception rethrow bug minimal example")
 		}
 	}(tp, test_value);
 
+	task.wait();
+
 	REQUIRE(test_value == 1234);
 }
 #endif
 
 TEST_CASE("task - exceptions from other threads")
 {
+	auto index = GENERATE(range(0, 50));
+
 	constexpr int EXPECTED_INT = 2342;
 	constexpr int THROWN_INT = 9876;
 
@@ -198,22 +234,33 @@ TEST_CASE("task - exceptions from other threads")
 	auto producerTask = [](mh::thread_pool& tp) -> mh::task<>
 	{
 		co_await tp.co_add_task();
-		std::this_thread::sleep_for(2s);
+		std::this_thread::sleep_for(500ms);
 		throw dummy_exception{ THROWN_INT };
 	}(tp);
+
+	//producerTask.wait();
 
 	int eValue = 0;
 	auto consumerTask = [](mh::task<> producerTask, int& eValue, mh::thread_pool& tp) -> mh::task<>
 	{
 		try
 		{
-			//co_await tp.co_add_task();
+			co_await tp.co_add_task();
 			co_await producerTask;
 		}
-		catch (const dummy_exception& e)
+		catch (dummy_exception e)
 		{
 			eValue = e.m_Value;
+			//REQUIRE(eValue == THROWN_INT);
 			//throw dummy_exception(__LINE__);
+		}
+		catch (const std::exception& e)
+		{
+			FAIL("wat");
+		}
+		catch (...)
+		{
+			FAIL("Unknown exception, somehow");
 		}
 
 		//__debugbreak();
@@ -225,9 +272,10 @@ TEST_CASE("task - exceptions from other threads")
 	// Just some random waits that should be valid
 	consumerTask.wait();
 	producerTask.wait();
+	REQUIRE(eValue == THROWN_INT);
+
 	producerTask.wait();
 	consumerTask.wait();
-
 	REQUIRE(eValue == THROWN_INT);
 }
 

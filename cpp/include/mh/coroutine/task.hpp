@@ -6,6 +6,7 @@
 
 #include "../concurrency/mutex_debug.hpp"
 #include "../data/variable_pusher.hpp"
+#include "../memory/stack_info.hpp"
 
 #include <atomic>
 #include <cassert>
@@ -78,17 +79,37 @@ namespace mh
 		public:
 			~promise_base()
 			{
-#if defined(_DEBUG) && defined(_MSC_VER)
+#ifdef _DEBUG
+				[[maybe_unused]] auto deletedVal = m_Deleted;
+				assert(!deletedVal);
+#ifdef _MSC_VER
 				if (m_BreakOnDestruct)
 				{
 					//auto test = reinterpret_cast<std::shared_ptr<const _EXCEPTION_DATA*>>(exception_ptr);
 					//__debugbreak();
 				}
 #endif
+#endif
 
 				assert(m_RefCount == 0);
+
+#ifdef _DEBUG
 				m_Deleted = true;
+#endif
 			}
+
+#if 0
+			static void* operator new(std::size_t count)
+			{
+				__debugbreak();
+				return ::operator new(count);
+			}
+			static void* operator new[](std::size_t count)
+			{
+				__debugbreak();
+				return ::operator new[](count);
+			}
+#endif
 
 			static constexpr size_t IDX_WAITERS = 0;
 			static constexpr size_t IDX_INVALID = 1;
@@ -236,21 +257,21 @@ namespace mh
 			template<size_t IDX, typename TValue>
 			void set_state(TValue&& value)
 			{
-				//std::vector<coro::coroutine_handle<>> waiters;
+				std::vector<coro::coroutine_handle<>> waiters;
 
-				//{
+				{
 					std::lock_guard lock(m_Mutex);
 
 					if (is_ready())
 						throw std::future_error(std::future_errc::promise_already_satisfied);
 
-					auto waiters = std::move(std::get<IDX_WAITERS>(m_State));
+					waiters = std::move(std::get<IDX_WAITERS>(m_State));
 
 					static_assert(IDX == IDX_VALUE || IDX == IDX_EXCEPTION);
 					m_State.template emplace<IDX>(std::move(value));
 
 					m_ValueReadyCV.notify_all();
-				//}
+				}
 
 #ifdef _DEBUG
 				//mh::variable_pusher breakOnRemoveRef(m_BreakOnRemoveRef, true);
@@ -259,9 +280,9 @@ namespace mh
 
 				for (auto& waiter : waiters)
 				{
-					//assert(m_RefCount > 0);
+					assert(m_RefCount > 0);
 					waiter.resume();
-					//assert(m_RefCount > 0);
+					assert(m_RefCount > 0);
 				}
 			}
 
@@ -287,15 +308,15 @@ namespace mh
 
 		protected:
 			std::atomic_int32_t m_RefCount = 1;
-			mutable mh::mutex_debug<> m_Mutex;
 			mutable std::condition_variable_any m_ValueReadyCV;
+			mutable mh::mutex_debug<> m_Mutex;
 			std::variant<std::vector<coro::coroutine_handle<>>, std::monostate, storage_type, std::exception_ptr> m_State;
 
 #ifdef _DEBUG
+			mutable uint64_t m_Deleted = false;
 			mutable bool m_BreakOnDestruct = false;
 			bool m_BreakOnRemoveRef = false;
 			mutable bool m_FinalSuspendHasRun = false;
-			mutable bool m_Deleted = false;
 #endif
 		};
 	}
@@ -425,7 +446,7 @@ namespace mh
 				return get_promise().wait_until(timeout_time);
 			}
 
-			std::exception_ptr get_exception() const { m_Handle ? m_Handle.promise().get_exception() : nullptr; }
+			std::exception_ptr get_exception() const { return m_Handle ? m_Handle.promise().get_exception() : nullptr; }
 
 			promise_type& operator co_await() { return get_promise(); }
 			const promise_type& operator co_await() const { return get_promise(); }

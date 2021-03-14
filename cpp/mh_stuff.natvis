@@ -16,6 +16,7 @@
 		<DisplayString>{*promise()}</DisplayString>
 		<Expand>
 			<Item Name="[promise]">promise()</Item>
+			<Item Name="[done]">done()</Item>
 		</Expand>
 	</Type>
 </AutoVisualizer>
