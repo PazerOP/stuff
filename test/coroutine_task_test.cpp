@@ -4,6 +4,8 @@
 #include <catch2/catch.hpp>
 
 #include <atomic>
+#include <cstring>
+#include <iostream>
 #include <thread>
 
 #ifdef _WIN32
@@ -225,9 +227,9 @@ TEST_CASE("task - exception rethrow bug minimal example")
 
 TEST_CASE("task - exceptions from other threads")
 {
-	auto index = GENERATE(range(0, 50));
+	[[maybe_unused]] auto index = GENERATE(range(0, 50));
 
-	constexpr int EXPECTED_INT = 2342;
+	//constexpr int EXPECTED_INT = 2342;
 	constexpr int THROWN_INT = 9876;
 
 	mh::thread_pool tp(2);
@@ -236,7 +238,10 @@ TEST_CASE("task - exceptions from other threads")
 		co_await tp.co_add_task();
 		std::this_thread::sleep_for(500ms);
 		throw dummy_exception{ THROWN_INT };
+		std::cout << "what the fuck" << std::endl;
 	}(tp);
+
+	assert(!producerTask.m_Handle.done());
 
 	//producerTask.wait();
 
@@ -248,7 +253,7 @@ TEST_CASE("task - exceptions from other threads")
 			co_await tp.co_add_task();
 			co_await producerTask;
 		}
-		catch (dummy_exception e)
+		catch (const dummy_exception& e)
 		{
 			eValue = e.m_Value;
 			//REQUIRE(eValue == THROWN_INT);
@@ -266,8 +271,8 @@ TEST_CASE("task - exceptions from other threads")
 		//__debugbreak();
 	}(producerTask, eValue, tp);
 
-	const auto& address = consumerTask.m_Handle.address();
-	const auto& promise = consumerTask.m_Handle.promise();
+	[[maybe_unused]] const auto& address = consumerTask.m_Handle.address();
+	[[maybe_unused]] const auto& promise = consumerTask.m_Handle.promise();
 
 	// Just some random waits that should be valid
 	consumerTask.wait();

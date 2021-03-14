@@ -19,4 +19,10 @@
 			<Item Name="[done]">done()</Item>
 		</Expand>
 	</Type>
+	<Type Name="std::coroutine_handle&lt;void&gt;" Priority="Low">
+		<DisplayString>[done = {done()}]</DisplayString>
+		<Expand>
+			<Item Name="[done]">done()</Item>
+		</Expand>
+	</Type>
 </AutoVisualizer>

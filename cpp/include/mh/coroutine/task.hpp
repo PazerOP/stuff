@@ -99,6 +99,10 @@ namespace mh
 #endif
 			}
 
+			promise_base() noexcept = default;
+			promise_base(const promise_base<T>&) = delete;
+			promise_base(promise_base<T>&&) = delete;
+
 #if 0
 			static void* operator new(std::size_t count)
 			{
@@ -221,6 +225,8 @@ namespace mh
 
 			void unhandled_exception()
 			{
+				//auto handle = coro::coroutine_handle<promise_base<T>>::from_promise(*this);
+				//assert(!handle.done());
 				set_state<IDX_EXCEPTION>(std::current_exception());
 			}
 
@@ -284,6 +290,7 @@ namespace mh
 				for (auto& waiter : waiters)
 				{
 					assert(m_RefCount > 0);
+					assert(!waiter.done());
 					waiter.resume();
 					assert(m_RefCount > 0);
 				}
@@ -451,8 +458,16 @@ namespace mh
 
 			std::exception_ptr get_exception() const { return m_Handle ? m_Handle.promise().get_exception() : nullptr; }
 
+#if 0
 			promise_type& operator co_await() { return get_promise(); }
 			const promise_type& operator co_await() const { return get_promise(); }
+#else
+			bool await_ready() const { return get_promise().await_ready(); }
+			bool await_suspend(coro::coroutine_handle<> parent) { return get_promise().await_suspend(parent); }
+			decltype(auto) await_resume() { return get_promise().await_resume(); }
+			decltype(auto) await_resume() const { return get_promise().await_resume(); }
+#endif
+
 
 			// TEMP: public
 		//protected:
