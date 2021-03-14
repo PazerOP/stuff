@@ -291,7 +291,6 @@ namespace mh
 				for (auto& waiter : waiters)
 				{
 					assert(m_RefCount > 0 || !final_suspend_has_run());
-					assert(!waiter.done());
 					waiter.resume();
 					assert(m_RefCount > 0 || !final_suspend_has_run());
 				}
