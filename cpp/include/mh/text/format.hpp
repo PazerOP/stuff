@@ -151,8 +151,7 @@ namespace mh
 	}
 	catch (const format_error& e)
 	{
-		return ::mh::format(MH_FMT_STRING("FORMATTING ERROR @ {}: Unable to construct string with fmtstr {}: {}"),
-			__FUNCSIG__, std::quoted(fmtStr), e.what());
+		return ::mh::format(MH_FMT_STRING("FORMATTING ERROR: Unable to construct string with fmtstr {}: {}"), std::quoted(fmtStr), e.what());
 	}
 
 	inline std::string try_vformat(const std::string_view& fmtStr, const format_args& args) try
@@ -161,8 +160,7 @@ namespace mh
 	}
 	catch (const format_error& e)
 	{
-		return ::mh::format(MH_FMT_STRING("FORMATTING ERROR @ {}: Unable to construct string with fmtstr {}: {}"),
-			__FUNCSIG__, std::quoted(fmtStr), e.what());
+		return ::mh::format(MH_FMT_STRING("FORMATTING ERROR: Unable to construct string with fmtstr {}: {}"), std::quoted(fmtStr), e.what());
 	}
 
 	inline std::wstring try_vformat(const std::wstring_view& fmtStr, const wformat_args& args) try
@@ -172,8 +170,7 @@ namespace mh
 	catch (const format_error& /*e*/)
 	{
 		// Can't print error message from exception because fmt does not handle conversion from char -> wchar_t on its own unfortunately
-		return ::mh::format(MH_FMT_STRING(L"FORMATTING ERROR @ {}: Unable to construct string with fmtstr {}"),
-			L"" __FUNCSIG__, std::quoted(fmtStr));
+		return ::mh::format(MH_FMT_STRING(L"FORMATTING ERROR: Unable to construct string with fmtstr {}"), std::quoted(fmtStr));
 	}
 
 	template<typename TChar = char, typename TTraits = std::char_traits<TChar>, typename TAlloc = std::allocator<TChar>, typename... TArgs>
