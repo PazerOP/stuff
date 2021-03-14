@@ -16,6 +16,9 @@
 #include <queue>
 #include <thread>
 
+#undef min
+#undef max
+
 namespace mh
 {
 	namespace detail::dispatcher_hpp

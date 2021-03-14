@@ -198,7 +198,9 @@ namespace mh
 				std::lock_guard lock(m_Mutex);
 				if (auto ex = std::get_if<IDX_EXCEPTION>(&m_State))
 				{
+#ifdef _DEBUG
 					m_BreakOnDestruct = true;
+#endif
 					std::rethrow_exception(*ex);
 				}
 			}
