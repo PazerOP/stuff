@@ -230,13 +230,13 @@ TEST_CASE("task - exception rethrow bug minimal example")
 #if 1
 TEST_CASE("task - exceptions from other threads")
 {
-	[[maybe_unused]] auto index = GENERATE(range(0, 50));
+	auto index = GENERATE(range(0, 50));
 
 	//constexpr int EXPECTED_INT = 2342;
 	constexpr int THROWN_INT = 9876;
 
 	mh::thread_pool tp(2);
-	auto producerTask = [](mh::thread_pool& tp) -> mh::task<>
+	mh::task<> producerTask = [](mh::thread_pool& tp) -> mh::task<>
 	{
 		co_await tp.co_add_task();
 		std::this_thread::sleep_for(50ms);
@@ -248,7 +248,7 @@ TEST_CASE("task - exceptions from other threads")
 	//producerTask.wait();
 
 	int eValue = 0;
-	auto consumerTask = [](mh::task<> producerTask, int& eValue, mh::thread_pool& tp) -> mh::task<>
+	mh::task<> consumerTask = [](mh::task<> producerTask, int& eValue, mh::thread_pool& tp) -> mh::task<>
 	{
 		try
 		{
@@ -277,16 +277,16 @@ TEST_CASE("task - exceptions from other threads")
 	[[maybe_unused]] const auto& promise = consumerTask.m_Handle.promise();
 
 	// Just some random waits that should be valid
-	producerTask.wait();
-	CHECK(producerTask.m_Handle.done());
-	consumerTask.wait();
-	CHECK(consumerTask.m_Handle.done());
-	REQUIRE(eValue == THROWN_INT);
-
-	consumerTask.wait();
-	CHECK(consumerTask.m_Handle.done());
-	producerTask.wait();
-	CHECK(producerTask.m_Handle.done());
+	if (index % 2)
+	{
+		producerTask.wait();
+		consumerTask.wait();
+	}
+	else
+	{
+		consumerTask.wait();
+		producerTask.wait();
+	}
 	REQUIRE(eValue == THROWN_INT);
 }
 #endif
