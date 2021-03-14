@@ -12,6 +12,7 @@
 #include <cassert>
 #include <condition_variable>
 #include <future>
+#include <iostream>
 #include <variant>
 #include <vector>
 
@@ -60,11 +61,7 @@ namespace mh
 		{
 			constexpr suspend_sometimes(bool suspend) : m_Suspend(suspend) {}
 
-			[[nodiscard]] constexpr bool await_ready() const noexcept
-			{
-				return !m_Suspend;
-			}
-
+			[[nodiscard]] constexpr bool await_ready() const noexcept { return !m_Suspend; }
 			constexpr void await_suspend(coro::coroutine_handle<>) const noexcept {}
 			constexpr void await_resume() const noexcept {}
 
@@ -77,12 +74,16 @@ namespace mh
 			using traits = co_promise_traits<T>;
 			using storage_type = typename traits::storage_type;
 
+			static constexpr int32_t REFCOUNT_UNSET = -1234;
+
 		public:
 			~promise_base()
 			{
 #ifdef _DEBUG
 				[[maybe_unused]] auto deletedVal = m_Deleted;
 				assert(!deletedVal);
+				m_Deleted = true;
+				//std::this_thread::sleep_for(std::chrono::milliseconds(100));
 #ifdef _MSC_VER
 				if (m_BreakOnDestruct)
 				{
@@ -93,10 +94,6 @@ namespace mh
 #endif
 
 				assert(m_RefCount == 0);
-
-#ifdef _DEBUG
-				m_Deleted = true;
-#endif
 			}
 
 			promise_base() noexcept = default;
@@ -233,12 +230,16 @@ namespace mh
 			constexpr coro::suspend_never initial_suspend() const noexcept { return {}; }
 			constexpr suspend_sometimes final_suspend() const noexcept
 			{
-#ifdef _DEBUG
+				std::lock_guard lock(m_Mutex);
+
+				auto result = m_RefCount != 0;
 				m_FinalSuspendHasRun = true;
+#ifdef _DEBUG
+				m_FinalSuspendResult = result;
 #endif
 				// If m_RefCount == 0, we are in charge of our own destiny (all referencing tasks have gone out of
 				// scope, so just delete ourselves when we're done)
-				return m_RefCount != 0;
+				return result;
 			}
 
 			bool await_ready() const { return is_ready(); }
@@ -301,8 +302,12 @@ namespace mh
 
 			void add_ref()
 			{
-				assert(m_RefCount >= 1);
-				++m_RefCount;
+				int32_t refCountUnset = REFCOUNT_UNSET;
+				if (!m_RefCount.compare_exchange_strong(refCountUnset, 1))
+				{
+					assert(m_RefCount >= 1);
+					++m_RefCount;
+				}
 			}
 			[[nodiscard]] bool remove_ref()
 			{
@@ -316,17 +321,22 @@ namespace mh
 				return newVal <= 0;
 			}
 
+			auto lock() { return std::unique_lock(m_Mutex); }
+			bool final_suspend_has_run() const { return m_FinalSuspendHasRun; }
+
 		protected:
-			std::atomic_int32_t m_RefCount = 1;
+			std::atomic_int32_t m_RefCount = REFCOUNT_UNSET;
 			mutable std::condition_variable_any m_ValueReadyCV;
 			mutable mh::mutex_debug<> m_Mutex;
 			std::variant<std::vector<coro::coroutine_handle<>>, std::monostate, storage_type, std::exception_ptr> m_State;
+			mutable bool m_FinalSuspendHasRun = false;
 
 #ifdef _DEBUG
+		public:
 			mutable uint64_t m_Deleted = false;
 			mutable bool m_BreakOnDestruct = false;
 			bool m_BreakOnRemoveRef = false;
-			mutable bool m_FinalSuspendHasRun = false;
+			mutable bool m_FinalSuspendResult = false;
 #endif
 		};
 	}
@@ -398,7 +408,12 @@ namespace mh
 
 			task_base() noexcept = default;
 			task_base(std::nullptr_t) noexcept : m_Handle(nullptr) {}
-			task_base(coroutine_type state) noexcept : m_Handle(std::move(state)) {}
+			task_base(coroutine_type state) noexcept :
+				m_Handle(std::move(state))
+			{
+				if (m_Handle)
+					m_Handle.promise().add_ref();
+			}
 
 			task_base(const task_base& other) noexcept :
 				m_Handle(other.m_Handle)
@@ -485,14 +500,28 @@ namespace mh
 		private:
 			void release()
 			{
+#if 1
+				if (m_Handle)
+				{
+					promise_type& prom = get_promise();
+					auto lock = prom.lock();
+
+					if (prom.remove_ref() && prom.final_suspend_has_run())
+					{
+						lock.unlock();
+						m_Handle.destroy();
+					}
+
+					m_Handle = nullptr;
+				}
+#else
 				if (m_Handle && m_Handle.promise().remove_ref())
 				{
 					// TODO probably a race condition here
-					if (m_Handle.done())
-						m_Handle.destroy();
+					//if (m_Handle.done())
+					//	m_Handle.destroy();
 				}
-
-				m_Handle = nullptr;
+#endif
 			}
 		};
 	}

@@ -1,6 +1,8 @@
 #include "mh/concurrency/thread_pool.hpp"
 #include "mh/coroutine/task.hpp"
 
+#ifdef MH_COROUTINES_SUPPORTED
+
 #include <catch2/catch.hpp>
 
 #include <atomic>
@@ -225,9 +227,10 @@ TEST_CASE("task - exception rethrow bug minimal example")
 }
 #endif
 
+#if 1
 TEST_CASE("task - exceptions from other threads")
 {
-	[[maybe_unused]] auto index = GENERATE(range(0, 50));
+	[[maybe_unused]] auto index = GENERATE(range(0, 500));
 
 	//constexpr int EXPECTED_INT = 2342;
 	constexpr int THROWN_INT = 9876;
@@ -236,9 +239,8 @@ TEST_CASE("task - exceptions from other threads")
 	auto producerTask = [](mh::thread_pool& tp) -> mh::task<>
 	{
 		co_await tp.co_add_task();
-		std::this_thread::sleep_for(500ms);
+		std::this_thread::sleep_for(50ms);
 		throw dummy_exception{ THROWN_INT };
-		std::cout << "what the fuck" << std::endl;
 	}(tp);
 
 	assert(!producerTask.m_Handle.done());
@@ -275,14 +277,17 @@ TEST_CASE("task - exceptions from other threads")
 	[[maybe_unused]] const auto& promise = consumerTask.m_Handle.promise();
 
 	// Just some random waits that should be valid
-	consumerTask.wait();
 	producerTask.wait();
+	assert(producerTask.m_Handle.done());
+	consumerTask.wait();
 	REQUIRE(eValue == THROWN_INT);
 
-	producerTask.wait();
 	consumerTask.wait();
+	producerTask.wait();
+	assert(producerTask.m_Handle.done());
 	REQUIRE(eValue == THROWN_INT);
 }
+#endif
 
 TEST_CASE("task - exceptions in discarded tasks")
 {
@@ -292,7 +297,8 @@ TEST_CASE("task - exceptions in discarded tasks")
 	[](mh::thread_pool& tp, int& val) -> mh::task<>
 	{
 		co_await tp.co_add_task();
-		std::this_thread::sleep_for(2s);
+		co_await tp.co_delay_for(2s);
+		//std::this_thread::sleep_for(2s);
 		val = 50030;
 		throw dummy_exception(__LINE__);
 		val = 30234;
@@ -302,3 +308,5 @@ TEST_CASE("task - exceptions in discarded tasks")
 	std::this_thread::sleep_for(3s);
 	REQUIRE(value == 50030);
 }
+
+#endif
