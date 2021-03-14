@@ -161,6 +161,8 @@ jobs:
           -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
           ../
 
+        cmake --build .
+
     - name: Run tests
       run: |
         cd build
