@@ -7,6 +7,12 @@ add_library(Catch2WithMain STATIC "catch2.cpp")
 target_link_libraries(Catch2WithMain PUBLIC Catch2::Catch2)
 target_compile_features(Catch2WithMain PUBLIC cxx_std_20)
 
+if (MSVC)
+	# There is a bug in visual studio that prevents intellisense from realizing
+	# /std:c++latest is on the command line if you only use target_compile_features(cxx_std_20)
+	target_compile_options(Catch2WithMain PUBLIC "/std:c++latest")
+endif()
+
 # build with correct stdlib for complier
 if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	target_compile_options(Catch2WithMain PUBLIC -stdlib=libc++)

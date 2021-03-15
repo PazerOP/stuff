@@ -6,6 +6,10 @@
 
 #ifdef MH_COROUTINES_SUPPORTED
 
+#ifndef MH_STUFF_API
+#define MH_STUFF_API
+#endif
+
 #include <chrono>
 #include <memory>
 

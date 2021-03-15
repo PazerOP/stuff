@@ -69,7 +69,7 @@ namespace mh
 		};
 
 		template<typename T>
-		class promise_base : public co_promise_traits<T>
+		class promise_base
 		{
 			using traits = co_promise_traits<T>;
 			using storage_type = typename traits::storage_type;
@@ -79,39 +79,12 @@ namespace mh
 		public:
 			~promise_base()
 			{
-#ifdef _DEBUG
-				[[maybe_unused]] auto deletedVal = m_Deleted;
-				assert(!deletedVal);
-				m_Deleted = true;
-				//std::this_thread::sleep_for(std::chrono::milliseconds(100));
-#ifdef _MSC_VER
-				if (m_BreakOnDestruct)
-				{
-					//auto test = reinterpret_cast<std::shared_ptr<const _EXCEPTION_DATA*>>(exception_ptr);
-					//__debugbreak();
-				}
-#endif
-#endif
-
 				assert(m_RefCount == 0);
 			}
 
 			promise_base() noexcept {}
 			promise_base(const promise_base<T>&) = delete;
 			promise_base(promise_base<T>&&) = delete;
-
-#if 0
-			static void* operator new(std::size_t count)
-			{
-				__debugbreak();
-				return ::operator new(count);
-			}
-			static void* operator new[](std::size_t count)
-			{
-				__debugbreak();
-				return ::operator new[](count);
-			}
-#endif
 
 			static constexpr size_t IDX_WAITERS = 0;
 			static constexpr size_t IDX_INVALID = 1;
@@ -197,14 +170,15 @@ namespace mh
 
 			void rethrow_if_exception() const
 			{
-				std::lock_guard lock(m_Mutex);
-				if (auto ex = std::get_if<IDX_EXCEPTION>(&m_State))
+				std::exception_ptr ex;
 				{
-#ifdef _DEBUG
-					m_BreakOnDestruct = true;
-#endif
-					std::rethrow_exception(*ex);
+					std::lock_guard lock(m_Mutex);
+					if (auto e = std::get_if<IDX_EXCEPTION>(&m_State))
+						ex = *e;
 				}
+
+				if (ex)
+					std::rethrow_exception(ex);
 			}
 
 			T take_value()
@@ -222,8 +196,6 @@ namespace mh
 
 			void unhandled_exception()
 			{
-				//auto handle = coro::coroutine_handle<promise_base<T>>::from_promise(*this);
-				//assert(!handle.done());
 				set_state<IDX_EXCEPTION>(std::current_exception());
 			}
 
@@ -231,15 +203,11 @@ namespace mh
 			suspend_sometimes final_suspend() const noexcept
 			{
 				std::lock_guard lock(m_Mutex);
-
-				auto result = m_RefCount != 0;
 				m_FinalSuspendHasRun = true;
-#ifdef _DEBUG
-				m_FinalSuspendResult = result;
-#endif
+
 				// If m_RefCount == 0, we are in charge of our own destiny (all referencing tasks have gone out of
 				// scope, so just delete ourselves when we're done)
-				return result;
+				return m_RefCount != 0;
 			}
 
 			bool await_ready() const { return is_ready(); }
@@ -283,11 +251,6 @@ namespace mh
 					m_ValueReadyCV.notify_all();
 				}
 
-#ifdef _DEBUG
-				//mh::variable_pusher breakOnRemoveRef(m_BreakOnRemoveRef, true);
-				[[maybe_unused]] auto self = coro::coroutine_handle<promise_base<T>>::from_promise(*this);
-#endif
-
 				for (auto& waiter : waiters)
 				{
 					assert(m_RefCount > 0 || !final_suspend_has_run());
@@ -310,11 +273,6 @@ namespace mh
 			}
 			[[nodiscard]] bool remove_ref()
 			{
-#if defined(_DEBUG) && defined(_MSC_VER)
-				if (m_BreakOnRemoveRef)
-					__debugbreak();
-#endif
-
 				auto newVal = --m_RefCount;
 				assert(newVal >= 0);
 				return newVal <= 0;
@@ -342,14 +300,6 @@ namespace mh
 			mutable mh::mutex_debug<> m_Mutex;
 			std::variant<std::vector<coro::coroutine_handle<>>, std::monostate, storage_type, std::exception_ptr> m_State;
 			mutable bool m_FinalSuspendHasRun = false;
-
-#ifdef _DEBUG
-		public:
-			mutable uint64_t m_Deleted = false;
-			mutable bool m_BreakOnDestruct = false;
-			bool m_BreakOnRemoveRef = false;
-			mutable bool m_FinalSuspendResult = false;
-#endif
 		};
 	}
 
@@ -361,8 +311,6 @@ namespace mh
 			using super = detail::task_hpp::promise_base<T>;
 
 		public:
-			~promise() {}
-
 			decltype(auto) get_value() { return const_cast<T&>(std::as_const(*this).get_value()); }
 			decltype(auto) get_value() const
 			{
@@ -373,9 +321,10 @@ namespace mh
 				return std::get<super::IDX_VALUE>(this->m_State);
 			}
 
-			T* try_get_value() { return const_cast<T*>(std::as_const(*this).try_get_value()); }
-			const T* try_get_value() const
+			T* try_get_value() noexcept { return const_cast<T*>(std::as_const(*this).try_get_value()); }
+			const T* try_get_value() const noexcept
 			{
+				std::lock_guard lock(this->m_Mutex);
 				return std::get_if<super::IDX_VALUE>(std::addressof(this->m_State));
 			}
 
@@ -384,8 +333,12 @@ namespace mh
 				this->set_state<super::IDX_VALUE>(std::move(value));
 			}
 
-			const T& await_resume() const { return get_value(); }
-			T& await_resume() { return get_value(); }
+			T& await_resume() { return const_cast<T&>(std::as_const(*this).get_value()); }
+			const T& await_resume() const
+			{
+				assert(this->is_ready());
+				return this->get_value();
+			}
 		};
 
 		template<>
@@ -394,8 +347,6 @@ namespace mh
 			using super = detail::task_hpp::promise_base<void>;
 
 		public:
-			~promise() {}
-
 			void return_void()
 			{
 				this->set_state<super::IDX_VALUE>(std::monostate{});
@@ -403,8 +354,8 @@ namespace mh
 
 			void await_resume()
 			{
-				assert(is_ready());
-				rethrow_if_exception();
+				assert(this->is_ready());
+				this->rethrow_if_exception();
 			}
 		};
 	}
@@ -485,7 +436,7 @@ namespace mh
 
 			std::exception_ptr get_exception() const { return m_Handle ? m_Handle.promise().get_exception() : nullptr; }
 
-#if 0
+#if 0       // operator co_await makes intellisense very unhappy
 			promise_type& operator co_await() { return get_promise(); }
 			const promise_type& operator co_await() const { return get_promise(); }
 #else
@@ -495,9 +446,7 @@ namespace mh
 			decltype(auto) await_resume() const { return get_promise().await_resume(); }
 #endif
 
-
-			// TEMP: public
-		//protected:
+		protected:
 			promise_type& get_promise() { return const_cast<promise_type&>(std::as_const(*this).get_promise()); }
 			const promise_type& get_promise() const
 			{
@@ -512,7 +461,6 @@ namespace mh
 		private:
 			void release()
 			{
-#if 1
 				if (m_Handle)
 				{
 					get_promise().release_promise_ref([&]
@@ -522,14 +470,6 @@ namespace mh
 
 					m_Handle = nullptr;
 				}
-#else
-				if (m_Handle && m_Handle.promise().remove_ref())
-				{
-					// TODO probably a race condition here
-					//if (m_Handle.done())
-					//	m_Handle.destroy();
-				}
-#endif
 			}
 		};
 	}
