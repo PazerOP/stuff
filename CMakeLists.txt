@@ -48,7 +48,6 @@ add_library(stuff ${MH_INTERFACE_OR_EMPTY}
 	"cpp/include/mh/containers/heap.hpp"
 
 	"cpp/include/mh/coroutine/coroutine_include.hpp"
-	"cpp/include/mh/coroutine/coroutine_common.hpp"
 	"cpp/include/mh/coroutine/future.hpp"
 	"cpp/include/mh/coroutine/generator.hpp"
 	"cpp/include/mh/coroutine/task.hpp"
