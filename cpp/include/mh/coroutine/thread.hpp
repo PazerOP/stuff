@@ -4,6 +4,10 @@
 
 #ifdef MH_COROUTINES_SUPPORTED
 
+#ifndef MH_STUFF_API
+#define MH_STUFF_API
+#endif
+
 namespace mh
 {
 	namespace detail::coroutine::thread_hpp
@@ -34,7 +38,7 @@ namespace mh
 
 			constexpr bool await_ready() const { return false; }
 			constexpr void await_resume() const {}
-			bool await_suspend(coro::coroutine_handle<> parent);
+			MH_STUFF_API bool await_suspend(coro::coroutine_handle<> parent);
 
 		private:
 			co_create_thread_flags m_Flags;
@@ -42,10 +46,10 @@ namespace mh
 	}
 
 	// Moves execution to a new thread
-	detail::coroutine::thread_hpp::task co_create_thread();
+	MH_STUFF_API detail::coroutine::thread_hpp::task co_create_thread();
 
 	// Only moves execution to a new thread if we're currently on the main thread
-	detail::coroutine::thread_hpp::task co_create_background_thread();
+	MH_STUFF_API detail::coroutine::thread_hpp::task co_create_background_thread();
 }
 
 #ifndef MH_COMPILE_LIBRARY
