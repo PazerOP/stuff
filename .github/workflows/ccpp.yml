@@ -103,14 +103,13 @@ jobs:
         cmake -G Ninja \
           -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
           -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
-          -DVCPKG_INSTALL_OPTIONS="--debug" \
           ../
 
         cmake --build .
 
     - run: cat /home/runner/work/stuff/stuff/build/vcpkg-manifest-install.log
       continue-on-error: true
-    - run: /home/runner/work/stuff/stuff/vcpkg/buildtrees/fmt/install-x64-linux-dbg-out.log
+    - run: cat /home/runner/work/stuff/stuff/vcpkg/buildtrees/fmt/install-x64-linux-dbg-out.log
       continue-on-error: true
 
     - name: Run tests
