@@ -4,8 +4,10 @@
 #include <cstdint>
 #include <type_traits>
 
-#if (__cpp_consteval < 201811) && !defined(consteval) && !(__clang_major__ > 8)
-#define consteval constexpr
+#if __cpp_consteval >= 201811
+#define MH_CONSTEVAL consteval
+#else
+#define MH_CONSTEVAL constexpr
 #endif
 
 namespace mh
@@ -13,7 +15,7 @@ namespace mh
 	// Stores all the possible compile-time representations of a character.
 	struct multi_char final
 	{
-		consteval multi_char(
+		MH_CONSTEVAL multi_char(
 			const char(&narrow_)[2],
 			const wchar_t(&wide_)[2],
 #if __cpp_char8_t >= 201811
