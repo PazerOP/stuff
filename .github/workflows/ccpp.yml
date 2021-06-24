@@ -90,13 +90,10 @@ jobs:
     #   run: make -j`grep -c ^processor /proc/cpuinfo` ${{ matrix.compiler }}_test_output.txt
 
     - name: Build
-      continue-on-error: true
       env:
         CXX: ${{ matrix.compiler.exe }}
         CXXFLAGS: -Wall -Wpedantic -Wextra -Werror
       run: |
-        # $VCPKG_ROOT/vcpkg install
-
         mkdir build
         cd build
 
@@ -108,11 +105,6 @@ jobs:
           ../
 
         cmake --build .
-
-    - run: cat /home/runner/work/stuff/stuff/build/vcpkg-manifest-install.log
-      continue-on-error: true
-    - run: cat /home/runner/work/stuff/stuff/vcpkg/buildtrees/fmt/install-x64-linux-dbg-out.log
-      continue-on-error: true
 
     - name: Run tests
       env:
