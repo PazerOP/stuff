@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#if (__cpp_consteval < 201811) && !defined(consteval)
+#if (__cpp_consteval < 201811) && !defined(consteval) && !defined(__clang__)
 #define consteval constexpr
 #endif
 
