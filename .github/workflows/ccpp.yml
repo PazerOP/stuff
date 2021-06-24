@@ -106,7 +106,15 @@ jobs:
         cmake --build .
 
     - run: cat /home/runner/work/stuff/stuff/build/vcpkg-manifest-install.log
+      continue-on-error: true
     - run: /home/runner/work/stuff/stuff/vcpkg/buildtrees/fmt/install-x64-linux-dbg-out.log
+      continue-on-error: true
+
+    - uses: actions/upload-artifact@v2
+      with:
+        if-no-files-found: error
+        name: vcpkg_root_${{ matrix.compiler.exe }}
+        path: ${{ env.VCPKG_ROOT }}
 
     - name: Run tests
       env:
