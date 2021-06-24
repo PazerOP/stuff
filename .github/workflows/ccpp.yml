@@ -93,7 +93,7 @@ jobs:
         CXX: ${{ matrix.compiler.exe }}
         CXXFLAGS: -Wall -Wpedantic -Wextra -Werror
       run: |
-        $VCPKG_ROOT/vcpkg install
+        # $VCPKG_ROOT/vcpkg install
 
         mkdir build
         cd build
@@ -103,6 +103,7 @@ jobs:
         cmake -G Ninja \
           -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
           -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
+          -DVCPKG_INSTALL_OPTIONS="--debug" \
           ../
 
         cmake --build .
