@@ -7,7 +7,8 @@ defaults:
     shell: bash
 
 env:
-  VCPKG_GIT_COMMIT_ID: 5568f110b509a9fd90711978a7cb76bae75bb092
+  VCPKG_GIT_COMMIT_ID: 3a3a222be369b556e4635714c8d6acc990e1f13b
+  VCPKG_GIT_URL: https://github.com/PazerOP/vcpkg.git
   VCPKG_BINARY_SOURCES: 'clear;nuget,GitHub,readwrite'
   X_VCPKG_NUGET_ID_PREFIX: repo_mh_stuff
 
@@ -56,6 +57,7 @@ jobs:
       with:
         setupOnly: true
         vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
+        vcpkgGitURL: ${{ env.VCPKG_GIT_URL }}
 
     - name: Add repos
       run: |
@@ -157,6 +159,7 @@ jobs:
       with:
         setupOnly: true
         vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
+        vcpkgGitURL: ${{ env.VCPKG_GIT_URL }}
 
     - uses: seanmiddleditch/gha-setup-ninja@v3
     - name: Setup compiler paths
