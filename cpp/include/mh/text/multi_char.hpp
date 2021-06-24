@@ -84,14 +84,16 @@ namespace mh
 namespace mh
 {
 	inline constexpr auto operator<=>(const mh::multi_char& lhs, char rhs) { return lhs.narrow <=> rhs; }
-	inline constexpr auto operator<=>(const mh::multi_char& lhs, wchar_t rhs) { return lhs.wide <=> rhs; }
-	inline constexpr auto operator<=>(const mh::multi_char& lhs, char8_t rhs) { return lhs.u8 <=> rhs; }
-	inline constexpr auto operator<=>(const mh::multi_char& lhs, char16_t rhs) { return lhs.u16 <=> rhs; }
-	inline constexpr auto operator<=>(const mh::multi_char& lhs, char32_t rhs) { return lhs.u32 <=> rhs; }
 	inline constexpr auto operator<=>(char lhs, const mh::multi_char& rhs) { return lhs <=> rhs.narrow; }
+	inline constexpr auto operator<=>(const mh::multi_char& lhs, wchar_t rhs) { return lhs.wide <=> rhs; }
 	inline constexpr auto operator<=>(wchar_t lhs, const mh::multi_char& rhs) { return lhs <=> rhs.wide; }
+#if __cpp_char8_t >= 201811
+	inline constexpr auto operator<=>(const mh::multi_char& lhs, char8_t rhs) { return lhs.u8 <=> rhs; }
 	inline constexpr auto operator<=>(char8_t lhs, const mh::multi_char& rhs) { return lhs <=> rhs.u8; }
+#endif
+	inline constexpr auto operator<=>(const mh::multi_char& lhs, char16_t rhs) { return lhs.u16 <=> rhs; }
 	inline constexpr auto operator<=>(char16_t lhs, const mh::multi_char& rhs) { return lhs <=> rhs.u16; }
+	inline constexpr auto operator<=>(const mh::multi_char& lhs, char32_t rhs) { return lhs.u32 <=> rhs; }
 	inline constexpr auto operator<=>(char32_t lhs, const mh::multi_char& rhs) { return lhs <=> rhs.u32; }
 }
 #endif
