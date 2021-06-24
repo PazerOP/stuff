@@ -93,7 +93,6 @@ jobs:
     #   run: make -j`grep -c ^processor /proc/cpuinfo` ${{ matrix.compiler }}_test_output.txt
 
     - name: Build
-      continue-on-error: true
       env:
         CXX: ${{ matrix.compiler.exe }}
         CXXFLAGS: -Wall -Wpedantic -Wextra -Werror
@@ -109,9 +108,6 @@ jobs:
           ../
 
         cmake --build .
-
-    - run: cat /home/runner/work/stuff/stuff/vcpkg/buildtrees/detect_compiler/config-x64-linux-rel-out.log
-    - run: cat /home/runner/work/stuff/stuff/vcpkg/buildtrees/detect_compiler/config-x64-linux-rel-err.log
 
     - name: Run tests
       env:
