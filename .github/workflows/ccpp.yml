@@ -7,7 +7,7 @@ defaults:
     shell: bash
 
 env:
-  VCPKG_GIT_COMMIT_ID: 2ed44b4546ecc764c81db4fd16ea19d19ea0449d
+  VCPKG_GIT_COMMIT_ID: 5568f110b509a9fd90711978a7cb76bae75bb092
   VCPKG_BINARY_SOURCES: 'clear;nuget,GitHub,readwrite'
   X_VCPKG_NUGET_ID_PREFIX: repo_mh_stuff
 
@@ -106,6 +106,7 @@ jobs:
         cmake --build .
 
     - run: cat /home/runner/work/stuff/stuff/build/vcpkg-manifest-install.log
+    - run: /home/runner/work/stuff/stuff/vcpkg/buildtrees/fmt/install-x64-linux-dbg-out.log
 
     - name: Run tests
       env:
