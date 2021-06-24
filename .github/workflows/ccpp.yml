@@ -34,11 +34,11 @@ jobs:
           - exe: clang++-7
             deps: clang-7 libc++-7-dev libc++abi-7-dev
           - exe: g++-10
-            deps: ""
+            deps: g++-10
           - exe: g++-9
-            deps: ""
+            deps: g++-9
           - exe: g++-8
-            deps: ""
+            deps: g++-8
 
     steps:
     - uses: actions/checkout@v2.3.4
@@ -76,14 +76,17 @@ jobs:
     - name: Update repos
       run: sudo apt update
 
-    - name: Install compiler
+    - name: Install compilers and tools
       run: |
         # sudo rm -rf /var/lib/apt/lists/*
         # sudo apt clean
         sudo apt install ${{ matrix.compiler.deps }} ninja-build -y
         sudo pip3 install gcovr
-        echo Ensuring ninja works...
+
+        echo Ensuring programs work...
+        ${{ matrix.compiler.exe }} --version
         ninja --version
+        gcovr --version
 
     # - name: Run tests
     #   working-directory: ./test
