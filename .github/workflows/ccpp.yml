@@ -88,6 +88,7 @@ jobs:
     #   run: make -j`grep -c ^processor /proc/cpuinfo` ${{ matrix.compiler }}_test_output.txt
 
     - name: Build
+      continue-on-error: true
       env:
         CXX: ${{ matrix.compiler.exe }}
         CXXFLAGS: -Wall -Wpedantic -Wextra -Werror
@@ -103,6 +104,8 @@ jobs:
           ../
 
         cmake --build .
+
+    - run: cat /home/runner/work/stuff/stuff/build/vcpkg-manifest-install.log
 
     - name: Run tests
       env:
