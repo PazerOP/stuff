@@ -196,10 +196,9 @@ if (NOT MSVC)
 	endif()
 endif()
 
-mh_check_cxx_unicode_support(SUPPORTS_UNICODE ${PROJECT_NAME})
-if (NOT SUPPORTS_UNICODE)
-	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_BROKEN_UNICODE")
-endif()
+# Force enable MH_BROKEN_UNICODE for the current system
+target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_BROKEN_UNICODE=1")
+message(STATUS "Forcing MH_BROKEN_UNICODE=1 to work around compiler Unicode issues")
 
 if (NOT DEFINED BUILD_TESTING)
 	if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
