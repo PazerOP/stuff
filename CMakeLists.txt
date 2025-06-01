@@ -70,6 +70,11 @@ add_library(${PROJECT_NAME} ${MH_INTERFACE_OR_EMPTY}
 	"cpp/include/mh/io/filesystem_helpers.inl"
 	"cpp/include/mh/io/getopt.hpp"
 
+	"cpp/include/mh/process/process.hpp"
+	"cpp/include/mh/process/process.inl"
+	"cpp/include/mh/process/process_manager.hpp"
+	"cpp/include/mh/process/process_manager.inl"
+
 	"cpp/include/mh/math/angles.hpp"
 	"cpp/include/mh/math/interpolation.hpp"
 	"cpp/include/mh/math/random.hpp"
@@ -187,6 +192,11 @@ endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -pthread)
 	target_link_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -pthread)
+endif()
+
+# Define __unix__ for Unix-like systems (Linux, macOS, etc.)
+if (UNIX)
+	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "__unix__")
 endif()
 
 if (NOT MSVC)

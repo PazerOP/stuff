@@ -44,6 +44,32 @@ namespace mh
 			std::shared_ptr<thread_data> m_ThreadData;
 			clock_t::time_point m_DelayUntilTime;
 		};
+
+		struct [[nodiscard]] co_fd_read_task
+		{
+			co_fd_read_task(std::shared_ptr<thread_data> threadData, int fd) noexcept;
+
+			MH_STUFF_API bool await_ready() const;
+			MH_STUFF_API void await_resume() const;
+			MH_STUFF_API bool await_suspend(coro::coroutine_handle<> parent);
+
+		private:
+			std::shared_ptr<thread_data> m_ThreadData;
+			int m_FD;
+		};
+
+		struct [[nodiscard]] co_fd_write_task
+		{
+			co_fd_write_task(std::shared_ptr<thread_data> threadData, int fd) noexcept;
+
+			MH_STUFF_API bool await_ready() const;
+			MH_STUFF_API void await_resume() const;
+			MH_STUFF_API bool await_suspend(coro::coroutine_handle<> parent);
+
+		private:
+			std::shared_ptr<thread_data> m_ThreadData;
+			int m_FD;
+		};
 	}
 
 	class dispatcher
@@ -53,6 +79,8 @@ namespace mh
 	public:
 		using dispatch_task_t = detail::dispatcher_hpp::co_dispatch_task;
 		using delay_task_t = detail::dispatcher_hpp::co_delay_task;
+		using fd_read_task_t = detail::dispatcher_hpp::co_fd_read_task;
+		using fd_write_task_t = detail::dispatcher_hpp::co_fd_write_task;
 		using clock_t = detail::dispatcher_hpp::clock_t;
 
 		MH_STUFF_API dispatcher(bool singleThread = true);
@@ -62,6 +90,26 @@ namespace mh
 		MH_STUFF_API dispatch_task_t co_dispatch();
 		MH_STUFF_API delay_task_t co_delay_for(clock_t::duration duration);
 		MH_STUFF_API delay_task_t co_delay_until(clock_t::time_point endTime);
+		MH_STUFF_API fd_read_task_t co_wait_fd_read(int fd);
+		MH_STUFF_API fd_write_task_t co_wait_fd_write(int fd);
+
+		/**
+		 * Register this dispatcher for the current thread
+		 * Allows get() to find it
+		 */
+		MH_STUFF_API void register_for_current_thread();
+
+		/**
+		 * Get the dispatcher registered for the current thread
+		 * @throws std::runtime_error if no dispatcher is registered for this thread
+		 */
+		MH_STUFF_API static dispatcher& get();
+
+		/**
+		 * Try to get the dispatcher registered for the current thread
+		 * @return Pointer to dispatcher, or nullptr if none registered
+		 */
+		MH_STUFF_API static dispatcher* try_get();
 
 		template<typename TRep, typename TPeriod>
 		delay_task_t co_delay_for(std::chrono::duration<TRep, TPeriod> duration)
@@ -116,6 +164,9 @@ namespace mh
 
 	private:
 		std::shared_ptr<thread_data> m_ThreadData;
+		
+		// Thread-local storage for current thread's dispatcher
+		static thread_local dispatcher* s_current_thread_dispatcher;
 	};
 }
 
