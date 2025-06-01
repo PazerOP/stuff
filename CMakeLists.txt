@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.16.3)
 
+# Enable compile_commands.json generation for this subproject
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 project(
 	mh-stuff
 	VERSION 1.0
@@ -69,6 +72,13 @@ add_library(${PROJECT_NAME} ${MH_INTERFACE_OR_EMPTY}
 	"cpp/include/mh/io/filesystem_helpers.hpp"
 	"cpp/include/mh/io/filesystem_helpers.inl"
 	"cpp/include/mh/io/getopt.hpp"
+	"cpp/include/mh/io/native_handle.hpp"
+	"cpp/include/mh/io/source.hpp"
+	"cpp/include/mh/io/sink.hpp"
+	"cpp/include/mh/io/fd_source.hpp"
+	"cpp/include/mh/io/fd_source.inl"
+	"cpp/include/mh/io/fd_sink.hpp"
+	"cpp/include/mh/io/fd_sink.inl"
 
 	"cpp/include/mh/process/process.hpp"
 	"cpp/include/mh/process/process.inl"

@@ -20,16 +20,16 @@ namespace mh
     {
         std::string command_;
         std::vector<std::string> args_;
-        Source input_source_;
-        Sink output_sink_;
-        Sink error_sink_;
+        io::source_ptr input_source_;
+        io::sink_ptr output_sink_;
+        io::sink_ptr error_sink_;
         int pid_ = 0;
         bool started_ = false;
         bool completed_ = false;
         int exit_code_ = 0;
 
         impl(const std::string &command, const std::vector<std::string> &args,
-             Source input_source, Sink output_sink, Sink error_sink)
+             io::source_ptr input_source, io::sink_ptr output_sink, io::sink_ptr error_sink)
             : command_(command), args_(args), input_source_(input_source),
               output_sink_(output_sink), error_sink_(error_sink)
         {
@@ -185,7 +185,7 @@ namespace mh
 
     // Process public interface
     MH_COMPILE_LIBRARY_INLINE process::process(const std::string &command, const std::vector<std::string> &args,
-                                               Source input_source, Sink output_sink, Sink error_sink)
+                                               io::source_ptr input_source, io::sink_ptr output_sink, io::sink_ptr error_sink)
         : m_impl(std::make_unique<impl>(command, args, input_source, output_sink, error_sink))
     {
     }

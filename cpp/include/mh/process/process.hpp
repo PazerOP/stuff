@@ -3,6 +3,8 @@
 #ifdef __unix__
 
 #include <mh/coroutine/task.hpp>
+#include <mh/io/source.hpp>
+#include <mh/io/sink.hpp>
 #include <string>
 #include <vector>
 #include <memory>
@@ -16,9 +18,6 @@ namespace mh
 	class process
 	{
 	public:
-		// Type aliases for I/O sources and sinks (to be defined later with async I/O)
-		using Source = std::shared_ptr<void>; // Placeholder
-		using Sink = std::shared_ptr<void>;	  // Placeholder
 
 		/**
 		 * Constructor
@@ -31,9 +30,9 @@ namespace mh
 		MH_STUFF_API process(
 			const std::string &command,
 			const std::vector<std::string> &args,
-			Source inputSource = nullptr,
-			Sink outputSink = nullptr,
-			Sink errorSink = nullptr);
+			io::source_ptr inputSource = nullptr,
+			io::sink_ptr outputSink = nullptr,
+			io::sink_ptr errorSink = nullptr);
 
 		/**
 		 * Destructor
