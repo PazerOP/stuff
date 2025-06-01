@@ -3,7 +3,7 @@
 
 #ifdef MH_COROUTINES_SUPPORTED
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 
 #include <atomic>
 #include <cstring>

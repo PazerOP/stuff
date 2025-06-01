@@ -16,7 +16,9 @@
 #include <iostream>
 #include <type_traits>
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #include <immintrin.h>
+#endif
 
 namespace mh
 {
@@ -31,10 +33,11 @@ namespace mh
 #endif
 		}
 
-		template<typename TFunc> static constexpr void debug([[maybe_unused]] const TFunc& f)
+		template <typename TFunc>
+		static constexpr void debug([[maybe_unused]] const TFunc &f)
 		{
 #if __cpp_lib_is_constant_evaluated >= 201811
-			//if (!detail::is_constant_evaluated())
+			// if (!detail::is_constant_evaluated())
 			//	f();
 #endif
 		}
@@ -48,7 +51,7 @@ namespace mh
 
 #endif
 
-		template<typename T>
+		template <typename T>
 		static constexpr int countl_zero(T x) noexcept
 		{
 #if __cpp_lib_bitops >= 201907
@@ -82,13 +85,13 @@ namespace mh
 	union uint128
 	{
 	public:
-		template<unsigned i>
+		template <unsigned i>
 		constexpr uint64_t get_u64() const
 		{
 			static_assert(i == 0 || i == 1);
 			return u64[i];
 		}
-		template<unsigned i>
+		template <unsigned i>
 		constexpr void set_u64(uint64_t val)
 		{
 			static_assert(i == 0 || i == 1);
@@ -133,7 +136,7 @@ namespace mh
 			return retVal;
 		}
 
-		constexpr uint128& operator++()
+		constexpr uint128 &operator++()
 		{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 			if (!detail::uint128_hpp::is_constant_evaluated())
@@ -157,7 +160,7 @@ namespace mh
 			return temp;
 		}
 
-		constexpr uint128& operator+=(uint64_t rhs) { return *this = *this + rhs; }
+		constexpr uint128 &operator+=(uint64_t rhs) { return *this = *this + rhs; }
 		constexpr uint128 operator+(uint64_t rhs) const
 		{
 			uint128 retVal;
@@ -176,7 +179,7 @@ namespace mh
 			return retVal;
 		}
 
-		constexpr uint128& operator-=(uint64_t rhs)
+		constexpr uint128 &operator-=(uint64_t rhs)
 		{
 			const auto u64_low = get_u64<0>();
 			const auto result = u64_low - rhs;
@@ -185,8 +188,8 @@ namespace mh
 			set_u64<1>(get_u64<1>() - (result > u64_low ? 1 : 0));
 			return *this;
 		}
-		constexpr uint128 operator-(const uint128& rhs) const { return uint128(*this) -= rhs; }
-		constexpr uint128& operator-=(const uint128& rhs)
+		constexpr uint128 operator-(const uint128 &rhs) const { return uint128(*this) -= rhs; }
+		constexpr uint128 &operator-=(const uint128 &rhs)
 		{
 			if (!detail::uint128_hpp::is_constant_evaluated())
 			{
@@ -217,7 +220,8 @@ namespace mh
 			return 64 + detail::uint128_hpp::countl_zero(u64[0]);
 		}
 
-		template<typename T> constexpr uint128 operator<<(T bits) const
+		template <typename T>
+		constexpr uint128 operator<<(T bits) const
 		{
 			uint128 retVal;
 			if (!detail::uint128_hpp::is_constant_evaluated())
@@ -257,8 +261,10 @@ namespace mh
 
 			return retVal;
 		}
-		template<typename T> constexpr uint128& operator<<=(T bits) { return *this = (*this << bits); }
-		template<typename T> constexpr uint128 operator>>(T bits) const
+		template <typename T>
+		constexpr uint128 &operator<<=(T bits) { return *this = (*this << bits); }
+		template <typename T>
+		constexpr uint128 operator>>(T bits) const
 		{
 			uint128 retVal;
 			if (!detail::uint128_hpp::is_constant_evaluated())
@@ -303,7 +309,7 @@ namespace mh
 			retVal.set_u64<0>(((get_u64<0>() >> (bits % 64)) * lower) |
 #endif
 
-				return retVal;
+			return retVal;
 		}
 
 	public:
@@ -346,18 +352,18 @@ namespace mh
 #endif
 	};
 
-	inline constexpr bool operator==(const mh::uint128& lhs, const mh::uint128& rhs)
+	inline constexpr bool operator==(const mh::uint128 &lhs, const mh::uint128 &rhs)
 	{
 		return lhs.get_u64<0>() == rhs.get_u64<0>() && lhs.get_u64<1>() == rhs.get_u64<1>();
 	}
-	inline constexpr bool operator!=(const mh::uint128& lhs, const mh::uint128& rhs)
+	inline constexpr bool operator!=(const mh::uint128 &lhs, const mh::uint128 &rhs)
 	{
 		return !(lhs == rhs);
 	}
 
 #if (__cpp_impl_three_way_comparison >= 201907)
 	inline constexpr std::strong_ordering operator<=>(
-		const mh::uint128& lhs, const mh::uint128& rhs)
+		const mh::uint128 &lhs, const mh::uint128 &rhs)
 	{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 		return lhs.get_u128() <=> rhs.get_u128();
@@ -369,8 +375,8 @@ namespace mh
 #endif
 	}
 
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr std::strong_ordering operator<=>(const mh::uint128& lhs, T rhs)
+	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+	constexpr std::strong_ordering operator<=>(const mh::uint128 &lhs, T rhs)
 	{
 		if (!mh::detail::uint128_hpp::is_constant_evaluated())
 		{
@@ -385,8 +391,8 @@ namespace mh
 		return lhs.get_u64<0>() <=> rhs;
 	}
 
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr std::strong_ordering operator<=>(T lhs, const mh::uint128& rhs)
+	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+	constexpr std::strong_ordering operator<=>(T lhs, const mh::uint128 &rhs)
 	{
 		if (!mh::detail::uint128_hpp::is_constant_evaluated())
 		{
@@ -401,54 +407,54 @@ namespace mh
 		return lhs <=> rhs.get_u64<0>();
 	}
 #else
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator<(const mh::uint128& lhs, T rhs)
+	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+	constexpr bool operator<(const mh::uint128 &lhs, T rhs)
 	{
 		return !lhs.get_u64<1>() && lhs.get_u64<0>() < rhs;
 	}
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator<(T lhs, const mh::uint128& rhs)
+	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+	constexpr bool operator<(T lhs, const mh::uint128 &rhs)
 	{
 		return rhs.get_u64<1>() || lhs < rhs.get_u64<0>();
 	}
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator>=(const mh::uint128& lhs, T rhs)
+	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+	constexpr bool operator>=(const mh::uint128 &lhs, T rhs)
 	{
 		return !(lhs < rhs);
 	}
 #endif
 
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator==(const mh::uint128& lhs, T rhs)
+	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+	constexpr bool operator==(const mh::uint128 &lhs, T rhs)
 	{
 		if constexpr (sizeof(T) <= sizeof(uint64_t))
 			return !lhs.get_u64<1>() && lhs.get_u64<0>() == rhs;
 		else
 			return lhs == mh::uint128(rhs);
 	}
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator==(T lhs, const mh::uint128& rhs)
+	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+	constexpr bool operator==(T lhs, const mh::uint128 &rhs)
 	{
 		return rhs == lhs;
 	}
 
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator!=(const mh::uint128& lhs, T rhs)
+	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+	constexpr bool operator!=(const mh::uint128 &lhs, T rhs)
 	{
 		return !(lhs == rhs);
 	}
-	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator!=(T lhs, const mh::uint128& rhs)
+	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+	constexpr bool operator!=(T lhs, const mh::uint128 &rhs)
 	{
 		return !(lhs == rhs);
 	}
 
-	template<typename CharT, typename Traits>
-	std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, const mh::uint128& rhs)
+	template <typename CharT, typename Traits>
+	std::basic_ostream<CharT, Traits> &operator<<(std::basic_ostream<CharT, Traits> &os, const mh::uint128 &rhs)
 	{
 		return os << '['
-			<< std::hex << rhs.template get_u64<1>() << '|'
-			<< std::hex << rhs.template get_u64<0>() << ']';
+				  << std::hex << rhs.template get_u64<1>() << '|'
+				  << std::hex << rhs.template get_u64<0>() << ']';
 	}
 
 	inline constexpr mh::uint128 mh::uint128::operator/(uint64_t divisor) const
@@ -475,7 +481,7 @@ namespace mh
 			buffer <<= skip;
 			uint8_t count = 64 - skip;
 
-			const auto print_bin = [](uint64_t val) -> const char*
+			const auto print_bin = [](uint64_t val) -> const char *
 			{
 				for (int i = 0; i < 64; i++)
 					std::cerr << ((val & (uint64_t(1) << (63 - i))) ? '1' : '_');
@@ -486,17 +492,16 @@ namespace mh
 			const auto print_vars = [&]
 			{
 				detail::uint128_hpp::debug([&]
-					{
-						std::cerr
-							<< "\nquotient:     " << print_bin(quotientLow)
-							<< "\nbuffer:       " << print_bin(buffer)
-							<< "\nremainder64:  " << print_bin(remainder64)
-							<< "\ndivisor:      " << print_bin(divisor)
-							<< "\n";
-					});
+										   { std::cerr
+												 << "\nquotient:     " << print_bin(quotientLow)
+												 << "\nbuffer:       " << print_bin(buffer)
+												 << "\nremainder64:  " << print_bin(remainder64)
+												 << "\ndivisor:      " << print_bin(divisor)
+												 << "\n"; });
 			};
 
-			detail::uint128_hpp::debug([] { std::cerr << "Initial value:\n"; });
+			detail::uint128_hpp::debug([]
+									   { std::cerr << "Initial value:\n"; });
 			print_vars();
 
 			if (divisor & (uint64_t(1) << 63))
@@ -507,7 +512,7 @@ namespace mh
 					remainder64 <<= 1;
 					remainder64 |= (buffer >> 63);
 					buffer <<= 1;
-					//quotientLow <<= 1;
+					// quotientLow <<= 1;
 
 					if (high_bit || remainder64 >= divisor)
 					{
@@ -523,12 +528,13 @@ namespace mh
 					remainder64 <<= 1;
 					remainder64 |= (buffer >> 63);
 					buffer <<= 1;
-					//quotientLow <<= 1;
+					// quotientLow <<= 1;
 
 					if (remainder64 >= divisor)
 					{
-						detail::uint128_hpp::debug([&] { std::cerr << remainder64 << " >= " << divisor << '\n'; });
-						//const auto test = remainder64 >= divisor;
+						detail::uint128_hpp::debug([&]
+												   { std::cerr << remainder64 << " >= " << divisor << '\n'; });
+						// const auto test = remainder64 >= divisor;
 						remainder64 -= divisor;
 						quotientLow |= uint64_t(1) << count;
 					}

@@ -1,5 +1,5 @@
 #include "mh/data/bits.hpp"
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 
 template<unsigned bits_to_copy, unsigned src_offset, typename TSrc = void, typename TDst = void>
 static void test_bit_functions(const TSrc* src, const TDst expected)
