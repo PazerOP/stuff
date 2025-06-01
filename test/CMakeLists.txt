@@ -10,18 +10,22 @@ endif()
 # Include CPM for package management
 include(${PROJECT_SOURCE_DIR}/cmake/get_cpm.cmake)
 
+enable_testing()
+include(CTest)
+
 # Use CPM to get Catch2
 CPMAddPackage(
   NAME Catch2
   GITHUB_REPOSITORY catchorg/Catch2
-  VERSION 3.4.0
-  GIT_TAG v3.4.0
+  VERSION 3.8.0
+  GIT_TAG v3.8.0
 )
+
 list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
 include(Catch)
 
-
-if (CMAKE_CXX_COMPILER_ID MATCHES Clang OR CMAKE_CXX_COMPILER_ID MATCHES GNU)
+# Code coverage support (only enable if explicitly requested)
+if (ENABLE_COVERAGE AND (CMAKE_CXX_COMPILER_ID MATCHES Clang OR CMAKE_CXX_COMPILER_ID MATCHES GNU))
 	find_library(GCOV_LIBRARY gcov)
 	if(GCOV_LIBRARY)
 		target_compile_options(mh-stuff ${MH_PUBLIC_OR_INTERFACE} --coverage -g)
@@ -29,51 +33,48 @@ if (CMAKE_CXX_COMPILER_ID MATCHES Clang OR CMAKE_CXX_COMPILER_ID MATCHES GNU)
 	endif()
 endif()
 
-function(mh_test name)
-	add_executable(${name} "${name}.cpp")
+# Check that all test files have last_include.hpp as the final include
+execute_process(
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/check_last_include.sh"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    RESULT_VARIABLE LAST_INCLUDE_CHECK_RESULT
+    OUTPUT_VARIABLE LAST_INCLUDE_CHECK_OUTPUT
+    ERROR_VARIABLE LAST_INCLUDE_CHECK_ERROR
+)
 
-	target_link_libraries(${name} Catch2::Catch2WithMain mh::stuff)
-	catch_discover_tests(${name} TEST_PREFIX "${PROJECT_NAME}.")
+if(NOT LAST_INCLUDE_CHECK_RESULT EQUAL 0)
+    message(FATAL_ERROR "last_include.hpp check failed:\n${LAST_INCLUDE_CHECK_OUTPUT}\n${LAST_INCLUDE_CHECK_ERROR}")
+endif()
 
-	if (CMAKE_CXX_COMPILER_ID MATCHES Clang OR CMAKE_CXX_COMPILER_ID MATCHES GNU)
-		find_library(GCOV_LIBRARY gcov)
-		if(GCOV_LIBRARY)
-			target_compile_options(${name} PUBLIC --coverage -g)
-			target_link_options(${name} PUBLIC -lgcov --coverage -g)
-		endif()
-	endif()
+# Glob all test source files
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "*_test.cpp")
 
-endfunction()
-
-mh_test(algorithm_algorithm_test)
-mh_test(coroutine_task_test)
-mh_test(data_bit_float_test)
-mh_test(data_bits_test)
-mh_test(data_variable_pusher_test)
-mh_test(math_interpolation_test)
-mh_test(math_uint128_test)
-mh_test(memory_buffer_test)
-mh_test(text_case_insensitive_string_test)
-mh_test(text_codecvt_test)
-# mh_test(text_charconv_helper_test)
-mh_test(text_filebuf_test)
-mh_test(text_memstream_test)
-mh_test(text_string_insertion_test)
-mh_test(text_stringops_test)
-
+# Check for getopt/unistd and conditionally exclude io_getopt_test if not available
 include(CheckIncludeFileCXX)
 check_include_file_cxx(<getopt.h> HAS_GETOPT)
 check_include_file_cxx(<unistd.h> HAS_UNISTD)
-if (HAS_GETOPT OR HAS_UNISTD)
-	mh_test(io_getopt_test)
+if (NOT (HAS_GETOPT OR HAS_UNISTD))
+	list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/io_getopt_test.cpp")
 endif()
 
-# add_executable(text_stringops_test "text_stringops_test.cpp")
-# target_link_libraries(text_stringops_test catch2 mh::stuff)
-# add_test(NAME text_stringops_test COMMAND text_stringops_test)
+# Create the unified test executable with custom main
+add_executable(mh_stuff_tests ${TEST_SOURCES} TestMain.cpp)
+
+# Note: Custom string makers are defined in specific test files
+
+target_link_libraries(mh_stuff_tests Catch2::Catch2 mh::stuff)
+catch_discover_tests(mh_stuff_tests TEST_PREFIX "${PROJECT_NAME}.")
+
+# Code coverage support for tests (only enable if explicitly requested)
+if (ENABLE_COVERAGE AND (CMAKE_CXX_COMPILER_ID MATCHES Clang OR CMAKE_CXX_COMPILER_ID MATCHES GNU))
+	find_library(GCOV_LIBRARY gcov)
+	if(GCOV_LIBRARY)
+		target_compile_options(mh_stuff_tests PUBLIC --coverage -g)
+		target_link_options(mh_stuff_tests PUBLIC -lgcov --coverage -g)
+	endif()
+endif()
 
 # Make sure all header files can be compiled successfully by themselves
-
 set(MH_CPP_INCLUDE_ROOT "${PROJECT_SOURCE_DIR}/cpp/include")
 file(GLOB_RECURSE MH_HPP_FILES
 	RELATIVE ${MH_CPP_INCLUDE_ROOT}
@@ -94,4 +95,5 @@ foreach (F IN LISTS MH_HPP_FILES)
 	)
 
 	target_link_libraries(test_compile_file_${SAFE_FILENAME} PUBLIC mh::stuff)
+	target_include_directories(test_compile_file_${SAFE_FILENAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 endforeach()

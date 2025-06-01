@@ -5,6 +5,7 @@
 
 #include <array>
 #include <string.h>
+#include "last_include.hpp"
 
 TEST_CASE("getopt")
 {

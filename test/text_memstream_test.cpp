@@ -2,11 +2,17 @@
 #include <catch2/catch_all.hpp>
 
 #include <cstring>
-#include <string>
+#include "last_include.hpp"
 
-// Helper to convert string_view to string for Catch2 comparisons
-// (Catch2 v3.4.0 declares but doesn't implement StringMaker<std::string_view>)
-inline std::string to_str(std::string_view sv) { return std::string(sv); }
+// Provide definition for Catch2's declared StringMaker specialization
+// Only define when building mh_stuff as standalone project to avoid conflicts
+#ifdef MH_STUFF_STANDALONE_BUILD
+namespace Catch {
+    std::string StringMaker<std::string_view>::convert(std::string_view str) {
+        return std::string(str);
+    }
+}
+#endif
 
 TEST_CASE("memstream put", "[text][memstream]")
 {

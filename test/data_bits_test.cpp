@@ -1,16 +1,16 @@
 #include "mh/data/bits.hpp"
 #include <catch2/catch_all.hpp>
-#include <cstddef>
-#include <type_traits>
+#include "last_include.hpp"
 
-// Helper to convert std::byte to unsigned for CAPTURE (Catch2 v3.4.0 lacks StringMaker<std::byte> implementation)
-template<typename T>
-auto capture_value(const T& val) {
-	if constexpr (std::is_same_v<T, std::byte>)
-		return static_cast<unsigned>(val);
-	else
-		return val;
+// Provide definition for Catch2's declared StringMaker specialization
+// Only define when building mh_stuff as standalone project to avoid conflicts
+#ifdef MH_STUFF_STANDALONE_BUILD
+namespace Catch {
+    std::string StringMaker<std::byte>::convert(std::byte value) {
+        return std::to_string(static_cast<unsigned int>(value));
+    }
 }
+#endif
 
 template<unsigned bits_to_copy, unsigned src_offset, typename TSrc = void, typename TDst = void>
 static void test_bit_functions(const TSrc* src, const TDst expected)

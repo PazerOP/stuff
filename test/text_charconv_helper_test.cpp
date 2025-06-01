@@ -1,7 +1,8 @@
-#include "catch2/repo/single_include/catch2/catch.hpp"
+#include <catch2/catch_all.hpp>
 
 #ifdef __cpp_lib_to_chars
 #include "mh/text/charconv_helper.hpp"
+#include "last_include.hpp"
 
 TEST_CASE("charconv helpers", "[text][charconv_helper]")
 {

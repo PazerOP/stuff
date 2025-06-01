@@ -15,9 +15,18 @@ namespace mh::io
 {
 #ifdef __unix__
     MH_COMPILE_LIBRARY_INLINE fd_sink::fd_sink(native_handle fd, bool take_ownership)
-        : fd_(take_ownership ? unique_native_handle(fd) : unique_native_handle(dup(fd))), 
+        : fd_(take_ownership ? unique_native_handle(fd) : unique_native_handle(dup(fd))),
           is_open_(fd >= 0)
     {
+        // Prevent multiple instantiations of standard streams
+        static bool stdin_created = false;
+
+        if (fd == STDIN_FILENO) {
+            if (stdin_created) {
+                throw std::runtime_error("Attempt to create multiple fd_sink instances for STDIN_FILENO");
+            }
+            stdin_created = true;
+        }
     }
 
     MH_COMPILE_LIBRARY_INLINE fd_sink::~fd_sink() = default;
@@ -26,11 +35,11 @@ namespace mh::io
     {
         if (!is_open_)
             throw std::runtime_error("fd_sink is not open");
-            
+
         ssize_t bytes_written = ::write(fd_.value(), buffer, size);
         if (bytes_written < 0)
             throw std::runtime_error("Failed to write to file descriptor");
-            
+
         co_return static_cast<size_t>(bytes_written);
     }
 
@@ -53,4 +62,20 @@ namespace mh::io
         return is_open_ && fd_;
     }
 #endif
+
+    MH_COMPILE_LIBRARY_INLINE sink_ptr sink::create_file(const std::filesystem::path& filepath, bool append)
+    {
+#ifdef __unix__
+        int flags = O_WRONLY | O_CREAT | (append ? O_APPEND : O_TRUNC);
+        int fd = open(filepath.c_str(), flags, 0644);
+        if (fd == -1)
+        {
+            throw std::runtime_error("Failed to open file for writing: " + filepath.string());
+        }
+
+        return std::make_shared<fd_sink>(fd, true);
+#else
+        throw mh::not_implemented_error();
+#endif
+    }
 }

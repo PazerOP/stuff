@@ -47,7 +47,7 @@ namespace mh
 				// std::round rounds halfway cases away from zero
 				T integral_part;
 				T fractional_part = std::modf(in, &integral_part);
-				
+
 				if (fractional_part > T(0.5) || (fractional_part == T(0.5) && integral_part >= T(0)))
 					return integral_part + T(1);
 				else if (fractional_part < T(-0.5) || (fractional_part == T(-0.5) && integral_part < T(0)))
@@ -119,58 +119,98 @@ namespace mh
 		template<typename T> using larger_version_t = decltype(larger_version_helper<T>());
 	}
 
-	template<typename TIn, typename TOut>
-	constexpr TOut lerp_slow(TIn in_01, TOut out_min, TOut out_max)
+	template<typename TIn, typename TOutMin, typename TOutMax>
+	constexpr auto lerp_slow(TIn in_01, TOutMin out_min, TOutMax out_max)
+	{
+		using ct = std::common_type_t<TIn, TOutMin, TOutMax>;
+		return (ct(out_min) * (ct(1) - ct(in_01))) + (ct(out_max) * ct(in_01));
+	}
+
+	template<typename TIn, typename TOutMin, typename TOutMax>
+	constexpr auto lerp(TIn in_01, TOutMin out_min, TOutMax out_max)
 	{
 		static_assert(std::is_floating_point_v<TIn>);
-		return (out_min * (1 - in_01)) + (out_max * in_01);
+		using ct = std::common_type_t<TIn, TOutMin, TOutMax>;
+		return ct(out_min) + (ct(out_max) - ct(out_min)) * ct(in_01);
 	}
 
-	template<typename TIn, typename TOut>
-	constexpr TOut lerp(TIn in_01, TOut out_min, TOut out_max)
+	template<typename TIn, typename TOutMin, typename TOutMax>
+	constexpr auto lerp_clamped(TIn in_01, TOutMin out_min, TOutMax out_max)
 	{
 		static_assert(std::is_floating_point_v<TIn>);
-		return out_min + (out_max - out_min) * in_01;
+		using ct = std::common_type_t<TIn, TOutMin, TOutMax>;
+		
+		// Inline lerp calculation
+		ct result = ct(out_min) + (ct(out_max) - ct(out_min)) * ct(in_01);
+		
+		// Inline clamp calculation
+		ct ct_min = ct(out_min);
+		ct ct_max = ct(out_max);
+		
+		if (result <= ct_min)
+			return ct_min;
+		if (result >= ct_max)
+			return ct_max;
+		
+		return result;
 	}
 
-	template<typename TIn, typename TOut>
-	constexpr auto lerp_clamped(TIn in_01, TOut out_min, TOut out_max)
+	template<typename TIn, typename TOutMin, typename TOutMax>
+	constexpr auto lerp_slow_clamped(TIn in_01, TOutMin out_min, TOutMax out_max)
 	{
-		using ct = std::common_type_t<TIn, TOut>;
+		using ct = std::common_type_t<TIn, TOutMin, TOutMax>;
 
-		return detail::interpolation_hpp::clamp(
-			lerp<TIn, ct>(in_01, out_min, out_max),
-			out_min, out_max);
+		// Inline lerp_slow calculation
+		ct result = (ct(out_min) * (ct(1) - ct(in_01))) + (ct(out_max) * ct(in_01));
+
+		// Inline clamp calculation
+		ct ct_min = ct(out_min);
+		ct ct_max = ct(out_max);
+
+		if (result <= ct_min)
+			return ct_min;
+		if (result >= ct_max)
+			return ct_max;
+
+		return result;
 	}
 
-	template<typename TIn, typename TOut>
-	constexpr auto lerp_slow_clamped(TIn in_01, TOut out_min, TOut out_max)
+	template<typename TIn, typename TInMin, typename TInMax>
+	constexpr auto remap_to_01(TIn in, TInMin in_min, TInMax in_max)
 	{
-		using ct = std::common_type_t<TIn, TOut>;
-
-		return detail::interpolation_hpp::clamp(
-			lerp_slow<TIn, ct>(in_01, out_min, out_max),
-			out_min, out_max);
+		using ct = std::common_type_t<TIn, TInMin, TInMax>;
+		static_assert(std::is_floating_point_v<ct>);
+		return ct(in - in_min) / ct(in_max - in_min);
 	}
 
-	template<typename TIn, typename TOut = float>
-	constexpr TOut remap_to_01(TIn in, TIn in_min, TIn in_max)
+	template<typename TIn, typename TInMin, typename TInMax, typename TOutMin, typename TOutMax>
+	constexpr auto remap(TIn in, TInMin in_min, TInMax in_max, TOutMin out_min, TOutMax out_max)
 	{
-		static_assert(std::is_floating_point_v<TOut>);
-		return TOut(in - in_min) / TOut(in_max - in_min);
+		using ct = std::common_type_t<TIn, TInMin, TInMax, TOutMin, TOutMax>;
+		assert(ct(in_min) != ct(in_max));
+		
+		// Direct remap: input_range → output_range (better precision)
+		return ct(out_min) + (ct(out_max) - ct(out_min)) * (ct(in) - ct(in_min)) / (ct(in_max) - ct(in_min));
 	}
 
-	template<typename TIn, typename TOut>
-	constexpr TOut remap(TIn in, TIn in_min, TIn in_max, TOut out_min, TOut out_max)
+	template<typename TIn, typename TInMin, typename TInMax, typename TOutMin, typename TOutMax>
+	constexpr auto remap_clamped(TIn in, TInMin in_min, TInMax in_max, TOutMin out_min, TOutMax out_max)
 	{
-		assert(in_min != in_max);
-		return lerp(remap_to_01(in, in_min, in_max), out_min, out_max);
-	}
-
-	template<typename TIn, typename TOut>
-	constexpr TOut remap_clamped(TIn in, TIn in_min, TIn in_max, TOut out_min, TOut out_max)
-	{
-		return lerp_clamped(remap_to_01(in, in_min, in_max), out_min, out_max);
+		using ct = std::common_type_t<TIn, TInMin, TInMax, TOutMin, TOutMax>;
+		
+		// Direct remap: input_range → output_range (better precision)
+		ct result = ct(out_min) + (ct(out_max) - ct(out_min)) * (ct(in) - ct(in_min)) / (ct(in_max) - ct(in_min));
+		
+		// Inline clamp calculation
+		ct ct_min = ct(out_min);
+		ct ct_max = ct(out_max);
+		
+		if (result <= ct_min)
+			return ct_min;
+		if (result >= ct_max)
+			return ct_max;
+		
+		return result;
 	}
 
 	template<typename TSrc, typename TDest,

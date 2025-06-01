@@ -1,5 +1,6 @@
 #include "mh/math/uint128.hpp"
 #include <catch2/catch_all.hpp>
+#include "last_include.hpp"
 
 TEST_CASE("uint128", "[math][uint128]")
 {
