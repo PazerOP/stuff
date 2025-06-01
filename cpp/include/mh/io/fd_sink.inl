@@ -51,4 +51,20 @@ namespace mh::io
         return is_open_ && fd_;
     }
 #endif
+
+    MH_COMPILE_LIBRARY_INLINE sink_ptr sink::create_file(const std::filesystem::path& filepath, bool append)
+    {
+#ifdef __unix__
+        int flags = O_WRONLY | O_CREAT | (append ? O_APPEND : O_TRUNC);
+        int fd = open(filepath.c_str(), flags, 0644);
+        if (fd == -1)
+        {
+            throw std::runtime_error("Failed to open file for writing: " + filepath.string());
+        }
+        
+        return std::make_shared<fd_sink>(fd, true);
+#else
+        throw mh::not_implemented_error();
+#endif
+    }
 }

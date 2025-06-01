@@ -51,4 +51,19 @@ namespace mh::io
         return is_open_ && fd_;
     }
 #endif
+
+    MH_COMPILE_LIBRARY_INLINE source_ptr source::create_file(const std::filesystem::path& filepath)
+    {
+#ifdef __unix__
+        int fd = open(filepath.c_str(), O_RDONLY);
+        if (fd == -1)
+        {
+            throw std::runtime_error("Failed to open file for reading: " + filepath.string());
+        }
+        
+        return std::make_shared<fd_source>(fd, true);
+#else
+        throw mh::not_implemented_error();
+#endif
+    }
 }
