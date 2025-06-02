@@ -9,12 +9,20 @@
         {
             "name": "default",
             "displayName": "Default Configuration",
-            "description": "Default build configuration with Ninja generator",
+            "description": "Default build configuration with Ninja generator and coverage",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build",
+            "binaryDir": "${sourceDir}/build/default",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_CXX_FLAGS": "-g -O0 --coverage -fprofile-arcs -ftest-coverage",
+                "CMAKE_C_FLAGS": "-g -O0 --coverage -fprofile-arcs -ftest-coverage",
+                "CMAKE_EXE_LINKER_FLAGS": "--coverage"
+            },
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
             }
         },
         {
@@ -22,7 +30,7 @@
             "displayName": "Debug Configuration",
             "description": "Debug build with coverage support",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build-debug",
+            "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
@@ -33,7 +41,7 @@
             "displayName": "Shared Library",
             "description": "Build as shared library",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build-shared",
+            "binaryDir": "${sourceDir}/build/shared",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -45,7 +53,7 @@
             "displayName": "Header-Only Mode",
             "description": "Build in header-only mode",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build-header-only",
+            "binaryDir": "${sourceDir}/build/header-only",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -57,10 +65,13 @@
             "displayName": "Coverage Build",
             "description": "Debug build optimized for coverage reporting",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build-coverage",
+            "binaryDir": "${sourceDir}/build/coverage",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_CXX_FLAGS": "-g -O0 --coverage -fprofile-arcs -ftest-coverage",
+                "CMAKE_C_FLAGS": "-g -O0 --coverage -fprofile-arcs -ftest-coverage",
+                "CMAKE_EXE_LINKER_FLAGS": "--coverage"
             },
             "condition": {
                 "type": "notEquals",

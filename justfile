@@ -6,38 +6,21 @@ default:
 
 # Clean all build directories
 clean:
-    rm -rf build build-* 
+    rm -rf build build-*
 
 # Configure the project (using CMake presets)
-configure:
-    cmake --preset default
+configure PRESET="default":
+    cmake --preset {{PRESET}}
 
 # Build the project
-build: configure
-    cmake --build --preset default
+build PRESET="default": (configure PRESET)
+    cmake --build --preset {{PRESET}}
 
 # Run tests
-test: build
-    ctest --preset default
-
-# Debug build
-debug:
-    cmake --preset debug
-    cmake --build --preset debug
+test PRESET="default": (build PRESET)
+    ctest --preset {{PRESET}}
 
 # Run tests with coverage report (Linux/macOS only)
-coverage:
-    cmake --preset coverage
-    cmake --build --preset coverage
-    ctest --preset coverage
-    cd build-coverage && gcovr --root "../" --exclude ".*/catch.hpp" --exclude ".*/test_compile_file/.*" --exclude ".*/test/.*" --sort-percentage --html-details "results.html" .
+coverage: (test "coverage")
+    cd {{justfile_directory()}}/build/coverage && gcovr --root="{{justfile_directory()}}" --filter="{{justfile_directory()}}/cpp/.*" --gcov-ignore-errors=all --sort=uncovered-percent --html-details="results.html" --print-summary="{{justfile_directory()}}/build/coverage"
 
-# Build as shared library
-build-shared:
-    cmake --preset shared
-    cmake --build --preset shared
-
-# Build header-only mode
-build-header-only:
-    cmake --preset header-only
-    cmake --build --preset header-only
