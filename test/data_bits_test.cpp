@@ -1,6 +1,13 @@
 #include "mh/data/bits.hpp"
 #include <catch2/catch_all.hpp>
 
+// Provide definition for Catch2's declared StringMaker specialization
+namespace Catch {
+    std::string StringMaker<std::byte>::convert(std::byte value) {
+        return std::to_string(static_cast<unsigned int>(value));
+    }
+}
+
 template<unsigned bits_to_copy, unsigned src_offset, typename TSrc = void, typename TDst = void>
 static void test_bit_functions(const TSrc* src, const TDst expected)
 {

@@ -130,8 +130,6 @@ add_library(${PROJECT_NAME} ${MH_INTERFACE_OR_EMPTY}
 )
 add_library(mh::stuff ALIAS ${PROJECT_NAME})
 
-find_package(mh-cmake-common CONFIG REQUIRED)
-
 if (MH_STUFF_COMPILE_LIBRARY)
 	target_sources(${PROJECT_NAME} PRIVATE
 		"cpp/src/io/file.cpp"
@@ -174,8 +172,24 @@ else()
 	)
 endif()
 
-mh_check_cxx_coroutine_support(SUPPORTS_COROUTINES COROUTINES_FLAGS)
-target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} ${COROUTINES_FLAGS})
+# Check for C++20 coroutine support
+include(CheckCXXCompilerFlag)
+set(COROUTINES_FLAGS "")
+if (MSVC)
+    check_cxx_compiler_flag(/std:c++20 HAS_CXX20)
+    if (HAS_CXX20)
+        set(COROUTINES_FLAGS /std:c++20)
+    endif()
+else()
+    check_cxx_compiler_flag(-std=c++20 HAS_CXX20)
+    if (HAS_CXX20)
+        set(COROUTINES_FLAGS -std=c++20)
+    endif()
+endif()
+
+if (COROUTINES_FLAGS)
+    target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} ${COROUTINES_FLAGS})
+endif()
 
 target_include_directories(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 	"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cpp/include>"
@@ -234,40 +248,4 @@ if (BUILD_TESTING)
 	add_subdirectory("test")
 endif()
 
-mh_basic_install(
-	PROJ_INCLUDE_DIRS "cpp/include/"
-)
 
-###########################################
-# "install" is intended for vcpkg support #
-###########################################
-# include(CMakePackageConfigHelpers)
-# configure_package_config_file(
-# 	cmake/config.cmake.in
-# 	"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-# 	INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )
-
-# include(GNUInstallDirs)
-
-# write_basic_package_version_file(
-# 	"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
-# 	VERSION ${PROJECT_VERSION}
-# 	COMPATIBILITY SameMajorVersion
-# )
-
-# install(
-# 	FILES
-# 		"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-# 		"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
-# 	DESTINATION
-# 		"${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )
-
-# install(TARGETS stuff EXPORT ${PROJECT_NAME}_targets)
-# install(DIRECTORY cpp/include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
-# install(
-# 	EXPORT ${PROJECT_NAME}_targets
-# 	NAMESPACE mh::
-# 	DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )

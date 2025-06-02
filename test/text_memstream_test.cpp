@@ -3,6 +3,13 @@
 
 #include <cstring>
 
+// Provide definition for Catch2's declared StringMaker specialization
+namespace Catch {
+    std::string StringMaker<std::string_view>::convert(std::string_view str) {
+        return std::string(str);
+    }
+}
+
 TEST_CASE("memstream put", "[text][memstream]")
 {
 	char buf[128];
