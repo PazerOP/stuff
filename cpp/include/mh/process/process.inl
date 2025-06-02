@@ -13,6 +13,7 @@
 #include <mh/error/not_implemented_error.hpp>
 #include <mh/io/fd_source.hpp>
 #include <mh/io/fd_sink.hpp>
+#include <mh/io/pipe.hpp>
 
 #include "process_manager.hpp"
 
@@ -168,40 +169,47 @@ struct process::impl
 	}
 
 private:
-	/**
-	 * Connects the output of one process to the input of another process.
-	 * 
-	 * @param source Where data comes from (e.g., parent process output, child stdout)
-	 * @param sink Where data goes to (e.g., child stdin, parent process input)
-	 */
-	void connect_io(const io::source_ptr& source, const io::sink_ptr& sink)
-	{
-		if (source && sink)
-		{
-			int source_fd = source->get_native_handle();
-			int sink_fd = sink->get_native_handle();
-			
-			if (source_fd != -1 && sink_fd != -1 && source_fd != sink_fd)
-			{
-				if (dup2(source_fd, sink_fd) == -1)
-				{
-					perror("Failed to connect I/O in child process");
-					exit(1);
-				}
-			}
-		}
-	}
-
 	void setup_child_io()
 	{
-		// Connect parent's output → child's stdin
-		connect_io(input_source_, io::sink::stdin_sink());
+		bool setup_failed = false;
 		
-		// Connect child's stdout → parent's input  
-		connect_io(io::source::stdout_source(), output_sink_);
+		// Redirect stdin if input source is provided
+		if (input_source_)
+		{
+			auto stdin_sink = std::make_shared<io::fd_sink>(STDIN_FILENO, false);
+			if (!io::connect_io(input_source_, stdin_sink))
+			{
+				perror("Failed to redirect stdin in child process");
+				setup_failed = true;
+			}
+		}
 		
-		// Connect child's stderr → parent's input
-		connect_io(io::source::stderr_source(), error_sink_);
+		// Redirect stdout if output sink is provided
+		if (output_sink_)
+		{
+			auto stdout_source = std::make_shared<io::fd_source>(STDOUT_FILENO, false);
+			if (!io::connect_io(stdout_source, output_sink_))
+			{
+				perror("Failed to redirect stdout in child process");
+				setup_failed = true;
+			}
+		}
+		
+		// Redirect stderr if error sink is provided
+		if (error_sink_)
+		{
+			auto stderr_source = std::make_shared<io::fd_source>(STDERR_FILENO, false);
+			if (!io::connect_io(stderr_source, error_sink_))
+			{
+				perror("Failed to redirect stderr in child process");
+				setup_failed = true;
+			}
+		}
+		
+		if (setup_failed)
+		{
+			exit(1);
+		}
 	}
 };
 

@@ -24,6 +24,11 @@ public:
 	const sink_ptr in;
 	const source_ptr out;
 };
+
+// Connect a source to a sink by duplicating the source's fd to the sink's fd
+// This is useful for redirecting child process I/O
+// Returns a pipe object on success, nullptr on failure
+MH_STUFF_API pipe_ptr connect_io(const source_ptr& source, const sink_ptr& sink);
 } // namespace mh::io
 
 #ifndef MH_COMPILE_LIBRARY

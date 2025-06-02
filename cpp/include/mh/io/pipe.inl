@@ -28,6 +28,40 @@ namespace mh::io
 
 		return std::make_shared<pipe>(source, sink);
 	}
+
+	MH_COMPILE_LIBRARY_INLINE pipe_ptr connect_io(const source_ptr& source, const sink_ptr& sink)
+	{
+		if (!source || !sink)
+		{
+			return nullptr;
+		}
+
+		if (!source->is_open() || !sink->is_open())
+		{
+			return nullptr;
+		}
+
+		int source_fd = source->get_native_handle();
+		int sink_fd = sink->get_native_handle();
+
+		if (source_fd < 0 || sink_fd < 0)
+		{
+			return nullptr;
+		}
+
+		if (source_fd == sink_fd)
+		{
+			// Already connected, just create a pipe wrapper
+			return std::make_shared<pipe>(source, sink);
+		}
+
+		if (dup2(source_fd, sink_fd) == -1)
+		{
+			return nullptr;
+		}
+
+		return std::make_shared<pipe>(source, sink);
+	}
 }
 
 #endif // __unix__

@@ -25,6 +25,19 @@ if (CMAKE_CXX_COMPILER_ID MATCHES Clang OR CMAKE_CXX_COMPILER_ID MATCHES GNU)
 	endif()
 endif()
 
+# Check that all test files have last_include.hpp as the final include
+execute_process(
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/check_last_include.sh"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    RESULT_VARIABLE LAST_INCLUDE_CHECK_RESULT
+    OUTPUT_VARIABLE LAST_INCLUDE_CHECK_OUTPUT
+    ERROR_VARIABLE LAST_INCLUDE_CHECK_ERROR
+)
+
+if(NOT LAST_INCLUDE_CHECK_RESULT EQUAL 0)
+    message(FATAL_ERROR "last_include.hpp check failed:\n${LAST_INCLUDE_CHECK_OUTPUT}\n${LAST_INCLUDE_CHECK_ERROR}")
+endif()
+
 # Glob all test source files
 file(GLOB TEST_SOURCES "*_test.cpp")
 

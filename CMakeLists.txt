@@ -172,25 +172,6 @@ else()
 	)
 endif()
 
-# Check for C++20 coroutine support
-include(CheckCXXCompilerFlag)
-set(COROUTINES_FLAGS "")
-if (MSVC)
-    check_cxx_compiler_flag(/std:c++20 HAS_CXX20)
-    if (HAS_CXX20)
-        set(COROUTINES_FLAGS /std:c++20)
-    endif()
-else()
-    check_cxx_compiler_flag(-std=c++20 HAS_CXX20)
-    if (HAS_CXX20)
-        set(COROUTINES_FLAGS -std=c++20)
-    endif()
-endif()
-
-if (COROUTINES_FLAGS)
-    target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} ${COROUTINES_FLAGS})
-endif()
-
 target_include_directories(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 	"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cpp/include>"
 	"$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
@@ -237,6 +218,8 @@ message(STATUS "Forcing MH_BROKEN_UNICODE=1 to work around compiler Unicode issu
 if (NOT DEFINED BUILD_TESTING)
 	if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 		set(BUILD_TESTING ON)
+		# Define MH_STUFF_STANDALONE_BUILD when building as main project
+		target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_STUFF_STANDALONE_BUILD")
 	else()
 		set(BUILD_TESTING OFF)
 	endif()
