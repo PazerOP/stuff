@@ -13,10 +13,12 @@ namespace mh::io
         {
             static constexpr int invalid() { return -1; }
             
-            void delete_obj(int fd) const
+            void delete_obj(int& fd) const
             {
-                if (fd >= 0)
+                if (fd >= 0) {
                     close(fd);
+                    fd = invalid();
+                }
             }
             
             int release_obj(int& fd) const

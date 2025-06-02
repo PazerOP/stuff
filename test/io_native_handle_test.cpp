@@ -55,8 +55,10 @@ TEST_CASE("fd_traits file operations", "[io][native_handle]")
     SECTION("delete_obj with invalid fd")
     {
         // Should not crash when called with invalid fd
-        REQUIRE_NOTHROW(t.delete_obj(-1));
-        REQUIRE_NOTHROW(t.delete_obj(-100));
+        int invalid1 = -1;
+        int invalid2 = -100;
+        REQUIRE_NOTHROW(t.delete_obj(invalid1));
+        REQUIRE_NOTHROW(t.delete_obj(invalid2));
     }
     
     SECTION("release_obj")

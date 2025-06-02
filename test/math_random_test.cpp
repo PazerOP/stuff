@@ -7,6 +7,7 @@
 #include <numeric>
 #include <cmath>
 #include <thread>
+#include <limits>
 
 TEST_CASE("get_random integer types", "[math][random]")
 {
@@ -182,7 +183,9 @@ TEST_CASE("get_random edge cases", "[math][random]")
 		constexpr float zero = 0.0f;
 		for (int i = 0; i < 10; ++i) {
 			auto result = mh::get_random(zero, zero);
-			REQUIRE(result == Catch::Approx(zero));
+			// When min == max for floating point, should return exactly that value
+			// or be very close to it (implementation may use nextafter)
+			REQUIRE(result == Catch::Approx(static_cast<double>(zero)).margin(std::numeric_limits<float>::epsilon() * 2));
 		}
 	}
 

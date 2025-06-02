@@ -35,7 +35,7 @@ namespace mh
 	{
 		using this_type = unique_object<T, Traits>;
 	public:
-		unique_object() : m_Object{}, m_Traits{} {}
+		unique_object() : m_Object{Traits::invalid()}, m_Traits{} {}
 
 		explicit unique_object(const T& value, const Traits& traits) :
 			m_Object(value), m_Traits(traits) {}

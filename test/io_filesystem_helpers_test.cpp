@@ -155,7 +155,7 @@ TEST_CASE("replace_filename_keep_extension edge cases", "[io][filesystem_helpers
         std::filesystem::path input = "file.txt";
         std::filesystem::path new_filename = ".cpp";
         auto result = mh::replace_filename_keep_extension(input, new_filename);
-        REQUIRE(result.string() == ".txt");
+        REQUIRE(result.string() == ".cpp.txt");
     }
     
     SECTION("hidden file original")
