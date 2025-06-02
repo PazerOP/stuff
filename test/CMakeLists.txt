@@ -49,12 +49,12 @@ if (NOT (HAS_GETOPT OR HAS_UNISTD))
 	list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/io_getopt_test.cpp")
 endif()
 
-# Create the unified test executable
-add_executable(mh_stuff_tests ${TEST_SOURCES})
+# Create the unified test executable with custom main
+add_executable(mh_stuff_tests ${TEST_SOURCES} TestMain.cpp)
 
 # Note: Custom string makers are defined in specific test files
 
-target_link_libraries(mh_stuff_tests Catch2::Catch2WithMain mh::stuff)
+target_link_libraries(mh_stuff_tests Catch2::Catch2 mh::stuff)
 catch_discover_tests(mh_stuff_tests TEST_PREFIX "${PROJECT_NAME}.")
 
 if (CMAKE_CXX_COMPILER_ID MATCHES Clang OR CMAKE_CXX_COMPILER_ID MATCHES GNU)
@@ -86,4 +86,5 @@ foreach (F IN LISTS MH_HPP_FILES)
 	)
 
 	target_link_libraries(test_compile_file_${SAFE_FILENAME} PUBLIC mh::stuff)
+	target_include_directories(test_compile_file_${SAFE_FILENAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 endforeach()

@@ -9,13 +9,17 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <spawn.h>
 
 #include <mh/error/not_implemented_error.hpp>
 #include <mh/io/fd_source.hpp>
 #include <mh/io/fd_sink.hpp>
 #include <mh/io/pipe.hpp>
+#include <mh/io/native_handle.hpp>
 
 #include "process_manager.hpp"
+
+extern char **environ;
 
 namespace mh
 {
@@ -51,37 +55,58 @@ struct process::impl
 		if (started_)
 			return false;
 
-		pid_ = fork();
-
-		if (pid_ == -1)
+		// Set up file actions for posix_spawn
+		posix_spawn_file_actions_t file_actions;
+		if (posix_spawn_file_actions_init(&file_actions) != 0)
 		{
-			return false; // Fork failed
+			throw std::runtime_error("Failed to initialize posix_spawn file actions");
 		}
-		else if (pid_ == 0)
-		{
-			// Child process
-			setup_child_io();
 
-			// Convert args to C-style array
-			char** arg_array = new char*[args_.size() + 1];
-			for (size_t i = 0; i < args_.size(); ++i)
+		// Configure I/O redirections
+		auto setup_redirection = [&](auto& io_ptr, int target_fd, const char* desc) {
+			if (io_ptr)
 			{
-				arg_array[i] = const_cast<char*>(args_[i].c_str());
+				io::native_handle fd = io_ptr->get_native_handle();
+				if (fd < 0)
+				{
+					posix_spawn_file_actions_destroy(&file_actions);
+					throw std::runtime_error(std::string("Invalid file descriptor for ") + desc);
+				}
+				if (posix_spawn_file_actions_adddup2(&file_actions, fd, target_fd) != 0)
+				{
+					posix_spawn_file_actions_destroy(&file_actions);
+					throw std::runtime_error(std::string("Failed to configure ") + desc + " redirection");
+				}
 			}
-			arg_array[args_.size()] = nullptr;
+		};
+		
+		setup_redirection(input_source_, STDIN_FILENO, "stdin");
+		setup_redirection(output_sink_, STDOUT_FILENO, "stdout");
+		setup_redirection(error_sink_, STDERR_FILENO, "stderr");
 
-			// Execute the command
-			execvp(command_.c_str(), arg_array);
+		// Convert args to C-style array
+		char** arg_array = new char*[args_.size() + 1];
+		for (size_t i = 0; i < args_.size(); ++i)
+		{
+			arg_array[i] = const_cast<char*>(args_[i].c_str());
+		}
+		arg_array[args_.size()] = nullptr;
 
-			// If execvp returns, an error occurred
-			delete[] arg_array;
-			exit(1);
+		// Spawn the process
+		int result = posix_spawnp(&pid_, command_.c_str(), &file_actions, nullptr, arg_array, environ);
+
+		// Clean up
+		delete[] arg_array;
+		posix_spawn_file_actions_destroy(&file_actions);
+
+		if (result == 0)
+		{
+			started_ = true;
+			return true;
 		}
 		else
 		{
-			// Parent process
-			started_ = true;
-			return true;
+			throw std::runtime_error("Failed to spawn process: " + command_);
 		}
 	}
 
@@ -168,49 +193,6 @@ struct process::impl
 		return kill(pid_, force ? SIGKILL : SIGTERM) == 0;
 	}
 
-private:
-	void setup_child_io()
-	{
-		bool setup_failed = false;
-		
-		// Redirect stdin if input source is provided
-		if (input_source_)
-		{
-			auto stdin_sink = std::make_shared<io::fd_sink>(STDIN_FILENO, false);
-			if (!io::connect_io(input_source_, stdin_sink))
-			{
-				perror("Failed to redirect stdin in child process");
-				setup_failed = true;
-			}
-		}
-		
-		// Redirect stdout if output sink is provided
-		if (output_sink_)
-		{
-			auto stdout_source = std::make_shared<io::fd_source>(STDOUT_FILENO, false);
-			if (!io::connect_io(stdout_source, output_sink_))
-			{
-				perror("Failed to redirect stdout in child process");
-				setup_failed = true;
-			}
-		}
-		
-		// Redirect stderr if error sink is provided
-		if (error_sink_)
-		{
-			auto stderr_source = std::make_shared<io::fd_source>(STDERR_FILENO, false);
-			if (!io::connect_io(stderr_source, error_sink_))
-			{
-				perror("Failed to redirect stderr in child process");
-				setup_failed = true;
-			}
-		}
-		
-		if (setup_failed)
-		{
-			exit(1);
-		}
-	}
 };
 
 // Process public interface
