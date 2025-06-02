@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include "last_include.hpp"
 
 TEST_CASE("find_or_add empty vector", "[algorithm]")
 {

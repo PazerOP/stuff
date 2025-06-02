@@ -1,5 +1,6 @@
 #include "mh/data/bits.hpp"
 #include <catch2/catch_all.hpp>
+#include "last_include.hpp"
 
 // Provide definition for Catch2's declared StringMaker specialization
 // Only define when building mh_stuff as standalone project to avoid conflicts

@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include <memory>
+#include "last_include.hpp"
 
 // Test traits for managing an integer resource
 struct IntTraits 

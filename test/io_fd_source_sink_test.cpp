@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <cstring>
+#include "last_include.hpp"
 
 TEST_CASE("fd_source file operations", "[io][fd_source]")
 {

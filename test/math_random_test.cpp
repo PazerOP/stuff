@@ -8,6 +8,7 @@
 #include <cmath>
 #include <thread>
 #include <limits>
+#include "last_include.hpp"
 
 TEST_CASE("get_random integer types", "[math][random]")
 {

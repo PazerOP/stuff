@@ -3,6 +3,7 @@
 #include <mh/io/file.hpp>
 #include <filesystem>
 #include <fstream>
+#include "last_include.hpp"
 
 using namespace std::string_literals;
 

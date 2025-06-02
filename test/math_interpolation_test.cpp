@@ -1,5 +1,6 @@
 #include "mh/math/interpolation.hpp"
 #include <catch2/catch_all.hpp>
+#include "last_include.hpp"
 
 TEST_CASE("lerp", "[math][interpolation]")
 {

@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include "last_include.hpp"
 
 TEST_CASE("source static factory methods", "[io][source]")
 {

@@ -1,5 +1,6 @@
 #include "mh/data/bit_float.hpp"
 #include <catch2/catch_all.hpp>
+#include "last_include.hpp"
 
 using half_float = mh::half_float;
 using native_float = mh::native_float;

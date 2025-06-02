@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include <string>
+#include "last_include.hpp"
 
 TEST_CASE("source_location basic functionality", "[source_location]")
 {

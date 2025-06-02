@@ -12,6 +12,7 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#include "last_include.hpp"
 #endif
 
 using namespace std::chrono_literals;

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <ctime>
 #include <thread>
+#include "last_include.hpp"
 
 TEST_CASE("to_seconds conversion", "[chrono][chrono_helpers]")
 {

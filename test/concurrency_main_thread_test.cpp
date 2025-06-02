@@ -4,6 +4,7 @@
 #include <thread>
 #include <atomic>
 #include <future>
+#include "last_include.hpp"
 
 TEST_CASE("main_thread_id initialization", "[concurrency][main_thread]")
 {

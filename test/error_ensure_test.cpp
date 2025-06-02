@@ -3,6 +3,7 @@
 
 #include <string>
 #include <sstream>
+#include "last_include.hpp"
 
 TEST_CASE("ensure_traits basic functionality", "[error][ensure]")
 {

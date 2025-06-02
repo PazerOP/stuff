@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <mh/io/filesystem_helpers.hpp>
 #include <filesystem>
+#include "last_include.hpp"
 
 TEST_CASE("filename_without_extension basic functionality", "[io][filesystem_helpers]")
 {

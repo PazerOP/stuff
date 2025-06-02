@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <cstdio>
 #include <filesystem>
+#include "last_include.hpp"
 
 TEST_CASE("fd_traits basic functionality", "[io][native_handle]")
 {

@@ -2,6 +2,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <cstring>
+#include "last_include.hpp"
 
 TEST_CASE("buffer - common", "[memory][buffer]")
 {
