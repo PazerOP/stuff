@@ -22,5 +22,5 @@ test PRESET="default": (build PRESET)
 
 # Run tests with coverage report (Linux/macOS only)
 coverage: (test "coverage")
-    cd {{justfile_directory()}}/build/coverage && gcovr --root="{{justfile_directory()}}" --filter="{{justfile_directory()}}/cpp/.*" --gcov-ignore-errors=all --sort=uncovered-percent --html-details="results.html" --print-summary="{{justfile_directory()}}/build/coverage"
+    cd {{justfile_directory()}}/build/coverage && gcovr --root="{{justfile_directory()}}/cpp/" --gcov-ignore-errors=all --sort=uncovered-percent --html-details="results.html" --print-summary "{{justfile_directory()}}/build/coverage"
 
