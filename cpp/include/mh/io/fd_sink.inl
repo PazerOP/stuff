@@ -16,6 +16,15 @@ namespace mh::io
         : fd_(take_ownership ? unique_native_handle(fd) : unique_native_handle(dup(fd))), 
           is_open_(fd >= 0)
     {
+        // Prevent multiple instantiations of standard streams
+        static bool stdin_created = false;
+        
+        if (fd == STDIN_FILENO) {
+            if (stdin_created) {
+                throw std::runtime_error("Attempt to create multiple fd_sink instances for STDIN_FILENO");
+            }
+            stdin_created = true;
+        }
     }
 
     MH_COMPILE_LIBRARY_INLINE fd_sink::~fd_sink() = default;

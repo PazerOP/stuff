@@ -38,6 +38,14 @@ namespace mh::io
 
         // Static factory methods for creating platform-specific sources
         MH_STUFF_API static source_ptr create_file(const std::filesystem::path& filepath);
+        
+        // Static singleton instances for standard streams
+        MH_STUFF_API static source_ptr stdout_source();
+        MH_STUFF_API static source_ptr stderr_source();
     };
 }
+
+#ifndef MH_COMPILE_LIBRARY
+#include "source.inl"
+#endif
 

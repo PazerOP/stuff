@@ -38,6 +38,13 @@ namespace mh::io
 
         // Static factory methods for creating platform-specific sinks
         MH_STUFF_API static sink_ptr create_file(const std::filesystem::path& filepath, bool append = false);
+        
+        // Static singleton instance for standard input
+        MH_STUFF_API static sink_ptr stdin_sink();
     };
 }
+
+#ifndef MH_COMPILE_LIBRARY
+#include "sink.inl"
+#endif
 
