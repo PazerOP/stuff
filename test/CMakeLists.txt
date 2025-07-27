@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16.3)
 
 # Include CPM for package management
-include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CPM.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/get_cpm.cmake)
 
 # Use CPM to get Catch2
 CPMAddPackage(
