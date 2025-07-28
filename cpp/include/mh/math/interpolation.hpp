@@ -43,25 +43,41 @@ namespace mh
 #endif
 			else
 			{
-				if (in >= 0)
-					return in + 0.5f;
+				// Round half away from zero - match std::round exactly
+				// std::round rounds halfway cases away from zero
+				T integral_part;
+				T fractional_part = std::modf(in, &integral_part);
+				
+				if (fractional_part > T(0.5) || (fractional_part == T(0.5) && integral_part >= T(0)))
+					return integral_part + T(1);
+				else if (fractional_part < T(-0.5) || (fractional_part == T(-0.5) && integral_part < T(0)))
+					return integral_part - T(1);
 				else
-					return in - 0.5f;
+					return integral_part;
 			}
 		}
 
 		template<typename TIn, typename TOut>
-		constexpr TOut clamp(TIn in, TOut out_min, TOut out_max)
+		constexpr auto clamp(TIn in, TOut out_min, TOut out_max)
 		{
-			if (in <= static_cast<TIn>(out_min))
-				return out_min;
-			if (in >= static_cast<TIn>(out_max))
-				return out_max;
-
 			if constexpr (std::is_floating_point_v<TIn> && std::is_integral_v<TOut>)
-				in = round(in);
-
-			return static_cast<TOut>(in);
+			{
+				// For floating-point input and integral bounds, promote result to float
+				using result_t = float;
+				if (in <= static_cast<TIn>(out_min))
+					return static_cast<result_t>(out_min);
+				if (in >= static_cast<TIn>(out_max))
+					return static_cast<result_t>(out_max);
+				return static_cast<result_t>(in);
+			}
+			else
+			{
+				if (in <= static_cast<TIn>(out_min))
+					return out_min;
+				if (in >= static_cast<TIn>(out_max))
+					return out_max;
+				return static_cast<TOut>(in);
+			}
 		}
 
 		template<typename T>
@@ -118,7 +134,7 @@ namespace mh
 	}
 
 	template<typename TIn, typename TOut>
-	constexpr TOut lerp_clamped(TIn in_01, TOut out_min, TOut out_max)
+	constexpr auto lerp_clamped(TIn in_01, TOut out_min, TOut out_max)
 	{
 		using ct = std::common_type_t<TIn, TOut>;
 
@@ -128,7 +144,7 @@ namespace mh
 	}
 
 	template<typename TIn, typename TOut>
-	constexpr TOut lerp_slow_clamped(TIn in_01, TOut out_min, TOut out_max)
+	constexpr auto lerp_slow_clamped(TIn in_01, TOut out_min, TOut out_max)
 	{
 		using ct = std::common_type_t<TIn, TOut>;
 
