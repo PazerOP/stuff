@@ -555,7 +555,7 @@ namespace mh
 	}
 
 	template<typename T>
-	class task : public detail::task_hpp::task_base<T>
+	class [[nodiscard]] task : public detail::task_hpp::task_base<T>
 	{
 		using super = detail::task_hpp::task_base<T>;
 
@@ -575,7 +575,7 @@ namespace mh
 	};
 
 	template<>
-	class task<void> : public detail::task_hpp::task_base<void>
+	class [[nodiscard]] task<void> : public detail::task_hpp::task_base<void>
 	{
 		using super = detail::task_hpp::task_base<void>;
 
