@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef __unix__
+
 #include "native_handle.hpp"
 #include "source.hpp"
 
@@ -34,3 +36,5 @@ private:
   bool is_open_;
 };
 } // namespace mh::io
+
+#endif // __unix__

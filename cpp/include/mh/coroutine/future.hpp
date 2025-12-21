@@ -58,11 +58,11 @@ namespace mh
 
 		void set_value(T value)
 		{
-			this->get_promise().set_state<detail::promise<T>::IDX_VALUE>(std::move(value));
+			this->get_promise().template set_state<detail::promise<T>::IDX_VALUE>(std::move(value));
 		}
 		void set_exception(std::exception_ptr p)
 		{
-			this->get_promise().set_state<detail::promise<T>::IDX_EXCEPTION>(p);
+			this->get_promise().template set_state<detail::promise<T>::IDX_EXCEPTION>(p);
 		}
 	};
 

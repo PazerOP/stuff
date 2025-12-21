@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef __unix__
+
 #include "sink.hpp"
 #include "native_handle.hpp"
 #include <filesystem>
@@ -38,3 +40,5 @@ namespace mh::io
         bool is_open_;
     };
 }
+
+#endif // __unix__
