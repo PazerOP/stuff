@@ -161,7 +161,7 @@ namespace mh
 
 #ifdef _WIN32
 				// Windows: stub implementation for now
-				throw mh::not_implemented_error("Implement with select() or WSAPoll()");
+				throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT());
 #else
 				// Unix: use select()
 				if (!m_ReadTasks.empty() || !m_WriteTasks.empty())

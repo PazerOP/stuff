@@ -596,7 +596,7 @@ namespace mh
 		detail::promise<T>* promise = new detail::promise<T>();
 		task<T> retVal(promise);
 
-		promise->set_state<detail::promise<T>::IDX_VALUE>(T(std::forward<TArgs>(args)...));
+		promise->template set_state<detail::promise<T>::IDX_VALUE>(T(std::forward<TArgs>(args)...));
 
 		return retVal;
 	}

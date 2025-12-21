@@ -68,7 +68,7 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	target_sources(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
 
 	if (MSVC)
-		target_compile_options(${PROJECT_NAME} PRIVATE /W3 /permissive-)
+		target_compile_options(${PROJECT_NAME} PRIVATE /W3 /permissive- /utf-8)
 	endif()
 
 	include(GenerateExportHeader)
