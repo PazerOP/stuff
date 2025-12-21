@@ -10,6 +10,7 @@
 #include <map>
 #include <mutex>
 #include <typeindex>
+#include <utility>
 
 namespace mh::detail::exception_to_string_hpp
 {
