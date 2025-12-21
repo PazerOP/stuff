@@ -3,6 +3,7 @@
 #endif
 
 #include <cassert>
+#include <cstdint>
 #include <cwchar>
 #include <stdexcept>
 #include <type_traits>
