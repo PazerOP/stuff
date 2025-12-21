@@ -2,6 +2,11 @@
 #include <catch2/catch_all.hpp>
 
 #include <cstring>
+#include <string>
+
+// Helper to convert string_view to string for Catch2 comparisons
+// (Catch2 v3.4.0 declares but doesn't implement StringMaker<std::string_view>)
+inline std::string to_str(std::string_view sv) { return std::string(sv); }
 
 TEST_CASE("memstream put", "[text][memstream]")
 {
@@ -12,7 +17,7 @@ TEST_CASE("memstream put", "[text][memstream]")
 	ms << TEST_STRING;
 
 	REQUIRE(std::memcmp(buf, TEST_STRING.data(), TEST_STRING.size()) == 0);
-	REQUIRE(ms.view() == TEST_STRING);
+	REQUIRE(to_str(ms.view()) == to_str(TEST_STRING));
 	CHECK(!ms.fail());
 	CHECK(ms.good());
 	REQUIRE(ms.tellp() == 14);
@@ -23,7 +28,7 @@ TEST_CASE("memstream put", "[text][memstream]")
 	ms << " foo";
 
 	constexpr std::string_view TEST_STRING_FOO = "my test fooing";
-	REQUIRE(ms.view() == TEST_STRING_FOO);
+	REQUIRE(to_str(ms.view()) == to_str(TEST_STRING_FOO));
 	REQUIRE(std::memcmp(buf, TEST_STRING_FOO.data(), TEST_STRING_FOO.size()) == 0);
 
 	{
@@ -45,24 +50,24 @@ TEST_CASE("memstream put", "[text][memstream]")
 
 		REQUIRE(ms.write("foo", 3));
 		REQUIRE(ms.good());
-		REQUIRE(ms.view_full() == "footest fooing");
-		REQUIRE(ms.view() == "");
+		REQUIRE(to_str(ms.view_full()) == "footest fooing");
+		REQUIRE(to_str(ms.view()) == "");
 		REQUIRE(ms.seekg(1));
-		REQUIRE(ms.view() == "ootest fooing");
+		REQUIRE(to_str(ms.view()) == "ootest fooing");
 
 		REQUIRE(ms.seekg(0));
 		REQUIRE(ms.good());
-		REQUIRE(ms.view() == "footest fooing");
+		REQUIRE(to_str(ms.view()) == "footest fooing");
 
 		REQUIRE(ms << "bar");
-		REQUIRE(ms.view() == "foobart fooing");
+		REQUIRE(to_str(ms.view()) == "foobart fooing");
 		REQUIRE(ms.good());
 	}
 
 	{
 		constexpr int TEST_INT_VALUE = 487;
 
-		REQUIRE(ms.view() == "foobart fooing");
+		REQUIRE(to_str(ms.view()) == "foobart fooing");
 		REQUIRE(ms.seekp(1, std::ios::beg));
 		REQUIRE(ms.seekp(5, std::ios::cur));
 		REQUIRE(ms.tellp() == 6);
@@ -78,8 +83,8 @@ TEST_CASE("memstream put", "[text][memstream]")
 		CHECK(ms.tellg() == 14);
 		CHECK(ms.seekg(0));
 
-		CHECK(ms.view() == "foobar487ooing");
-		CHECK(ms.view_full() == "foobar487ooing");
+		CHECK(to_str(ms.view()) == "foobar487ooing");
+		CHECK(to_str(ms.view_full()) == "foobar487ooing");
 
 		int testInt;
 		REQUIRE(ms.seekg(6));
