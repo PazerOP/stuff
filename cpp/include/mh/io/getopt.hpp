@@ -1,6 +1,6 @@
 #pragma once
 
-#if __has_include(<getopt.h>) || __has_include(<uinstd.h>)
+#if __has_include(<getopt.h>) || __has_include(<unistd.h>)
 #if __has_include(<getopt.h>)
 #include <getopt.h>
 #elif __has_include(<unistd.h>)
