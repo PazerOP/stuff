@@ -6,6 +6,10 @@ defaults:
   run:
     shell: bash
 
+env:
+  # Use a recent stable vcpkg baseline from official Microsoft repo
+  VCPKG_COMMIT: de46587b4beaa638743916fe5674825cecfb48b3
+
 jobs:
   build-linux:
     # name: ${{ matrix.compiler }}
@@ -38,6 +42,8 @@ jobs:
     - uses: actions/checkout@v4
 
     - uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
     - name: Add repos
       run: |
@@ -121,6 +127,8 @@ jobs:
     - uses: actions/checkout@v4
 
     - uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
     - uses: seanmiddleditch/gha-setup-ninja@v5
     - name: Setup compiler paths
