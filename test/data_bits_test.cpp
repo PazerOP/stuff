@@ -1,5 +1,18 @@
 #include "mh/data/bits.hpp"
 #include <catch2/catch_all.hpp>
+#include <cstddef>
+#include <sstream>
+#include <iomanip>
+
+// Provide StringMaker for std::byte to allow Catch2 to print byte values
+template<>
+struct Catch::StringMaker<std::byte> {
+	static std::string convert(std::byte value) {
+		std::ostringstream oss;
+		oss << "0x" << std::hex << std::setfill('0') << std::setw(2) << static_cast<unsigned>(value);
+		return oss.str();
+	}
+};
 
 template<unsigned bits_to_copy, unsigned src_offset, typename TSrc = void, typename TDst = void>
 static void test_bit_functions(const TSrc* src, const TDst expected)
