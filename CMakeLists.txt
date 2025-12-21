@@ -40,12 +40,16 @@ include(mh-BasicInstall)
 include(mh-CheckCoroutineSupport)
 
 if (MH_STUFF_COMPILE_LIBRARY)
+	find_package(CURL REQUIRED)
+
 	file(GLOB_RECURSE MH_SOURCE_FILES CONFIGURE_DEPENDS
 		"cpp/src/*.cpp"
 	)
 	target_sources(${PROJECT_NAME} PRIVATE
 		${MH_SOURCE_FILES}
 	)
+
+	target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl)
 
 	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 		"MH_COMPILE_LIBRARY"

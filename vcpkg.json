@@ -4,6 +4,7 @@
 	"dependencies": [
 		"mh-cmake-common",
 		"catch2",
+		"curl",
 		"fmt"
 	]
 }
