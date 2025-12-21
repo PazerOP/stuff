@@ -15,6 +15,7 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <utility>
 
 // Platform-specific I/O monitoring (Unix only for now)
 #ifndef _WIN32

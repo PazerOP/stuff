@@ -4,6 +4,8 @@
 
 #ifdef MH_COROUTINES_SUPPORTED
 
+#include <utility>
+
 namespace mh
 {
 	template<typename T> class shared_future;
