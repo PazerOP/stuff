@@ -16,11 +16,8 @@
 #include <queue>
 #include <thread>
 
-// Platform-specific I/O monitoring
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
+// Platform-specific I/O monitoring (Unix only for now)
+#ifndef _WIN32
 #include <sys/select.h>
 #include <unistd.h>
 #include <fcntl.h>

@@ -2,8 +2,10 @@
 
 #include "fd_sink.hpp"
 #include <mh/error/not_implemented_error.hpp>
+#ifdef __unix__
 #include <unistd.h>
 #include <fcntl.h>
+#endif
 
 #ifndef MH_COMPILE_LIBRARY_INLINE
 #define MH_COMPILE_LIBRARY_INLINE inline

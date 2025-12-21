@@ -121,6 +121,7 @@ if (UNIX)
 endif()
 
 if (NOT MSVC)
+	include(CheckCXXCompilerFlag)
 	check_cxx_compiler_flag(-fconcepts FCONCEPTS_FLAG)
 	if (FCONCEPTS_FLAG)
 		target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -fconcepts)
