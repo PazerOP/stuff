@@ -12,31 +12,21 @@ env:
 
 jobs:
   build-linux:
-    # name: ${{ matrix.compiler }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
         MH_STUFF_COMPILE_LIBRARY: [true, false]
-        # compiler: [clang++-11, clang++-10, g++-10, clang++-9, g++-9, clang++-8, g++-8, clang++-7]
         compiler:
-          - exe: clang++-11
-            deps: clang-11 libc++-11-dev libc++abi-11-dev
-          - exe: clang++-10
-            deps: clang-10 libc++-10-dev libc++abi-10-dev
-          - exe: clang++-9
-            deps: clang-9 libc++-9-dev libc++abi-9-dev
-          - exe: clang++-8
-            deps: clang-8 libc++-8-dev libc++abi-8-dev
-          - exe: clang++-7
-            deps: clang-7 libc++-7-dev libc++abi-7-dev
-          - exe: g++-10
-            deps: g++-10
-          - exe: g++-9
-            deps: g++-9
-          - exe: g++-8
-            deps: g++-8
+          # Modern compilers available on ubuntu-latest (Ubuntu 22.04/24.04)
+          - exe: g++-12
+            deps: g++-12
+          - exe: g++-13
+            deps: g++-13
+          - exe: clang++-14
+            deps: clang-14 libc++-14-dev libc++abi-14-dev
+          - exe: clang++-15
+            deps: clang-15 libc++-15-dev libc++abi-15-dev
 
     steps:
     - uses: actions/checkout@v4
@@ -45,31 +35,13 @@ jobs:
       with:
         vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
-    - name: Add repos
-      run: |
-        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 15CF4D18AF4F7421
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        echo "deb http://apt.llvm.org/focal/ llvm-toolchain-focal main" | sudo tee /etc/apt/sources.list.d/llvm.list
-
-    - name: Add repos - llvm-11
-      if: matrix.compiler.exe == 'clang++-11'
-      run: echo "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
-
-    - name: Add repos - llvm-12
-      if: matrix.compiler.exe == 'clang++-12'
-      run: echo "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
-
-    - name: Update repos
-      run: sudo apt update
-
     - name: Install compilers and tools
       run: |
-        # sudo rm -rf /var/lib/apt/lists/*
-        # sudo apt clean
-        sudo apt install ${{ matrix.compiler.deps }} ninja-build -y
-        sudo pip3 install gcovr
+        sudo apt-get update
+        sudo apt-get install -y ${{ matrix.compiler.deps }} ninja-build
+        pip3 install gcovr
 
-        echo Ensuring programs work...
+        echo "Ensuring programs work..."
         ${{ matrix.compiler.exe }} --version
         ninja --version
         gcovr --version
