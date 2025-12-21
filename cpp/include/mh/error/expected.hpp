@@ -3,6 +3,7 @@
 #if (__cpp_concepts >= 201907) || (defined(_MSC_VER) && (__cpp_concepts >= 201811))
 
 #include <compare>
+#include <cstddef>
 #include <system_error>
 #include <utility>
 #include <variant>

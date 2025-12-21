@@ -4,6 +4,7 @@
 
 #include "sink.hpp"
 #include "native_handle.hpp"
+#include <cstddef>
 #include <filesystem>
 
 #ifndef MH_STUFF_API

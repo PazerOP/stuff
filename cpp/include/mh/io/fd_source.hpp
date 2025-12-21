@@ -4,6 +4,7 @@
 
 #include "native_handle.hpp"
 #include "source.hpp"
+#include <cstddef>
 
 #ifndef MH_STUFF_API
 #define MH_STUFF_API
