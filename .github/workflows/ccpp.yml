@@ -9,8 +9,6 @@ defaults:
 env:
   VCPKG_GIT_COMMIT_ID: 3a3a222be369b556e4635714c8d6acc990e1f13b
   VCPKG_GIT_URL: https://github.com/PazerOP/vcpkg.git
-  VCPKG_BINARY_SOURCES: 'clear;nuget,GitHub,readwrite'
-  X_VCPKG_NUGET_ID_PREFIX: mh-stuff
 
 jobs:
   build-linux:
@@ -42,7 +40,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - uses: PazerOP/gha-setup-nuget@HEAD
 
     - uses: lukka/run-vcpkg@v11
       id: runvcpkg
@@ -130,7 +127,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - uses: PazerOP/gha-setup-nuget@HEAD
 
     - uses: lukka/run-vcpkg@v11
       with:
