@@ -6,10 +6,6 @@ defaults:
   run:
     shell: bash
 
-env:
-  VCPKG_GIT_COMMIT_ID: 3a3a222be369b556e4635714c8d6acc990e1f13b
-  VCPKG_GIT_URL: https://github.com/PazerOP/vcpkg.git
-
 jobs:
   build-linux:
     # name: ${{ matrix.compiler }}
@@ -42,10 +38,6 @@ jobs:
     - uses: actions/checkout@v4
 
     - uses: lukka/run-vcpkg@v11
-      id: runvcpkg
-      with:
-        vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
-        vcpkgGitURL: ${{ env.VCPKG_GIT_URL }}
 
     - name: Add repos
       run: |
@@ -129,9 +121,6 @@ jobs:
     - uses: actions/checkout@v4
 
     - uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
-        vcpkgGitURL: ${{ env.VCPKG_GIT_URL }}
 
     - uses: seanmiddleditch/gha-setup-ninja@v5
     - name: Setup compiler paths
