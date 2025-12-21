@@ -41,13 +41,12 @@ jobs:
             deps: g++-8
 
     steps:
-    - uses: actions/checkout@v2.3.4
+    - uses: actions/checkout@v4
     - uses: PazerOP/gha-setup-nuget@HEAD
 
-    - uses: lukka/run-vcpkg@v7
+    - uses: lukka/run-vcpkg@v11
       id: runvcpkg
       with:
-        setupOnly: true
         vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
         vcpkgGitURL: ${{ env.VCPKG_GIT_URL }}
 
@@ -115,7 +114,7 @@ jobs:
 
     - name: Save test results
       if: ${{ matrix.MH_STUFF_COMPILE_LIBRARY }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: gcovr_results_${{ matrix.compiler.exe }}
         path: build/results*.html
@@ -130,18 +129,17 @@ jobs:
         MH_STUFF_COMPILE_LIBRARY: [true, false]
 
     steps:
-    - uses: actions/checkout@v2.3.4
+    - uses: actions/checkout@v4
     - uses: PazerOP/gha-setup-nuget@HEAD
 
-    - uses: lukka/run-vcpkg@v7
+    - uses: lukka/run-vcpkg@v11
       with:
-        setupOnly: true
         vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
         vcpkgGitURL: ${{ env.VCPKG_GIT_URL }}
 
-    - uses: seanmiddleditch/gha-setup-ninja@v3
+    - uses: seanmiddleditch/gha-setup-ninja@v5
     - name: Setup compiler paths
-      uses: ilammy/msvc-dev-cmd@v1.5.0
+      uses: ilammy/msvc-dev-cmd@v1
 
     - name: Build
       run: |
