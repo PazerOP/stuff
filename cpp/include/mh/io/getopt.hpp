@@ -39,7 +39,7 @@ namespace mh::detail::getopt_hpp
 	private:
 		T& m_Variable;
 		T m_OldValue;
-	}
+	};
 }
 #endif
 
