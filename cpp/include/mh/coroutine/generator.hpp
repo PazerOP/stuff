@@ -158,6 +158,19 @@ namespace mh
 		}
 		detail::generator_hpp::iterator_end end() { return {}; }
 
+		// Count elements (consumes the generator, only available on rvalues)
+		size_t count() && {
+			size_t n = 0;
+			for ([[maybe_unused]] auto&& _ : *this) ++n;
+			return n;
+		}
+
+		// Check if generator is empty (consumes at most one element, only available on rvalues)
+		bool empty() && {
+			for ([[maybe_unused]] auto&& _ : *this) return false;
+			return true;
+		}
+
 	private:
 		coroutine_type m_Handle;
 	};
