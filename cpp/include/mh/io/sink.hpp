@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef __unix__
+
 #include "native_handle.hpp"
 #include <mh/coroutine/task.hpp>
 #include <cstddef>
@@ -40,4 +42,6 @@ namespace mh::io
         MH_STUFF_API static sink_ptr create_file(const std::filesystem::path& filepath, bool append = false);
     };
 }
+
+#endif // __unix__
 

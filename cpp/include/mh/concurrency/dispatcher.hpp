@@ -7,6 +7,7 @@
 #ifdef MH_COROUTINES_SUPPORTED
 
 #include <chrono>
+#include <cstddef>
 #include <memory>
 
 #ifndef MH_STUFF_API

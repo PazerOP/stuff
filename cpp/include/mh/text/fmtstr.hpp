@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 
 #if __has_include(<mh/text/format.hpp>)
 #include <mh/text/format.hpp>

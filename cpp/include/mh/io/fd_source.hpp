@@ -1,7 +1,10 @@
 #pragma once
 
+#ifdef __unix__
+
 #include "native_handle.hpp"
 #include "source.hpp"
+#include <cstddef>
 
 #ifndef MH_STUFF_API
 #define MH_STUFF_API
@@ -34,3 +37,5 @@ private:
   bool is_open_;
 };
 } // namespace mh::io
+
+#endif // __unix__

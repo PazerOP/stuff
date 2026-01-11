@@ -5,6 +5,9 @@
 #include <cstring>
 #include <ostream>
 
+// fmemopen is POSIX-only, not available on Windows
+#ifdef __unix__
+
 TEST_CASE("filebuf basic write", "[text][filebuf]")
 {
 	char buf[128] = {};
@@ -112,3 +115,5 @@ TEST_CASE("filebuf with format", "[text][filebuf]")
 	REQUIRE(std::strstr(buf, "Float: 3.14") != nullptr);
 	REQUIRE(std::strstr(buf, "String: test") != nullptr);
 }
+
+#endif // __unix__

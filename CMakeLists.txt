@@ -40,12 +40,16 @@ include(mh-BasicInstall)
 include(mh-CheckCoroutineSupport)
 
 if (MH_STUFF_COMPILE_LIBRARY)
+	find_package(CURL REQUIRED)
+
 	file(GLOB_RECURSE MH_SOURCE_FILES CONFIGURE_DEPENDS
 		"cpp/src/*.cpp"
 	)
 	target_sources(${PROJECT_NAME} PRIVATE
 		${MH_SOURCE_FILES}
 	)
+
+	target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl)
 
 	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 		"MH_COMPILE_LIBRARY"
@@ -64,7 +68,7 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	target_sources(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
 
 	if (MSVC)
-		target_compile_options(${PROJECT_NAME} PRIVATE /W3 /permissive-)
+		target_compile_options(${PROJECT_NAME} PRIVATE /W3 /permissive- /utf-8)
 	endif()
 
 	include(GenerateExportHeader)
@@ -117,6 +121,7 @@ if (UNIX)
 endif()
 
 if (NOT MSVC)
+	include(CheckCXXCompilerFlag)
 	check_cxx_compiler_flag(-fconcepts FCONCEPTS_FLAG)
 	if (FCONCEPTS_FLAG)
 		target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -fconcepts)

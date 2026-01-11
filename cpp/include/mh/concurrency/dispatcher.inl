@@ -15,12 +15,10 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <utility>
 
-// Platform-specific I/O monitoring
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
+// Platform-specific I/O monitoring (Unix only for now)
+#ifndef _WIN32
 #include <sys/select.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -161,7 +159,7 @@ namespace mh
 
 #ifdef _WIN32
 				// Windows: stub implementation for now
-				throw mh::not_implemented_error("Implement with select() or WSAPoll()");
+				throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT());
 #else
 				// Unix: use select()
 				if (!m_ReadTasks.empty() || !m_WriteTasks.empty())

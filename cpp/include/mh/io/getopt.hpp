@@ -1,6 +1,6 @@
 #pragma once
 
-#if __has_include(<getopt.h>) || __has_include(<uinstd.h>)
+#if __has_include(<getopt.h>) || __has_include(<unistd.h>)
 #if __has_include(<getopt.h>)
 #include <getopt.h>
 #elif __has_include(<unistd.h>)
@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 
 
 #if __has_include(<mh/data/variable_pusher.hpp>)
@@ -39,7 +40,7 @@ namespace mh::detail::getopt_hpp
 	private:
 		T& m_Variable;
 		T m_OldValue;
-	}
+	};
 }
 #endif
 

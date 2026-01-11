@@ -11,6 +11,9 @@
 #include <thread>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <Windows.h>
 #endif
 
@@ -147,7 +150,8 @@ TEST_CASE("task - exceptions in discarded tasks")
 	mh::thread_pool tp(2);
 
 	int value = 0;
-	[](mh::thread_pool& tp, int& val) -> mh::task<>
+	// Intentionally discarding the task - cast to void to suppress nodiscard warning
+	(void)[](mh::thread_pool& tp, int& val) -> mh::task<>
 	{
 		co_await tp.co_add_task();
 		co_await tp.co_delay_for(2s);

@@ -4,6 +4,7 @@
 #include <charconv>
 
 #if __cpp_lib_to_chars >= 201611
+#include <cstdint>
 #include <optional>
 #include <string_view>
 #include <type_traits>

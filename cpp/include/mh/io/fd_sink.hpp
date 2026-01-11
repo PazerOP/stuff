@@ -1,7 +1,10 @@
 #pragma once
 
+#ifdef __unix__
+
 #include "sink.hpp"
 #include "native_handle.hpp"
+#include <cstddef>
 #include <filesystem>
 
 #ifndef MH_STUFF_API
@@ -38,3 +41,5 @@ namespace mh::io
         bool is_open_;
     };
 }
+
+#endif // __unix__

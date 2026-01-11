@@ -166,19 +166,19 @@ namespace mh
             // Handle input (stdin)
             if (input_source_)
             {
-                throw mh::not_implemented_error(); // Input redirection not yet implemented
+                throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT()); // Input redirection not yet implemented
             }
 
             // Handle output (stdout)
             if (output_sink_)
             {
-                throw mh::not_implemented_error(); // Output redirection not yet implemented
+                throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT()); // Output redirection not yet implemented
             }
 
             // Handle error (stderr)
             if (error_sink_)
             {
-                throw mh::not_implemented_error(); // Error redirection not yet implemented
+                throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT()); // Error redirection not yet implemented
             }
         }
     };
