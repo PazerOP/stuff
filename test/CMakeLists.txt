@@ -17,9 +17,14 @@ include(CTest)
 CPMAddPackage(
   NAME Catch2
   GITHUB_REPOSITORY catchorg/Catch2
-  VERSION 3.8.0
-  GIT_TAG v3.8.0
+  VERSION 3.12.0
+  GIT_TAG v3.12.0
+  OPTIONS
+    "CATCH_CONFIG_CPP17_BYTE ON"
+    "CATCH_CONFIG_CPP17_STRING_VIEW ON"
 )
+
+target_compile_features(Catch2 PUBLIC cxx_std_20)
 
 list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
 include(Catch)

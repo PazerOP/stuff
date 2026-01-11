@@ -4,10 +4,6 @@
 default:
     @just --list
 
-# Clean all build directories
-clean:
-    rm -rf build build-*
-
 # Configure the project (using CMake presets)
 configure PRESET="default":
     cmake --preset {{PRESET}}
@@ -18,7 +14,7 @@ build PRESET="default": (configure PRESET)
 
 # Run tests
 test PRESET="default": (build PRESET)
-    ctest --preset {{PRESET}}
+    ctest --preset {{PRESET}} --timeout 180
 
 # Run tests with coverage report (Linux/macOS only)
 coverage: (test "coverage")
