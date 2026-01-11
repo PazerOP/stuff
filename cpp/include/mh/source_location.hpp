@@ -52,7 +52,9 @@ namespace mh
 	template<typename CharT, typename Traits>
 	inline std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, const mh::source_location& location)
 	{
-		return os << location.file_name() << '(' << location.line() << "):" << location.function_name();
+		const char* file = location.file_name();
+		const char* func = location.function_name();
+		return os << (file ? file : "(unknown)") << '(' << location.line() << "):" << (func ? func : "(unknown)");
 	}
 }
 
