@@ -163,12 +163,10 @@ TEST_CASE("source_location macro usage", "[source_location]")
 			return loc;
 		};
 		
-#if defined(MH_SOURCE_LOCATION_CURRENT)
 		auto result = test_lambda();
 		REQUIRE(result.line() > 0);
 		REQUIRE(result.file_name() != nullptr);
 		REQUIRE(result.function_name() != nullptr);
-#endif
 	}
 #endif
 }
