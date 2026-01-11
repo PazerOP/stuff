@@ -423,7 +423,7 @@ TEST_CASE("concurrent pipe operations", "[io][pipe]")
         
         // Start writer threads
         for (int t = 0; t < num_threads; ++t) {
-            writers.emplace_back([&pipe, &completed_writes, t, messages_per_thread]() {
+            writers.emplace_back([&pipe, &completed_writes, t]() {
                 for (int i = 0; i < messages_per_thread; ++i) {
                     std::string message = "Thread" + std::to_string(t) + "Msg" + std::to_string(i) + "\n";
                     auto bytes_written = pipe->in->write_async(message.data(), message.size()).get();
@@ -435,7 +435,7 @@ TEST_CASE("concurrent pipe operations", "[io][pipe]")
         
         // Reader thread
         std::vector<std::string> received_messages;
-        std::thread reader([&pipe, &received_messages, num_threads, messages_per_thread]() {
+        std::thread reader([&pipe, &received_messages]() {
             std::string accumulated_data;
             char buffer[1024];
             

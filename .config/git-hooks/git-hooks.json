@@ -1,0 +1,6 @@
+{
+  "$schema": "lib/git-hooks.schema.json",
+  "hooks": {
+    "pre-commit": ["lib:block-master-commit"]
+  }
+}

@@ -260,7 +260,7 @@ TEST_CASE("get_random thread safety", "[math][random]")
 		std::vector<std::vector<int>> thread_results(num_threads);
 		
 		for (int t = 0; t < num_threads; ++t) {
-			threads.emplace_back([&thread_results, t, values_per_thread]() {
+			threads.emplace_back([&thread_results, t]() {
 				for (int i = 0; i < values_per_thread; ++i) {
 					thread_results[t].push_back(mh::get_random(1, 1000));
 				}
