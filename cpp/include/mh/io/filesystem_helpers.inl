@@ -4,6 +4,8 @@
 #define MH_COMPILE_LIBRARY_INLINE inline
 #endif
 
+#include <utility>
+
 MH_COMPILE_LIBRARY_INLINE std::filesystem::path mh::filename_without_extension(std::filesystem::path path)
 {
 	return std::move(path.filename().replace_extension());

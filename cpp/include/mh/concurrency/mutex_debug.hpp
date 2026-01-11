@@ -39,9 +39,11 @@ namespace mh
 			m_Mutex.unlock();
 		}
 
-		// TODO: this is optional
+		// native_handle is not available on MSVC's std::mutex
+#if !defined(_MSC_VER)
 		using native_handle_type = typename TMutex::native_handle_type;
 		native_handle_type native_handle() { return m_Mutex.native_handle(); }
+#endif
 
 	private:
 		void lock_acquired()

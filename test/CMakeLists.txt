@@ -1,38 +1,46 @@
 cmake_minimum_required(VERSION 3.16.3)
 
-find_package(Catch2 CONFIG REQUIRED)
-include("${Catch2_DIR}/Catch.cmake")
-
-add_library(Catch2WithMain STATIC "catch2.cpp")
-target_link_libraries(Catch2WithMain PUBLIC Catch2::Catch2)
-target_compile_features(Catch2WithMain PUBLIC cxx_std_20)
-
-if (MSVC)
-	# There is a bug in visual studio that prevents intellisense from realizing
-	# /std:c++latest is on the command line if you only use target_compile_features(cxx_std_20)
-	target_compile_options(Catch2WithMain PUBLIC "/std:c++latest")
-endif()
-
-# build with correct stdlib for complier
+# Set compiler flags for clang/libc++ before adding Catch2
+# This ensures Catch2 is built with the same stdlib as our code
 if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
-	target_compile_options(Catch2WithMain PUBLIC -stdlib=libc++)
-	target_link_options(Catch2WithMain PUBLIC -stdlib=libc++ -lc++abi)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
 endif()
+
+# Include CPM for package management
+include(${PROJECT_SOURCE_DIR}/cmake/get_cpm.cmake)
+
+# Use CPM to get Catch2
+CPMAddPackage(
+  NAME Catch2
+  GITHUB_REPOSITORY catchorg/Catch2
+  VERSION 3.4.0
+  GIT_TAG v3.4.0
+)
+list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
+include(Catch)
+
 
 if (CMAKE_CXX_COMPILER_ID MATCHES Clang OR CMAKE_CXX_COMPILER_ID MATCHES GNU)
-	target_compile_options(mh-stuff ${MH_PUBLIC_OR_INTERFACE} --coverage -g)
-	target_link_options(mh-stuff ${MH_PUBLIC_OR_INTERFACE} -lgcov --coverage -g)
+	find_library(GCOV_LIBRARY gcov)
+	if(GCOV_LIBRARY)
+		target_compile_options(mh-stuff ${MH_PUBLIC_OR_INTERFACE} --coverage -g)
+		target_link_options(mh-stuff ${MH_PUBLIC_OR_INTERFACE} -lgcov --coverage -g)
+	endif()
 endif()
 
 function(mh_test name)
 	add_executable(${name} "${name}.cpp")
 
-	target_link_libraries(${name} Catch2WithMain mh::stuff)
+	target_link_libraries(${name} Catch2::Catch2WithMain mh::stuff)
 	catch_discover_tests(${name} TEST_PREFIX "${PROJECT_NAME}.")
 
 	if (CMAKE_CXX_COMPILER_ID MATCHES Clang OR CMAKE_CXX_COMPILER_ID MATCHES GNU)
-		target_compile_options(${name} PUBLIC --coverage -g)
-		target_link_options(${name} PUBLIC -lgcov --coverage -g)
+		find_library(GCOV_LIBRARY gcov)
+		if(GCOV_LIBRARY)
+			target_compile_options(${name} PUBLIC --coverage -g)
+			target_link_options(${name} PUBLIC -lgcov --coverage -g)
+		endif()
 	endif()
 
 endfunction()
@@ -48,6 +56,7 @@ mh_test(memory_buffer_test)
 mh_test(text_case_insensitive_string_test)
 mh_test(text_codecvt_test)
 # mh_test(text_charconv_helper_test)
+mh_test(text_filebuf_test)
 mh_test(text_memstream_test)
 mh_test(text_string_insertion_test)
 mh_test(text_stringops_test)
@@ -70,7 +79,6 @@ file(GLOB_RECURSE MH_HPP_FILES
 	RELATIVE ${MH_CPP_INCLUDE_ROOT}
 	"${MH_CPP_INCLUDE_ROOT}/mh/*.hpp"
 )
-message("MH_HPP_FILES = ${MH_HPP_FILES}")
 foreach (F IN LISTS MH_HPP_FILES)
 	string(REPLACE "/" "_" SAFE_FILENAME ${F})
 	string(REPLACE "\\" "_" SAFE_FILENAME ${SAFE_FILENAME})

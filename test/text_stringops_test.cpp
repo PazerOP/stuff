@@ -1,5 +1,5 @@
 #include "mh/text/stringops.hpp"
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 
 TEST_CASE("trim - empty string", "[text][stringops]")
 {

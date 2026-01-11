@@ -1,5 +1,5 @@
 #include "mh/data/variable_pusher.hpp"
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 
 TEST_CASE("variable_pusher trivial")
 {

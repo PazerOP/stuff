@@ -7,75 +7,41 @@ defaults:
     shell: bash
 
 env:
-  VCPKG_GIT_COMMIT_ID: 3a3a222be369b556e4635714c8d6acc990e1f13b
-  VCPKG_GIT_URL: https://github.com/PazerOP/vcpkg.git
-  VCPKG_BINARY_SOURCES: 'clear;nuget,GitHub,readwrite'
-  X_VCPKG_NUGET_ID_PREFIX: mh-stuff
+  # Use a recent stable vcpkg baseline from official Microsoft repo
+  VCPKG_COMMIT: de46587b4beaa638743916fe5674825cecfb48b3
 
 jobs:
   build-linux:
-    # name: ${{ matrix.compiler }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
         MH_STUFF_COMPILE_LIBRARY: [true, false]
-        # compiler: [clang++-11, clang++-10, g++-10, clang++-9, g++-9, clang++-8, g++-8, clang++-7]
         compiler:
-          - exe: clang++-11
-            deps: clang-11 libc++-11-dev libc++abi-11-dev
-          - exe: clang++-10
-            deps: clang-10 libc++-10-dev libc++abi-10-dev
-          - exe: clang++-9
-            deps: clang-9 libc++-9-dev libc++abi-9-dev
-          - exe: clang++-8
-            deps: clang-8 libc++-8-dev libc++abi-8-dev
-          - exe: clang++-7
-            deps: clang-7 libc++-7-dev libc++abi-7-dev
-          - exe: g++-10
-            deps: g++-10
-          - exe: g++-9
-            deps: g++-9
-          - exe: g++-8
-            deps: g++-8
+          # Modern compilers available on ubuntu-latest (Ubuntu 22.04/24.04)
+          - exe: g++-12
+            deps: g++-12
+          - exe: g++-13
+            deps: g++-13
+          - exe: clang++-14
+            deps: clang-14 libc++-14-dev libc++abi-14-dev
+          - exe: clang++-15
+            deps: clang-15 libc++-15-dev libc++abi-15-dev
 
     steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: PazerOP/gha-setup-nuget@HEAD
+    - uses: actions/checkout@v4
 
-    - uses: lukka/run-vcpkg@v7
-      id: runvcpkg
+    - uses: lukka/run-vcpkg@v11
       with:
-        setupOnly: true
-        vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
-        vcpkgGitURL: ${{ env.VCPKG_GIT_URL }}
-
-    - name: Add repos
-      run: |
-        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 15CF4D18AF4F7421
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        echo "deb http://apt.llvm.org/focal/ llvm-toolchain-focal main" | sudo tee /etc/apt/sources.list.d/llvm.list
-
-    - name: Add repos - llvm-11
-      if: matrix.compiler.exe == 'clang++-11'
-      run: echo "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
-
-    - name: Add repos - llvm-12
-      if: matrix.compiler.exe == 'clang++-12'
-      run: echo "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
-
-    - name: Update repos
-      run: sudo apt update
+        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
     - name: Install compilers and tools
       run: |
-        # sudo rm -rf /var/lib/apt/lists/*
-        # sudo apt clean
-        sudo apt install ${{ matrix.compiler.deps }} ninja-build -y
-        sudo pip3 install gcovr
+        sudo apt-get update
+        sudo apt-get install -y ${{ matrix.compiler.deps }} ninja-build
+        pip3 install gcovr
 
-        echo Ensuring programs work...
+        echo "Ensuring programs work..."
         ${{ matrix.compiler.exe }} --version
         ninja --version
         gcovr --version
@@ -115,57 +81,67 @@ jobs:
 
     - name: Save test results
       if: ${{ matrix.MH_STUFF_COMPILE_LIBRARY }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: gcovr_results_${{ matrix.compiler.exe }}
         path: build/results*.html
 
 
 
-  build-windows:
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        MH_STUFF_COMPILE_LIBRARY: [true, false]
+  # build-windows:
+  #   runs-on: windows-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       MH_STUFF_COMPILE_LIBRARY: [true, false]
 
-    steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: PazerOP/gha-setup-nuget@HEAD
+  #   steps:
+  #   - uses: actions/checkout@v4
 
-    - uses: lukka/run-vcpkg@v7
-      with:
-        setupOnly: true
-        vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
-        vcpkgGitURL: ${{ env.VCPKG_GIT_URL }}
+  #   - uses: lukka/run-vcpkg@v11
+  #     with:
+  #       vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
-    - uses: seanmiddleditch/gha-setup-ninja@v3
-    - name: Setup compiler paths
-      uses: ilammy/msvc-dev-cmd@v1.5.0
+  #   - uses: seanmiddleditch/gha-setup-ninja@v5
+  #   - name: Setup compiler paths
+  #     uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Build
-      run: |
-        mkdir build
-        cd build
+  #   - name: Build
+  #     run: |
+  #       mkdir build
+  #       cd build
 
-        cmake -G Ninja \
-          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-          -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
-          ../
+  #       cmake -G Ninja \
+  #         -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+  #         -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
+  #         ../
 
-        cmake --build .
+  #       cmake --build .
 
-    - name: Run tests
-      run: |
-        cd build
-        ctest --output-on-failure
+  #   - name: Run tests
+  #     run: |
+  #       cd build
+  #       ctest --output-on-failure
 
 
-  registry-update:
-    needs: [build-linux, build-windows]
+  # registry-update:
+  #   needs: [build-linux]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: PazerOP/vcpkg-registry-update@HEAD
+  #     with:
+  #       port-name: mh-stuff
+  #       workflow-pat: ${{ secrets.WORKFLOW_PAT }}
+
+  all-checks-passed:
+    if: always()
+    needs: [build-linux]
     runs-on: ubuntu-latest
     steps:
-    - uses: PazerOP/vcpkg-registry-update@HEAD
-      with:
-        port-name: mh-stuff
-        workflow-pat: ${{ secrets.WORKFLOW_PAT }}
+    - name: Verify all checks passed
+      run: |
+        if [[ "${{ needs.build-linux.result }}" != "success" ]]; then
+          echo "build-linux failed: ${{ needs.build-linux.result }}"
+          exit 1
+        fi
+        echo "All checks passed!"

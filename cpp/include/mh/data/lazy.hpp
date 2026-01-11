@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 namespace mh
@@ -25,7 +26,7 @@ namespace mh
 				throw std::logic_error("Empty mh::lazy");
 
 			if (func_type* func = std::get_if<1>(&m_Value))
-				m_Value.emplace<2>(std::move((*func)()));
+				m_Value.template emplace<2>(std::move((*func)()));
 
 			return std::get<2>(m_Value);
 		}

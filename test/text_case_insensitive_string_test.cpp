@@ -1,5 +1,5 @@
 #include "mh/text/case_insensitive_string.hpp"
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 
 template<typename CharT = char, typename Traits = std::char_traits<CharT>>
 	inline auto test_view(const std::basic_string_view<CharT, Traits>& sv)

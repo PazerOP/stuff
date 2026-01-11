@@ -1,5 +1,5 @@
 #include "mh/data/bit_float.hpp"
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 
 using half_float = mh::half_float;
 using native_float = mh::native_float;
@@ -43,20 +43,20 @@ TEST_CASE("bit_float - half")
 		REQUIRE(native_float::bits_to_native(bits) == value);
 	}
 
-	REQUIRE(half_float::bits_to_native(half_float::bits_t(0b0110100000000000)) == Approx(2048));
+	REQUIRE(half_float::bits_to_native(half_float::bits_t(0b0110100000000000)) == Catch::Approx(2048));
 	REQUIRE(half_float::native_to_bits(2048) == half_float::bits_t(0b0110100000000000));
-	REQUIRE(half_float::bits_to_native(half_float::bits_t(0b0110001110101100)) == Approx(982));
+	REQUIRE(half_float::bits_to_native(half_float::bits_t(0b0110001110101100)) == Catch::Approx(982));
 	REQUIRE(half_float::native_to_bits(982) == half_float::bits_t(0b0110001110101100));
-	REQUIRE(half_float::bits_to_native(half_float::bits_t(0b1101101000001011)) == Approx(-193.4).epsilon(0.05f));
+	REQUIRE(half_float::bits_to_native(half_float::bits_t(0b1101101000001011)) == Catch::Approx(-193.4).epsilon(0.05f));
 
 	{
 		constexpr auto bits = half_float::bits_t(0b1001010100000000);
 		static_assert(half_float::bits_to_exponent(bits) == half_float::exponent_t(5));
 		static_assert(half_float::bits_to_mantissa(bits) == half_float::mantissa_t(0b0100000000));
-		REQUIRE(half_float::bits_to_native(bits) == Approx(-0.0012207031));
+		REQUIRE(half_float::bits_to_native(bits) == Catch::Approx(-0.0012207031));
 	}
 
-	REQUIRE(half_float::bits_to_native(half_float::bits_t(0b0101110010011001)) == Approx(294.25));
+	REQUIRE(half_float::bits_to_native(half_float::bits_t(0b0101110010011001)) == Catch::Approx(294.25));
 	REQUIRE(half_float::native_to_bits(294.25) == half_float::bits_t(0b0101110010011001));
 }
 
@@ -74,7 +74,7 @@ static void BasicBFTest()
 	{
 		const auto bits = bf::native_to_bits(value);
 		const auto rt_value = bf::bits_to_native(bits);
-		REQUIRE(rt_value == Approx(value).epsilon(epsilon));
+		REQUIRE(rt_value == Catch::Approx(value).epsilon(epsilon));
 	};
 
 	TestRoundTrip(0.1, 0.01);
@@ -168,7 +168,7 @@ TEST_CASE("bit_float - numeric_limits", "[bit_float]")
 
 	static_assert(!nlh::traps);
 
-	REQUIRE(double(half_float::bits_to_native(nlh::min())) == Approx(6e-5).epsilon(0.0175));
+	REQUIRE(double(half_float::bits_to_native(nlh::min())) == Catch::Approx(6e-5).epsilon(0.0175));
 }
 
 TEST_CASE("bit_float - roundtrip inf/nan")

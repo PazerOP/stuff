@@ -12,6 +12,7 @@
 #include <cassert>
 #include <condition_variable>
 #include <future>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -555,7 +556,7 @@ namespace mh
 	}
 
 	template<typename T>
-	class task : public detail::task_hpp::task_base<T>
+	class [[nodiscard]] task : public detail::task_hpp::task_base<T>
 	{
 		using super = detail::task_hpp::task_base<T>;
 
@@ -575,7 +576,7 @@ namespace mh
 	};
 
 	template<>
-	class task<void> : public detail::task_hpp::task_base<void>
+	class [[nodiscard]] task<void> : public detail::task_hpp::task_base<void>
 	{
 		using super = detail::task_hpp::task_base<void>;
 
@@ -596,7 +597,7 @@ namespace mh
 		detail::promise<T>* promise = new detail::promise<T>();
 		task<T> retVal(promise);
 
-		promise->set_state<detail::promise<T>::IDX_VALUE>(T(std::forward<TArgs>(args)...));
+		promise->template set_state<detail::promise<T>::IDX_VALUE>(T(std::forward<TArgs>(args)...));
 
 		return retVal;
 	}

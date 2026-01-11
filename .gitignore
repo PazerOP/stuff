@@ -13,3 +13,4 @@ out/
 out_test_linux/
 CMakeSettings.json
 out_test/
+build/

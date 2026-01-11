@@ -39,6 +39,7 @@ namespace mh::detail::format_hpp
 #include <string>
 #include <string_view>
 #include <iomanip>
+#include <utility>
 
 namespace mh
 {
@@ -119,9 +120,9 @@ namespace mh
 	template<typename TFmtStr, typename... TArgs,
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
 		inline auto format(const TFmtStr& fmtStr, TArgs&&... args) ->
-		decltype(detail::format_hpp::fmtns::format(fmtStr, std::forward<TArgs>(args)...))
+		decltype(detail::format_hpp::fmtns::format(detail::format_hpp::fmtns::runtime(fmtStr), std::forward<TArgs>(args)...))
 	{
-		return detail::format_hpp::fmtns::format(fmtStr, std::forward<TArgs>(args)...);
+		return detail::format_hpp::fmtns::format(detail::format_hpp::fmtns::runtime(fmtStr), std::forward<TArgs>(args)...);
 	}
 
 	template<typename TFmtStr, typename TFmtArgs>
