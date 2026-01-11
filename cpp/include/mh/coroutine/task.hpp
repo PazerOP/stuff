@@ -132,12 +132,12 @@ namespace mh
 				if (!valid())
 					throw std::future_error(std::future_errc::no_state);
 
-				if (!is_ready())
-				{
-					std::unique_lock lock(m_Mutex);
-					m_ValueReadyCV.wait(lock, [&] { return is_ready(); });
-					assert(is_ready());
-				}
+				// Wait until the coroutine has finished executing (reached final_suspend)
+				// Not just until the value is ready - the worker thread might still be
+				// executing between set_state() and final_suspend()
+				std::unique_lock lock(m_Mutex);
+				m_ValueReadyCV.wait(lock, [&] { return is_ready() && m_FinalSuspendHasRun; });
+				assert(is_ready());
 			}
 			template<typename Rep, typename Period>
 			std::future_status wait_for(const std::chrono::duration<Rep, Period>& timeout_duration) const
@@ -146,10 +146,10 @@ namespace mh
 					throw std::future_error(std::future_errc::no_state);
 
 				std::unique_lock lock(m_Mutex);
-				if (is_ready())
+				if (is_ready() && m_FinalSuspendHasRun)
 					return std::future_status::ready;
 
-				if (!m_ValueReadyCV.wait_for(lock, timeout_duration, [&] { return is_ready(); }))
+				if (!m_ValueReadyCV.wait_for(lock, timeout_duration, [&] { return is_ready() && m_FinalSuspendHasRun; }))
 					return std::future_status::timeout;
 
 				assert(is_ready());
@@ -162,10 +162,10 @@ namespace mh
 					throw std::future_error(std::future_errc::no_state);
 
 				std::unique_lock lock(m_Mutex);
-				if (is_ready())
+				if (is_ready() && m_FinalSuspendHasRun)
 					return std::future_status::ready;
 
-				if (!m_ValueReadyCV.wait_until(lock, timeout_time, [&] { return is_ready(); }))
+				if (!m_ValueReadyCV.wait_until(lock, timeout_time, [&] { return is_ready() && m_FinalSuspendHasRun; }))
 					return std::future_status::timeout;
 
 				assert(is_ready());
@@ -208,6 +208,9 @@ namespace mh
 			{
 				std::lock_guard lock(m_Mutex);
 				m_FinalSuspendHasRun = true;
+
+				// Notify anyone waiting for the coroutine to fully complete
+				m_ValueReadyCV.notify_all();
 
 				// If m_RefCount == 0, we are in charge of our own destiny (all referencing tasks have gone out of
 				// scope, so just delete ourselves when we're done)
