@@ -66,35 +66,38 @@ namespace mh
 
 			coro::coroutine_handle<> try_pop_task()
 			{
+				std::unique_lock lock(m_TasksMutex);
+
 				// Check for ready FDs first
-				auto ready_fd_tasks = check_fd_tasks();
+				auto ready_fd_tasks = check_fd_tasks_locked(lock);
 				if (!ready_fd_tasks.empty())
 				{
-					return ready_fd_tasks[0]; // Return first ready FD task
+					// Return first task, re-queue any extras
+					auto task = ready_fd_tasks[0];
+					for (size_t i = 1; i < ready_fd_tasks.size(); ++i)
+					{
+						m_Tasks.push(ready_fd_tasks[i]);
+					}
+					return task;
 				}
 
-				if (!m_Tasks.empty() || !m_DelayTasks.empty())
+				if (!m_DelayTasks.empty())
 				{
-					std::lock_guard lock(m_TasksMutex);
-
-					if (!m_DelayTasks.empty())
+					auto now = clock_t::now();
+					const task_delay_data &taskDelayData = m_DelayTasks.front();
+					if (taskDelayData.m_DelayUntilTime <= now)
 					{
-						auto now = clock_t::now();
-						const task_delay_data &taskDelayData = m_DelayTasks.front();
-						if (taskDelayData.m_DelayUntilTime <= now)
-						{
-							auto task = taskDelayData.m_Handle;
-							m_DelayTasks.pop();
-							return task;
-						}
-					}
-
-					if (!m_Tasks.empty())
-					{
-						auto task = m_Tasks.front();
-						m_Tasks.pop();
+						auto task = taskDelayData.m_Handle;
+						m_DelayTasks.pop();
 						return task;
 					}
+				}
+
+				if (!m_Tasks.empty())
+				{
+					auto task = m_Tasks.front();
+					m_Tasks.pop();
+					return task;
 				}
 
 				return nullptr;
@@ -152,10 +155,10 @@ namespace mh
 			}
 
 			// Check for ready FDs and return ready tasks
-			std::vector<coro::coroutine_handle<>> check_fd_tasks()
+			std::vector<coro::coroutine_handle<>> check_fd_tasks_locked(std::unique_lock<std::mutex>& lock)
 			{
+				assert(lock.owns_lock() && lock.mutex() == &m_TasksMutex);
 				std::vector<coro::coroutine_handle<>> ready_tasks;
-				std::lock_guard lock(m_TasksMutex);
 
 #ifdef _WIN32
 				// Windows: stub implementation for now
