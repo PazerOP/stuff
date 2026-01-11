@@ -78,4 +78,14 @@ namespace mh::io
         throw mh::not_implemented_error();
 #endif
     }
+
+    MH_COMPILE_LIBRARY_INLINE sink_ptr sink::stdin_sink()
+    {
+#ifdef __unix__
+        static auto instance = std::make_shared<fd_sink>(STDIN_FILENO, false);
+        return instance;
+#else
+        throw mh::not_implemented_error();
+#endif
+    }
 }

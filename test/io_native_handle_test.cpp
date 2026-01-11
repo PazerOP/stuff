@@ -6,7 +6,24 @@
 #include <unistd.h>
 #include <cstdio>
 #include <filesystem>
+#include <stdexcept>
 #include "last_include.hpp"
+
+static size_t write_safe(int fd, const void* buf, size_t count)
+{
+    ssize_t result = ::write(fd, buf, count);
+    if (result < 0)
+        throw std::runtime_error("write failed");
+    return static_cast<size_t>(result);
+}
+
+static size_t read_safe(int fd, void* buf, size_t count)
+{
+    ssize_t result = ::read(fd, buf, count);
+    if (result < 0)
+        throw std::runtime_error("read failed");
+    return static_cast<size_t>(result);
+}
 
 TEST_CASE("fd_traits basic functionality", "[io][native_handle]")
 {
@@ -229,13 +246,13 @@ TEST_CASE("unique_native_handle with pipe", "[io][native_handle]")
         
         // Test writing and reading
         const char* message = "test message";
-        ssize_t written = write(write_end.value(), message, strlen(message));
+        size_t written = write_safe(write_end.value(), message, strlen(message));
         REQUIRE(written == strlen(message));
-        
+
         write_end.reset(); // Close write end to signal EOF
-        
+
         char buffer[100] = {0};
-        ssize_t read_bytes = read(read_end.value(), buffer, sizeof(buffer) - 1);
+        size_t read_bytes = read_safe(read_end.value(), buffer, sizeof(buffer) - 1);
         REQUIRE(read_bytes == strlen(message));
         REQUIRE(strcmp(buffer, message) == 0);
         

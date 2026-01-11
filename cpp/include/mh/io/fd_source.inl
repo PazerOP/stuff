@@ -84,4 +84,24 @@ namespace mh::io
         throw mh::not_implemented_error();
 #endif
     }
+
+    MH_COMPILE_LIBRARY_INLINE source_ptr source::stdout_source()
+    {
+#ifdef __unix__
+        static auto instance = std::make_shared<fd_source>(STDOUT_FILENO, false);
+        return instance;
+#else
+        throw mh::not_implemented_error();
+#endif
+    }
+
+    MH_COMPILE_LIBRARY_INLINE source_ptr source::stderr_source()
+    {
+#ifdef __unix__
+        static auto instance = std::make_shared<fd_source>(STDERR_FILENO, false);
+        return instance;
+#else
+        throw mh::not_implemented_error();
+#endif
+    }
 }
