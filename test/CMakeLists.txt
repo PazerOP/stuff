@@ -1,7 +1,14 @@
 cmake_minimum_required(VERSION 3.16.3)
 
+# Set compiler flags for clang/libc++ before adding Catch2
+# This ensures Catch2 is built with the same stdlib as our code
+if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
+endif()
+
 # Include CPM for package management
-include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CPM.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/get_cpm.cmake)
 
 enable_testing()
 include(CTest)
@@ -40,7 +47,7 @@ if(NOT LAST_INCLUDE_CHECK_RESULT EQUAL 0)
 endif()
 
 # Glob all test source files
-file(GLOB TEST_SOURCES "*_test.cpp")
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "*_test.cpp")
 
 # Check for getopt/unistd and conditionally exclude io_getopt_test if not available
 include(CheckIncludeFileCXX)

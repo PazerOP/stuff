@@ -25,118 +25,27 @@ else()
 	set(MH_INTERFACE_OR_EMPTY "INTERFACE")
 endif()
 
+file(GLOB_RECURSE MH_HEADER_FILES CONFIGURE_DEPENDS
+	"cpp/include/mh/*.hpp"
+	"cpp/include/mh/*.inl"
+)
+
 add_library(${PROJECT_NAME} ${MH_INTERFACE_OR_EMPTY}
-	"cpp/include/mh/algorithm/algorithm.hpp"
-	"cpp/include/mh/algorithm/multi_compare.hpp"
-
-	"cpp/include/mh/chrono/chrono_helpers.hpp"
-	"cpp/include/mh/chrono/chrono_helpers.inl"
-
-	"cpp/include/mh/concurrency/async.hpp"
-	"cpp/include/mh/concurrency/dispatcher.hpp"
-	"cpp/include/mh/concurrency/dispatcher.inl"
-	"cpp/include/mh/concurrency/locked_value.hpp"
-	"cpp/include/mh/concurrency/main_thread.hpp"
-	"cpp/include/mh/concurrency/mutex_debug.hpp"
-	"cpp/include/mh/concurrency/thread_pool.hpp"
-	"cpp/include/mh/concurrency/thread_pool.inl"
-	"cpp/include/mh/concurrency/thread_sentinel.hpp"
-	"cpp/include/mh/concurrency/thread_sentinel.inl"
-
-	"cpp/include/mh/containers/heap.hpp"
-
-	"cpp/include/mh/coroutine/coroutine_include.hpp"
-	"cpp/include/mh/coroutine/future.hpp"
-	"cpp/include/mh/coroutine/generator.hpp"
-	"cpp/include/mh/coroutine/task.hpp"
-	"cpp/include/mh/coroutine/thread.hpp"
-	"cpp/include/mh/coroutine/thread.inl"
-
-	"cpp/include/mh/data/bit_float.hpp"
-	"cpp/include/mh/data/bits.hpp"
-	"cpp/include/mh/data/lazy.hpp"
-	"cpp/include/mh/data/optional_ref.hpp"
-	"cpp/include/mh/data/variable_pusher.hpp"
-
-	"cpp/include/mh/error/ensure.inl"
-	"cpp/include/mh/error/ensure.hpp"
-	"cpp/include/mh/error/error_code_exception.hpp"
-	"cpp/include/mh/error/exception_details.hpp"
-	"cpp/include/mh/error/exception_details.inl"
-	"cpp/include/mh/error/expected.hpp"
-	"cpp/include/mh/error/nested_exception.hpp"
-	"cpp/include/mh/error/not_implemented_error.hpp"
-	"cpp/include/mh/error/status.hpp"
-
-	"cpp/include/mh/io/file.hpp"
-	"cpp/include/mh/io/filesystem_helpers.hpp"
-	"cpp/include/mh/io/filesystem_helpers.inl"
-	"cpp/include/mh/io/getopt.hpp"
-	"cpp/include/mh/io/native_handle.hpp"
-	"cpp/include/mh/io/source.hpp"
-	"cpp/include/mh/io/sink.hpp"
-	"cpp/include/mh/io/fd_source.hpp"
-	"cpp/include/mh/io/fd_source.inl"
-	"cpp/include/mh/io/fd_sink.hpp"
-	"cpp/include/mh/io/fd_sink.inl"
-
-	"cpp/include/mh/process/process.hpp"
-	"cpp/include/mh/process/process.inl"
-	"cpp/include/mh/process/process_manager.hpp"
-	"cpp/include/mh/process/process_manager.inl"
-
-	"cpp/include/mh/math/angles.hpp"
-	"cpp/include/mh/math/interpolation.hpp"
-	"cpp/include/mh/math/random.hpp"
-	"cpp/include/mh/math/random.inl"
-	"cpp/include/mh/math/uint128.hpp"
-
-	"cpp/include/mh/memory/buffer.inl"
-	"cpp/include/mh/memory/buffer.hpp"
-	"cpp/include/mh/memory/cached_variable.hpp"
-	"cpp/include/mh/memory/checked_ptr.hpp"
-	"cpp/include/mh/memory/memory_helpers.hpp"
-	"cpp/include/mh/memory/stack_info.hpp"
-	"cpp/include/mh/memory/stack_info.inl"
-	"cpp/include/mh/memory/unique_object.hpp"
-
-	"cpp/include/mh/raii/scope_exit.hpp"
-
-	"cpp/include/mh/reflection/enum.hpp"
-	"cpp/include/mh/reflection/struct.hpp"
-
-	"cpp/include/mh/text/formatters/error_code.hpp"
-	"cpp/include/mh/text/case_insensitive_string.hpp"
-	"cpp/include/mh/text/charconv_helper.hpp"
-	"cpp/include/mh/text/codecvt.hpp"
-	"cpp/include/mh/text/codecvt.inl"
-	"cpp/include/mh/text/fmtstr.hpp"
-	"cpp/include/mh/text/format.hpp"
-	"cpp/include/mh/text/indenting_ostream.hpp"
-	"cpp/include/mh/text/insertion_conversion.hpp"
-	"cpp/include/mh/text/memstream.hpp"
-	"cpp/include/mh/text/multi_char.hpp"
-	"cpp/include/mh/text/string_insertion.hpp"
-	"cpp/include/mh/text/stringops.hpp"
-
-	"cpp/include/mh/types/disable_copy_move.hpp"
-	"cpp/include/mh/types/enum_class_bit_ops.hpp"
-
-	"cpp/include/mh/compiler.hpp"
-	"cpp/include/mh/future.hpp"
-	"cpp/include/mh/source_location.hpp"
-	"cpp/include/mh/utility.hpp"
-	"cpp/include/mh/variant.hpp"
+	${MH_HEADER_FILES}
 )
 add_library(mh::stuff ALIAS ${PROJECT_NAME})
 
 if (MH_STUFF_COMPILE_LIBRARY)
-	target_sources(${PROJECT_NAME} PRIVATE
-		"cpp/src/io/file.cpp"
-		"cpp/src/text/case_insensitive_string.cpp"
-		"cpp/src/text/string_insertion.cpp"
-		"cpp/src/source_location.cpp"
+	find_package(CURL REQUIRED)
+
+	file(GLOB_RECURSE MH_SOURCE_FILES CONFIGURE_DEPENDS
+		"cpp/src/*.cpp"
 	)
+	target_sources(${PROJECT_NAME} PRIVATE
+		${MH_SOURCE_FILES}
+	)
+
+	target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl)
 
 	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 		"MH_COMPILE_LIBRARY"
@@ -155,7 +64,7 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	target_sources(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/library.cpp")
 
 	if (MSVC)
-		target_compile_options(${PROJECT_NAME} PRIVATE /W3 /permissive-)
+		target_compile_options(${PROJECT_NAME} PRIVATE /W3 /permissive- /utf-8)
 	endif()
 
 	include(GenerateExportHeader)
@@ -205,6 +114,7 @@ if (UNIX)
 endif()
 
 if (NOT MSVC)
+	include(CheckCXXCompilerFlag)
 	check_cxx_compiler_flag(-fconcepts FCONCEPTS_FLAG)
 	if (FCONCEPTS_FLAG)
 		target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -fconcepts)

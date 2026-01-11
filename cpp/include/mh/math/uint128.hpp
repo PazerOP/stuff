@@ -329,7 +329,7 @@ namespace mh
 				return u128;
 
 #if __cpp_lib_bit_cast >= 201806
-			return detail::bit_cast<detail::uint128_hpp::platform_uint128_t>(u64);
+			return std::bit_cast<detail::uint128_hpp::platform_uint128_t>(u64);
 #else
 			return (detail::uint128_hpp::platform_uint128_t(get_u64<1>()) << 64) | get_u64<0>();
 #endif
@@ -343,7 +343,7 @@ namespace mh
 			}
 
 #if __cpp_lib_bit_cast >= 201806
-			u64 = detail::bit_cast<std::array<uint64_t, 2>>(value);
+			u64 = std::bit_cast<std::array<uint64_t, 2>>(value);
 #else
 			set_u64<0>(value);
 			set_u64<1>(value >> 64);

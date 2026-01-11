@@ -1,7 +1,9 @@
 #pragma once
 
 #include <mh/memory/unique_object.hpp>
+#ifdef __unix__
 #include <unistd.h>
+#endif
 
 namespace mh::io
 {

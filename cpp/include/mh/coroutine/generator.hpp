@@ -8,6 +8,7 @@
 #include <exception>
 #include <iterator>
 #include <stdexcept>
+#include <utility>
 #include <variant>
 
 namespace mh
@@ -52,7 +53,7 @@ namespace mh
 				// Nothing to do
 			}
 
-			const_reference& value() const
+			[[nodiscard]] const_reference& value() const
 			{
 				switch (m_State.index())
 				{
@@ -62,6 +63,7 @@ namespace mh
 					return *std::get<1>(m_State);
 				case 2:
 					std::rethrow_exception(std::get<2>(m_State));
+					[[fallthrough]];
 				default:
 					throw std::logic_error("invalid promise state");
 				}
@@ -157,6 +159,19 @@ namespace mh
 			return { m_Handle };
 		}
 		detail::generator_hpp::iterator_end end() { return {}; }
+
+		// Count elements (consumes the generator, only available on rvalues)
+		size_t count() && {
+			size_t n = 0;
+			for ([[maybe_unused]] auto&& _ : *this) ++n;
+			return n;
+		}
+
+		// Check if generator is empty (consumes at most one element, only available on rvalues)
+		bool empty() && {
+			for ([[maybe_unused]] auto&& _ : *this) return false;
+			return true;
+		}
 
 	private:
 		coroutine_type m_Handle;

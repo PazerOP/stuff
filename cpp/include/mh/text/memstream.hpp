@@ -4,7 +4,7 @@
 #include <istream>
 #include <ostream>
 #include <string>
-#include <string.h>
+#include <cstring>
 
 #include <iostream>
 
@@ -135,7 +135,7 @@ namespace mh
 		std::streamsize xsputn(const CharT* s, std::streamsize count) override
 		{
 			std::cerr << __func__ << "(): count = " << +count << ", s = " << sv_type(s, count) << std::endl;
-			count = detail::memstream_hpp::min<off_t>(count, remaining_p());
+			count = detail::memstream_hpp::min<std::streamsize>(count, remaining_p());
 			auto ptr = pcur();
 			for (std::streamsize i = 0; i < count; i++)
 			{

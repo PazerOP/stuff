@@ -1,5 +1,6 @@
 #include "mh/math/interpolation.hpp"
 #include <catch2/catch_all.hpp>
+#include <iomanip>
 #include "last_include.hpp"
 
 TEST_CASE("lerp", "[math][interpolation]")
@@ -133,6 +134,8 @@ TEST_CASE("lerp_slow", "[math][interpolation]")
 		std::numeric_limits<float>::max()) == Catch::Approx(0));
 	REQUIRE(mh::lerp_slow(0.5f, std::numeric_limits<double>::lowest(),
 		std::numeric_limits<double>::max()) == Catch::Approx(0));
+	// REQUIRE(mh::lerp_slow(0.5f, std::numeric_limits<long double>::lowest(),
+	//	std::numeric_limits<long double>::max()) == Catch::Approx(0));
 
 	// Test a smaller set first to isolate issues
 	for (int i = 0; i < 100; i++)
@@ -154,30 +157,30 @@ TEST_CASE("no unwanted rounding - float to float", "[math][interpolation]")
 {
 	// Test that float-to-float interpolation preserves exact floating point values
 	// and doesn't apply any rounding
-	
+
 	// Test case where result should be exactly representable
 	float t = 0.25f;
 	float min_val = 10.0f;
 	float max_val = 20.0f;
-	
+
 	auto lerp_result = mh::lerp(t, min_val, max_val);
 	auto lerp_slow_result = mh::lerp_slow(t, min_val, max_val);
 	auto lerp_clamped_result = mh::lerp_clamped(t, min_val, max_val);
 	auto lerp_slow_clamped_result = mh::lerp_slow_clamped(t, min_val, max_val);
-	
+
 	// Expected: 10.0 + (20.0 - 10.0) * 0.25 = 10.0 + 2.5 = 12.5
 	float expected = 12.5f;
-	
+
 	REQUIRE(lerp_result == expected);
 	REQUIRE(lerp_slow_result == expected);
 	REQUIRE(lerp_clamped_result == expected);
 	REQUIRE(lerp_slow_clamped_result == expected);
-	
+
 	// Test with non-exact values that should still not be rounded
 	t = 0.333333f;
 	auto lerp_result2 = mh::lerp(t, min_val, max_val);
 	auto lerp_clamped_result2 = mh::lerp_clamped(t, min_val, max_val);
-	
+
 	// These should be equal - no rounding should occur for float-to-float
 	REQUIRE(lerp_result2 == lerp_clamped_result2);
 }
@@ -185,19 +188,19 @@ TEST_CASE("no unwanted rounding - float to float", "[math][interpolation]")
 TEST_CASE("no unwanted rounding - double to double", "[math][interpolation]")
 {
 	// Test that double-to-double interpolation preserves exact floating point values
-	
+
 	double t = 0.7;
 	double min_val = -100.0;
 	double max_val = 100.0;
-	
+
 	auto lerp_result = mh::lerp(t, min_val, max_val);
 	auto lerp_slow_result = mh::lerp_slow(t, min_val, max_val);
 	auto lerp_clamped_result = mh::lerp_clamped(t, min_val, max_val);
 	auto lerp_slow_clamped_result = mh::lerp_slow_clamped(t, min_val, max_val);
-	
+
 	// Expected: -100.0 + (100.0 - (-100.0)) * 0.7 = -100.0 + 200.0 * 0.7 = -100.0 + 140.0 = 40.0
 	double expected = 40.0;
-	
+
 	REQUIRE(lerp_result == Catch::Approx(expected).epsilon(1e-14));
 	REQUIRE(lerp_slow_result == Catch::Approx(expected).epsilon(1e-14));
 	REQUIRE(lerp_clamped_result == Catch::Approx(expected).epsilon(1e-14));
@@ -207,34 +210,34 @@ TEST_CASE("no unwanted rounding - double to double", "[math][interpolation]")
 TEST_CASE("rounding only when converting to integer", "[math][interpolation]")
 {
 	// Test that rounding only occurs when converting from float to integer types
-	
+
 	float t = 0.5f;
 	float min_float = 10.0f;
 	float max_float = 20.0f;
 	int min_int = 10;
 	int max_int = 20;
-	
+
 	// Float to float - should be exact, no rounding
 	auto float_result = mh::lerp(t, min_float, max_float);
 	auto float_clamped = mh::lerp_clamped(t, min_float, max_float);
 	REQUIRE(float_result == 15.0f);
 	REQUIRE(float_clamped == 15.0f);
 	REQUIRE(float_result == float_clamped);
-	
+
 	// Float to int - should NOT apply rounding (return type is float due to common_type)
 	auto int_result = mh::lerp(t, min_int, max_int);
 	auto int_clamped = mh::lerp_clamped(t, min_int, max_int);
 	// Common type is float, so result should be 15.0f
 	REQUIRE(int_result == 15.0f);
 	REQUIRE(int_clamped == 15.0f);
-	
+
 	// Test the specific case mentioned: lerp(0.25, 3, 4) == 3.25
 	auto quarter_result = mh::lerp(0.25f, 3, 4);
 	auto quarter_clamped = mh::lerp_clamped(0.25f, 3, 4);
 	REQUIRE(quarter_result == 3.25f);
 	REQUIRE(quarter_clamped == 3.25f);
 	REQUIRE(quarter_result == quarter_clamped);
-	
+
 	// Test with fractional results that should not be rounded
 	auto third_result = mh::lerp(1.0f/3.0f, 0, 3);
 	auto third_clamped = mh::lerp_clamped(1.0f/3.0f, 0, 3);
@@ -246,32 +249,116 @@ TEST_CASE("rounding only when converting to integer", "[math][interpolation]")
 TEST_CASE("preserve fractional precision", "[math][interpolation]")
 {
 	// Test that fractional values are preserved when they should be
-	
+
 	double t = 1.0 / 3.0; // 0.333...
 	double min_val = 0.0;
 	double max_val = 3.0;
-	
+
 	auto result = mh::lerp(t, min_val, max_val);
 	auto clamped_result = mh::lerp_clamped(t, min_val, max_val);
-	
+
 	// Result should be exactly 1.0
 	REQUIRE(result == Catch::Approx(1.0).epsilon(1e-15));
 	REQUIRE(clamped_result == Catch::Approx(1.0).epsilon(1e-15));
 	REQUIRE(result == clamped_result);
-	
+
 	// Test with a value that has fractional part
 	t = 0.1;
 	result = mh::lerp(t, min_val, max_val);
 	clamped_result = mh::lerp_clamped(t, min_val, max_val);
-	
+
 	// Result should be 0.3
 	REQUIRE(result == Catch::Approx(0.3).epsilon(1e-15));
 	REQUIRE(clamped_result == Catch::Approx(0.3).epsilon(1e-15));
 	REQUIRE(result == clamped_result);
 }
 
+TEST_CASE("round function comparison", "[math_interpolation]")
+{
+	// Test the custom round function vs std::round
+	std::vector<float> test_values = {-31.5f, -31.4f, -31.6f, -32.5f, -32.4f, -32.6f, 31.5f, 31.4f, 31.6f, 32.5f, 32.4f, 32.6f, -0.5f, -0.4f, -0.6f, 0.5f, 0.4f, 0.6f, -1.5f, -1.4f, -1.6f, 1.5f, 1.4f, 1.6f, -2.5f, -2.4f, -2.6f, 2.5f, 2.4f, 2.6f};
 
-template<typename TFrom, typename TTo>
+	for (float val : test_values)
+	{
+		CAPTURE(val);
+		float std_result = std::round(val);
+		float custom_result = mh::detail::interpolation_hpp::round(val);
+
+		INFO("std::round(" << val << ") = " << std_result);
+		INFO("custom round(" << val << ") = " << custom_result);
+
+		CHECK(std_result == custom_result);
+	}
+}
+
+TEST_CASE("interpolation edge cases", "[math][interpolation]")
+{
+	// Test specific failing case
+	float t = 0.35f;
+	int min = -105;
+	int max = 105;
+
+	CAPTURE(t, min, max);
+
+	// Calculate intermediate values
+	float lerp_raw = min + (max - min) * t;
+	float lerp_slow_raw = (min * (1 - t)) + (max * t);
+
+	INFO("lerp raw calculation: " << std::fixed << std::setprecision(20) << lerp_raw);
+	INFO("lerp_slow raw calculation: " << std::fixed << std::setprecision(20) << lerp_slow_raw);
+	INFO("difference: " << std::fixed << std::setprecision(20) << (lerp_raw - lerp_slow_raw));
+
+	// Show bit representations
+	union
+	{
+		float f;
+		uint32_t i;
+	} lerp_bits = {lerp_raw};
+	union
+	{
+		float f;
+		uint32_t i;
+	} lerp_slow_bits = {lerp_slow_raw};
+	INFO("lerp_raw bits: 0x" << std::hex << lerp_bits.i);
+	INFO("lerp_slow_raw bits: 0x" << std::hex << lerp_slow_bits.i);
+
+	// Show intermediate calculations
+	float max_minus_min = max - min;
+	float t_times_range = max_minus_min * t;
+	float one_minus_t = 1.0f - t;
+	float min_times_omt = min * one_minus_t;
+	float max_times_t = max * t;
+
+	INFO("max - min = " << std::fixed << std::setprecision(20) << max_minus_min);
+	INFO("(max - min) * t = " << std::fixed << std::setprecision(20) << t_times_range);
+	INFO("1 - t = " << std::fixed << std::setprecision(20) << one_minus_t);
+	INFO("min * (1 - t) = " << std::fixed << std::setprecision(20) << min_times_omt);
+	INFO("max * t = " << std::fixed << std::setprecision(20) << max_times_t);
+	INFO("sum = " << std::fixed << std::setprecision(20) << (min_times_omt + max_times_t));
+
+	// Test rounding behavior
+	float std_round_lerp = std::round(lerp_raw);
+	float std_round_lerp_slow = std::round(lerp_slow_raw);
+	float custom_round_lerp = mh::detail::interpolation_hpp::round(lerp_raw);
+	float custom_round_lerp_slow = mh::detail::interpolation_hpp::round(lerp_slow_raw);
+
+	INFO("std::round(lerp_raw): " << std_round_lerp);
+	INFO("std::round(lerp_slow_raw): " << std_round_lerp_slow);
+	INFO("custom_round(lerp_raw): " << custom_round_lerp);
+	INFO("custom_round(lerp_slow_raw): " << custom_round_lerp_slow);
+
+	// Test final results
+	int lerp_clamped_result = mh::lerp_clamped(t, min, max);
+	int lerp_slow_clamped_result = mh::lerp_slow_clamped(t, min, max);
+
+	INFO("lerp_clamped result: " << lerp_clamped_result);
+	INFO("lerp_slow_clamped result: " << lerp_slow_clamped_result);
+
+	// They should be equal
+	REQUIRE(lerp_clamped_result == lerp_slow_clamped_result);
+}
+
+template <typename TFrom, typename TTo>
 static void TestRemapStatic()
 {
 	using nl_from = std::numeric_limits<TFrom>;
@@ -296,11 +383,11 @@ static void TestRemapStatic()
 
 	REQUIRE(+mh::remap_static<TFrom, TTo>(min_from) == +min_to);
 	REQUIRE(+mh::remap_static<TFrom, TTo>(max_from) == +max_to);
-	//REQUIRE(+mh::remap_static<TTo, TFrom>(min_to) == +min_from);
-	//REQUIRE(+mh::remap_static<TTo, TFrom>(max_to) == +max_from);
+	// REQUIRE(+mh::remap_static<TTo, TFrom>(min_to) == +min_from);
+	// REQUIRE(+mh::remap_static<TTo, TFrom>(max_to) == +max_from);
 }
 
-template<typename TSrc>
+template <typename TSrc>
 static void TestRemapStatic1()
 {
 	TestRemapStatic<TSrc, uint8_t>();
@@ -314,15 +401,16 @@ static void TestRemapStatic1()
 	TestRemapStatic<TSrc, int64_t>();
 }
 
-template<typename TLargeInt>
+template <typename TLargeInt>
 static void TestLargeIntRemap()
 {
 	constexpr TLargeInt MAX = std::numeric_limits<TLargeInt>::max();
 	CAPTURE(MAX);
-	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX-1>(MAX) == MAX-1);
-	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX-1>(MAX-1) == MAX-2);
-	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX-1>(MAX-2) == MAX-3);
+	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX - 1>(MAX) == MAX - 1);
+	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX - 1>(MAX - 1) == MAX - 2);
+	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX - 1>(MAX - 2) == MAX - 3);
 }
+
 
 TEST_CASE("remap_static", "[math][interpolation]")
 {

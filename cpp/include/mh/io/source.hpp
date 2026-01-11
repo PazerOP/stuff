@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef __unix__
+
 #include "native_handle.hpp"
 #include <mh/coroutine/task.hpp>
 #include <cstddef>
@@ -49,3 +51,4 @@ namespace mh::io
 #include "source.inl"
 #endif
 
+#endif // __unix__

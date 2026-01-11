@@ -43,28 +43,41 @@ namespace mh
 #endif
 			else
 			{
-				if (in >= 0)
-					return T(int(in + 0.5));
+				// Round half away from zero - match std::round exactly
+				// std::round rounds halfway cases away from zero
+				T integral_part;
+				T fractional_part = std::modf(in, &integral_part);
+
+				if (fractional_part > T(0.5) || (fractional_part == T(0.5) && integral_part >= T(0)))
+					return integral_part + T(1);
+				else if (fractional_part < T(-0.5) || (fractional_part == T(-0.5) && integral_part < T(0)))
+					return integral_part - T(1);
 				else
-					return T(int(in - 0.5));
+					return integral_part;
 			}
 		}
 
-		template<typename TIn, typename TMin, typename TMax>
-		constexpr std::common_type_t<TIn, TMin, TMax> clamp(TIn in, TMin out_min, TMax out_max)
+		template<typename TIn, typename TOut>
+		constexpr auto clamp(TIn in, TOut out_min, TOut out_max)
 		{
-			using ct = std::common_type_t<TIn, TMin, TMax>;
-
-			ct ct_in = ct(in);
-			ct ct_min = ct(out_min);
-			ct ct_max = ct(out_max);
-
-			if (ct_in <= ct_min)
-				return ct_min;
-			if (ct_in >= ct_max)
-				return ct_max;
-
-			return ct_in;
+			if constexpr (std::is_floating_point_v<TIn> && std::is_integral_v<TOut>)
+			{
+				// For floating-point input and integral bounds, promote result to float
+				using result_t = float;
+				if (in <= static_cast<TIn>(out_min))
+					return static_cast<result_t>(out_min);
+				if (in >= static_cast<TIn>(out_max))
+					return static_cast<result_t>(out_max);
+				return static_cast<result_t>(in);
+			}
+			else
+			{
+				if (in <= static_cast<TIn>(out_min))
+					return out_min;
+				if (in >= static_cast<TIn>(out_max))
+					return out_max;
+				return static_cast<TOut>(in);
+			}
 		}
 
 		template<typename T>
@@ -146,19 +159,19 @@ namespace mh
 	constexpr auto lerp_slow_clamped(TIn in_01, TOutMin out_min, TOutMax out_max)
 	{
 		using ct = std::common_type_t<TIn, TOutMin, TOutMax>;
-		
+
 		// Inline lerp_slow calculation
 		ct result = (ct(out_min) * (ct(1) - ct(in_01))) + (ct(out_max) * ct(in_01));
-		
+
 		// Inline clamp calculation
 		ct ct_min = ct(out_min);
 		ct ct_max = ct(out_max);
-		
+
 		if (result <= ct_min)
 			return ct_min;
 		if (result >= ct_max)
 			return ct_max;
-		
+
 		return result;
 	}
 

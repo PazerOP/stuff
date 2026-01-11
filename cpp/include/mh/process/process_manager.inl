@@ -121,7 +121,7 @@ namespace mh
 		};
 
 		// Start the monitoring task (detached)
-		monitor();
+		(void)monitor();
 	}
 
 	MH_COMPILE_LIBRARY_INLINE void process_manager::check_processes()

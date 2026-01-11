@@ -21,7 +21,7 @@ static void test_bit_functions(const TSrc* src, const TDst expected)
 	memcpy(&srcVal, src, srcValSize);
 	CAPTURE(srcVal);
 
-	CAPTURE(*src, expected, bits_to_copy, src_offset, typeid(TSrc).name(), typeid(TDst).name());
+	CAPTURE(capture_value(*src), expected, bits_to_copy, src_offset, typeid(TSrc).name(), typeid(TDst).name());
 
 	const auto read = +mh::bit_read<TDst, bits_to_copy, src_offset>(src);
 

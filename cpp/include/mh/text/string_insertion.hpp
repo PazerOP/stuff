@@ -3,6 +3,7 @@
 #include <ostream>
 #include <streambuf>
 #include <string>
+#include <utility>
 
 namespace mh
 {
