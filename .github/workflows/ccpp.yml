@@ -124,28 +124,24 @@ jobs:
   #       ctest --output-on-failure
 
 
-  registry-update:
-    needs: [build-linux]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: PazerOP/vcpkg-registry-update@HEAD
-      with:
-        port-name: mh-stuff
-        workflow-pat: ${{ secrets.WORKFLOW_PAT }}
+  # registry-update:
+  #   needs: [build-linux]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: PazerOP/vcpkg-registry-update@HEAD
+  #     with:
+  #       port-name: mh-stuff
+  #       workflow-pat: ${{ secrets.WORKFLOW_PAT }}
 
   all-checks-passed:
     if: always()
-    needs: [build-linux, registry-update]
+    needs: [build-linux]
     runs-on: ubuntu-latest
     steps:
     - name: Verify all checks passed
       run: |
         if [[ "${{ needs.build-linux.result }}" != "success" ]]; then
           echo "build-linux failed: ${{ needs.build-linux.result }}"
-          exit 1
-        fi
-        if [[ "${{ needs.registry-update.result }}" != "success" ]]; then
-          echo "registry-update failed: ${{ needs.registry-update.result }}"
           exit 1
         fi
         echo "All checks passed!"
