@@ -8,13 +8,15 @@
 
 #include <utility>
 
+#include <atomic>
+
 namespace mh
 {
 	namespace detail::thread_pool_hpp
 	{
 		struct thread_data
 		{
-			bool m_IsShuttingDown = false;
+			std::atomic<bool> m_IsShuttingDown = false;
 
 			mh::dispatcher m_Dispatcher{ false };
 			std::vector<std::thread> m_Threads;
