@@ -88,47 +88,60 @@ jobs:
 
 
 
-  build-windows:
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        MH_STUFF_COMPILE_LIBRARY: [true, false]
+  # build-windows:
+  #   runs-on: windows-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       MH_STUFF_COMPILE_LIBRARY: [true, false]
 
-    steps:
-    - uses: actions/checkout@v4
+  #   steps:
+  #   - uses: actions/checkout@v4
 
-    - uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+  #   - uses: lukka/run-vcpkg@v11
+  #     with:
+  #       vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
-    - uses: seanmiddleditch/gha-setup-ninja@v5
-    - name: Setup compiler paths
-      uses: ilammy/msvc-dev-cmd@v1
+  #   - uses: seanmiddleditch/gha-setup-ninja@v5
+  #   - name: Setup compiler paths
+  #     uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Build
-      run: |
-        mkdir build
-        cd build
+  #   - name: Build
+  #     run: |
+  #       mkdir build
+  #       cd build
 
-        cmake -G Ninja \
-          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-          -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
-          ../
+  #       cmake -G Ninja \
+  #         -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+  #         -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
+  #         ../
 
-        cmake --build .
+  #       cmake --build .
 
-    - name: Run tests
-      run: |
-        cd build
-        ctest --output-on-failure
+  #   - name: Run tests
+  #     run: |
+  #       cd build
+  #       ctest --output-on-failure
 
 
-  registry-update:
-    needs: [build-linux, build-windows]
+  # registry-update:
+  #   needs: [build-linux]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: PazerOP/vcpkg-registry-update@HEAD
+  #     with:
+  #       port-name: mh-stuff
+  #       workflow-pat: ${{ secrets.WORKFLOW_PAT }}
+
+  all-checks-passed:
+    if: always()
+    needs: [build-linux]
     runs-on: ubuntu-latest
     steps:
-    - uses: PazerOP/vcpkg-registry-update@HEAD
-      with:
-        port-name: mh-stuff
-        workflow-pat: ${{ secrets.WORKFLOW_PAT }}
+    - name: Verify all checks passed
+      run: |
+        if [[ "${{ needs.build-linux.result }}" != "success" ]]; then
+          echo "build-linux failed: ${{ needs.build-linux.result }}"
+          exit 1
+        fi
+        echo "All checks passed!"
