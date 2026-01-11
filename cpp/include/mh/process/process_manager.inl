@@ -12,6 +12,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <cstring>
+#include <vector>
 
 namespace mh
 {
@@ -126,52 +127,63 @@ namespace mh
 
 	MH_COMPILE_LIBRARY_INLINE void process_manager::check_processes()
 	{
-		std::lock_guard<std::mutex> lock(mutex_);
+		// Collect handles to resume outside the lock to avoid deadlock
+		std::vector<std::coroutine_handle<>> handles_to_resume;
 
-		for (auto it = waiting_processes_.begin(); it != waiting_processes_.end();)
 		{
-			int pid = it->first;
-			auto &info = it->second;
+			std::lock_guard<std::mutex> lock(mutex_);
 
-			int status;
-			pid_t result = waitpid(pid, &status, WNOHANG);
-
-			if (result > 0)
+			for (auto it = waiting_processes_.begin(); it != waiting_processes_.end();)
 			{
-				// Process completed
-				int exit_code;
-				if (WIFEXITED(status))
+				int pid = it->first;
+				auto &info = it->second;
+
+				int status;
+				pid_t result = waitpid(pid, &status, WNOHANG);
+
+				if (result > 0)
 				{
-					exit_code = WEXITSTATUS(status);
+					// Process completed
+					int exit_code;
+					if (WIFEXITED(status))
+					{
+						exit_code = WEXITSTATUS(status);
+					}
+					else if (WIFSIGNALED(status))
+					{
+						exit_code = -WTERMSIG(status);
+					}
+					else
+					{
+						exit_code = -1;
+					}
+
+					// Store exit status and save handle to resume later
+					exit_statuses_[pid] = exit_code;
+					handles_to_resume.push_back(info.handle);
+
+					// Remove from waiting list
+					it = waiting_processes_.erase(it);
 				}
-				else if (WIFSIGNALED(status))
+				else if (result == -1)
 				{
-					exit_code = -WTERMSIG(status);
+					// Error occurred
+					exit_statuses_[pid] = -1;
+					handles_to_resume.push_back(info.handle);
+					it = waiting_processes_.erase(it);
 				}
 				else
 				{
-					exit_code = -1;
+					// Process still running
+					++it;
 				}
+			}
+		}
 
-				// Store exit status and resume coroutine
-				exit_statuses_[pid] = exit_code;
-				info.handle.resume();
-
-				// Remove from waiting list
-				it = waiting_processes_.erase(it);
-			}
-			else if (result == -1)
-			{
-				// Error occurred
-				exit_statuses_[pid] = -1;
-				info.handle.resume();
-				it = waiting_processes_.erase(it);
-			}
-			else
-			{
-				// Process still running
-				++it;
-			}
+		// Resume coroutines outside the lock
+		for (auto handle : handles_to_resume)
+		{
+			handle.resume();
 		}
 	}
 

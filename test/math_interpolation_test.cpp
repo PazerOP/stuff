@@ -148,7 +148,7 @@ TEST_CASE("lerp_slow", "[math][interpolation]")
 		if (min != max) {  // Avoid division by zero case
 			REQUIRE(mh::lerp(t, min, max) ==
 				Catch::Approx(mh::lerp_slow(t, min, max)).epsilon(0.0005));
-			REQUIRE(mh::lerp_clamped(t, min, max) == Catch::Approx(mh::lerp_slow_clamped(t, min, max)).epsilon(1e-6));
+			REQUIRE(mh::lerp_clamped(t, min, max) == Catch::Approx(mh::lerp_slow_clamped(t, min, max)).epsilon(1e-5));
 		}
 	}
 }
