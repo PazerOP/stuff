@@ -6,10 +6,6 @@ defaults:
   run:
     shell: bash
 
-env:
-  # Use a recent stable vcpkg baseline from official Microsoft repo
-  VCPKG_COMMIT: de46587b4beaa638743916fe5674825cecfb48b3
-
 jobs:
   build-linux:
     runs-on: ubuntu-latest
@@ -30,10 +26,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
-    - uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
     - name: Install compilers and tools
       run: |
@@ -61,7 +53,6 @@ jobs:
         cmake --version
 
         cmake -G Ninja \
-          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
           -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
           ../
 
