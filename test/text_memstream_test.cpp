@@ -4,16 +4,6 @@
 #include <cstring>
 #include "last_include.hpp"
 
-// Provide definition for Catch2's declared StringMaker specialization
-// Only define when building mh_stuff as standalone project to avoid conflicts
-#ifdef MH_STUFF_STANDALONE_BUILD
-namespace Catch {
-    std::string StringMaker<std::string_view>::convert(std::string_view str) {
-        return std::string(str);
-    }
-}
-#endif
-
 TEST_CASE("memstream put", "[text][memstream]")
 {
 	char buf[128];
