@@ -9,15 +9,12 @@
         {
             "name": "default",
             "displayName": "Default Configuration",
-            "description": "Default build configuration with Ninja generator and coverage",
+            "description": "Default build configuration with Ninja generator",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/default",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "CMAKE_CXX_FLAGS": "-g -O0 --coverage -fprofile-arcs -ftest-coverage",
-                "CMAKE_C_FLAGS": "-g -O0 --coverage -fprofile-arcs -ftest-coverage",
-                "CMAKE_EXE_LINKER_FLAGS": "--coverage"
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
             },
             "condition": {
                 "type": "notEquals",
@@ -69,6 +66,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "ENABLE_COVERAGE": "ON",
                 "CMAKE_CXX_FLAGS": "-g -O0 --coverage -fprofile-arcs -ftest-coverage",
                 "CMAKE_C_FLAGS": "-g -O0 --coverage -fprofile-arcs -ftest-coverage",
                 "CMAKE_EXE_LINKER_FLAGS": "--coverage"

@@ -101,6 +101,15 @@ struct process::impl
 
 		if (result == 0)
 		{
+			// Close parent's copies of child's redirected file descriptors
+			// This ensures proper EOF signaling when child exits
+			if (input_source_)
+				input_source_->close();
+			if (output_sink_)
+				output_sink_->close();
+			if (error_sink_)
+				error_sink_->close();
+			
 			started_ = true;
 			return true;
 		}
