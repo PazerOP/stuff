@@ -208,14 +208,10 @@ namespace mh
 			MantissaBits <= detail::bit_float_hpp::FLT_MNT_BITS && ExponentBits <= detail::bit_float_hpp::FLT_EXP_BITS,
 			float, double>;
 
-		using native_bitfloat_t = bit_float<
-			MantissaBits <= detail::bit_float_hpp::FLT_MNT_BITS
-				? detail::bit_float_hpp::FLT_MNT_BITS
-				: detail::bit_float_hpp::DBL_MNT_BITS,
-			ExponentBits <= detail::bit_float_hpp::FLT_EXP_BITS
-				? detail::bit_float_hpp::FLT_EXP_BITS
-				: detail::bit_float_hpp::DBL_EXP_BITS,
-			true>;
+		using native_bitfloat_t = std::conditional_t<
+			MantissaBits <= detail::bit_float_hpp::FLT_MNT_BITS && ExponentBits <= detail::bit_float_hpp::FLT_EXP_BITS,
+			bit_float<detail::bit_float_hpp::FLT_MNT_BITS, detail::bit_float_hpp::FLT_EXP_BITS, true>,
+			bit_float<detail::bit_float_hpp::DBL_MNT_BITS, detail::bit_float_hpp::DBL_EXP_BITS, true>>;
 
 	private:
 		using bits_ut = std::underlying_type_t<bits_t>;
