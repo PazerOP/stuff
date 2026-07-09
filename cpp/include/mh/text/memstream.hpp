@@ -6,8 +6,6 @@
 #include <string>
 #include <cstring>
 
-#include <iostream>
-
 namespace mh
 {
 	namespace detail::memstream_hpp
@@ -134,7 +132,6 @@ namespace mh
 
 		std::streamsize xsputn(const CharT* s, std::streamsize count) override
 		{
-			std::cerr << __func__ << "(): count = " << +count << ", s = " << sv_type(s, count) << std::endl;
 			count = detail::memstream_hpp::min<std::streamsize>(count,
 				detail::memstream_hpp::max<std::streamsize>(0, remaining_p()));
 			auto ptr = pcur();
@@ -149,7 +146,6 @@ namespace mh
 
 		int_type overflow(int_type ch = Traits::eof()) override
 		{
-			std::cerr << __func__ << "(): ch = " << +ch << std::endl;
 			if (ch != Traits::eof())
 			{
 				if (pcur() == pend())
@@ -178,7 +174,6 @@ namespace mh
 
 		void update_get_area_size()
 		{
-			std::cerr << __func__ << "()" << std::endl;
 			this->setg(gbeg(), gcur(), detail::memstream_hpp::max(pcur(), gend()));
 		}
 	};
