@@ -70,6 +70,15 @@ namespace mh
 				auto ready_fd_tasks = check_fd_tasks();
 				if (!ready_fd_tasks.empty())
 				{
+					if (ready_fd_tasks.size() > 1)
+					{
+						// Re-queue the other ready FD tasks so they are not lost
+						std::lock_guard lock(m_TasksMutex);
+						for (size_t i = 1; i < ready_fd_tasks.size(); i++)
+							m_Tasks.push(ready_fd_tasks[i]);
+						m_TasksAvailableCV.notify_all();
+					}
+
 					return ready_fd_tasks[0]; // Return first ready FD task
 				}
 
