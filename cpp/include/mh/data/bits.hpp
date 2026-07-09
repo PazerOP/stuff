@@ -446,7 +446,9 @@ namespace mh
 		}
 
 		debug([]{ std::cerr << "\nslow path\n"; });
-		constexpr size_t loop_bytes = (bits_to_copy + dst_offset_bits + (BITS_PER_BYTE - 1)) / BITS_PER_BYTE;
+		constexpr size_t loop_bytes = (bits_to_copy + (BITS_PER_BYTE - 1)) / BITS_PER_BYTE;
+		[[maybe_unused]] constexpr size_t src_offset_bits8 = src_offset % BITS_PER_BYTE;
+		[[maybe_unused]] constexpr size_t dst_offset_bits8 = dst_offset % BITS_PER_BYTE;
 
 		debug([&]{ std::cerr
 			<< "src_offset_bytes: " << src_offset_bytes << '\n'
@@ -459,10 +461,10 @@ namespace mh
 		if constexpr (bits_to_copy > 0)
 		{
 			debug([]{ std::cerr << "pre-loop\n"; });
-			constexpr bool src_multibyte = ((bits_to_copy + src_offset_bits) > BITS_PER_BYTE);
-			constexpr bool dst_multibyte = ((bits_to_copy + dst_offset_bits) > BITS_PER_BYTE);
+			constexpr bool src_multibyte = ((bits_to_copy + src_offset_bits8) > BITS_PER_BYTE);
+			constexpr bool dst_multibyte = ((bits_to_copy + dst_offset_bits8) > BITS_PER_BYTE);
 			constexpr uint_fast16_t mask = BIT_MASKS<uint_fast16_t>[min<size_t>(bits_to_copy, BITS_PER_BYTE)]
-				<< dst_offset_bits;
+				<< dst_offset_bits8;
 			bit_copy_helper<src_offset, dst_offset, src_multibyte, dst_multibyte, clear_mode, mask>(dst, src, 0);
 		}
 
@@ -471,9 +473,9 @@ namespace mh
 			debug([]{ std::cerr << "loop\n"; });
 			for (size_t b = 1; b < loop_bytes - 1; b++)
 			{
-				constexpr bool src_multibyte = src_offset_bits > 0;
-				constexpr bool dst_multibyte = dst_offset_bits > 0;
-				constexpr uint_fast16_t mask = BIT_MASKS<uint_fast16_t>[BITS_PER_BYTE] << dst_offset_bits;
+				constexpr bool src_multibyte = src_offset_bits8 > 0;
+				constexpr bool dst_multibyte = dst_offset_bits8 > 0;
+				constexpr uint_fast16_t mask = BIT_MASKS<uint_fast16_t>[BITS_PER_BYTE] << dst_offset_bits8;
 				bit_copy_helper<src_offset, dst_offset, src_multibyte, dst_multibyte, clear_mode, mask>(dst, src, b);
 			}
 		}
@@ -481,12 +483,12 @@ namespace mh
 		if constexpr (loop_bytes > 1)
 		{
 			debug([]{ std::cerr << "post-loop\n"; });
-			constexpr bool dst_multibyte = !!((dst_offset_bits + bits_to_copy) % BITS_PER_BYTE);
-			constexpr bool src_multibyte = !!((src_offset_bits + bits_to_copy) % BITS_PER_BYTE);
+			constexpr size_t remaining_bits = bits_to_copy - ((loop_bytes - 1) * BITS_PER_BYTE);
+			constexpr bool dst_multibyte = ((dst_offset_bits8 + remaining_bits) > BITS_PER_BYTE);
+			constexpr bool src_multibyte = ((src_offset_bits8 + remaining_bits) > BITS_PER_BYTE);
 
-			constexpr size_t remaining_bits = (dst_offset_bits + bits_to_copy) - ((loop_bytes - 1) * BITS_PER_BYTE);
 			constexpr uint_fast16_t mask = BIT_MASKS<uint_fast16_t>[remaining_bits]
-				<< dst_offset_bits;
+				<< dst_offset_bits8;
 
 			bit_copy_helper<src_offset, dst_offset, src_multibyte, dst_multibyte, clear_mode, mask>(
 				dst, src, loop_bytes - 1);
