@@ -1,4 +1,9 @@
 @PACKAGE_INIT@
 
+include(CMakeFindDependencyMacro)
+foreach(_mh_dep @MH_BASIC_INSTALL_FIND_DEPENDENCIES@)
+	find_dependency(${_mh_dep})
+endforeach()
+
 include(${CMAKE_CURRENT_LIST_DIR}/@FULL_PROJ_NAME@_targets.cmake)
 check_required_components(@FULL_PROJ_NAME@)

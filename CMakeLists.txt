@@ -76,7 +76,11 @@ if (MH_STUFF_COMPILE_LIBRARY)
 		BASE_NAME ${PROJECT_NAME}
 		EXPORT_MACRO_NAME MH_STUFF_API
 	)
-	target_precompile_headers(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_export.h")
+	# PRIVATE: a PUBLIC PCH exports INTERFACE_PRECOMPILE_HEADERS with an absolute
+	# build-tree path into the installed target (and the export header is never
+	# installed), breaking every consumer on a machine without this build tree.
+	# The headers all carry an #ifndef MH_STUFF_API fallback for consumers.
+	target_precompile_headers(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_export.h")
 
 else()
 	target_compile_definitions(${PROJECT_NAME} INTERFACE
@@ -146,8 +150,17 @@ if (BUILD_TESTING)
 	add_subdirectory("test")
 endif()
 
+# The compiled library's exported link interface references CURL::libcurl
+# ($<LINK_ONLY:...>), so the installed package config must find_dependency(CURL)
+# or consumer find_package(mh-stuff) fails at generate time. Plain variable, not
+# a genexp: configure_package_config_file cannot evaluate generator expressions.
+if (MH_STUFF_COMPILE_LIBRARY)
+	set(MH_STUFF_INSTALL_DEPS CURL)
+endif()
+
 mh_basic_install(
 	PROJ_INCLUDE_DIRS "cpp/include/"
+	FIND_DEPENDENCIES ${MH_STUFF_INSTALL_DEPS}
 )
 
 ###########################################
