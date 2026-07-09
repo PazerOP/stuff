@@ -220,7 +220,7 @@ namespace mh
 			{
 				// Calculate the fractional part
 				constexpr TCommon fracMultiplier = (num % den);
-				constexpr auto half_den = (den / 2) - 1;
+				constexpr auto half_den = (den - 1) / 2;
 
 				constexpr bool has_more_native_bits = has_larger_version_v<TCommon>;
 
@@ -261,7 +261,7 @@ namespace mh
 						const auto remainder = frac % den;
 						result += frac / den;
 
-						constexpr auto half_den_mod = (den / 2) + (den % 2);
+						constexpr auto half_den_mod = den / 2;
 						if (remainder > half_den_mod)
 							result += 1;
 					}
