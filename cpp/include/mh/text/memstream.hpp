@@ -135,18 +135,11 @@ namespace mh
 		std::streamsize xsputn(const CharT* s, std::streamsize count) override
 		{
 			std::cerr << __func__ << "(): count = " << +count << ", s = " << sv_type(s, count) << std::endl;
-			count = detail::memstream_hpp::min<std::streamsize>(count, remaining_p());
+			count = detail::memstream_hpp::min<std::streamsize>(count,
+				detail::memstream_hpp::max<std::streamsize>(0, remaining_p()));
 			auto ptr = pcur();
 			for (std::streamsize i = 0; i < count; i++)
-			{
-				if (s[i] == Traits::eof())
-				{
-					count = i;
-					break;
-				}
-
 				ptr[i] = s[i];
-			}
 
 			this->pbump(count);
 
@@ -164,7 +157,6 @@ namespace mh
 
 				*pcur() = static_cast<CharT>(ch);
 				this->pbump(1);
-				*pcur() = 0;
 				update_get_area_size();
 			}
 
