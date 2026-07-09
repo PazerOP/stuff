@@ -378,33 +378,49 @@ namespace mh
 	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
 	constexpr std::strong_ordering operator<=>(const mh::uint128 &lhs, T rhs)
 	{
+		if constexpr (std::is_signed_v<T>)
+		{
+			if (rhs < 0)
+				return std::strong_ordering::greater;
+		}
+
+		const auto rhs64 = static_cast<uint64_t>(rhs);
+
 		if (!mh::detail::uint128_hpp::is_constant_evaluated())
 		{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
-			return lhs.u128 <=> mh::detail::uint128_hpp::platform_uint128_t(rhs);
+			return lhs.u128 <=> mh::detail::uint128_hpp::platform_uint128_t(rhs64);
 #endif
 		}
 
 		if (auto result = lhs.get_u64<1>() <=> 0; std::is_neq(result))
 			return result;
 
-		return lhs.get_u64<0>() <=> rhs;
+		return lhs.get_u64<0>() <=> rhs64;
 	}
 
 	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
 	constexpr std::strong_ordering operator<=>(T lhs, const mh::uint128 &rhs)
 	{
+		if constexpr (std::is_signed_v<T>)
+		{
+			if (lhs < 0)
+				return std::strong_ordering::less;
+		}
+
+		const auto lhs64 = static_cast<uint64_t>(lhs);
+
 		if (!mh::detail::uint128_hpp::is_constant_evaluated())
 		{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
-			return mh::detail::uint128_hpp::platform_uint128_t(lhs) <=> rhs.u128;
+			return mh::detail::uint128_hpp::platform_uint128_t(lhs64) <=> rhs.u128;
 #endif
 		}
 
 		if (auto result = 0 <=> rhs.get_u64<1>(); std::is_neq(result))
 			return result;
 
-		return lhs <=> rhs.get_u64<0>();
+		return lhs64 <=> rhs.get_u64<0>();
 	}
 #else
 	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
@@ -428,7 +444,15 @@ namespace mh
 	constexpr bool operator==(const mh::uint128 &lhs, T rhs)
 	{
 		if constexpr (sizeof(T) <= sizeof(uint64_t))
-			return !lhs.get_u64<1>() && lhs.get_u64<0>() == rhs;
+		{
+			if constexpr (std::is_signed_v<T>)
+			{
+				if (rhs < 0)
+					return false;
+			}
+
+			return !lhs.get_u64<1>() && lhs.get_u64<0>() == static_cast<uint64_t>(rhs);
+		}
 		else
 			return lhs == mh::uint128(rhs);
 	}
