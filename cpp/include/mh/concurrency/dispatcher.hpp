@@ -85,6 +85,7 @@ namespace mh
 		using clock_t = detail::dispatcher_hpp::clock_t;
 
 		MH_STUFF_API dispatcher(bool singleThread = true);
+		MH_STUFF_API ~dispatcher();
 
 		MH_STUFF_API size_t task_count() const;
 

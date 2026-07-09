@@ -367,6 +367,17 @@ namespace mh
 	{
 	}
 
+	MH_COMPILE_LIBRARY_INLINE dispatcher::~dispatcher()
+	{
+		// Unregister so dispatcher::get()/try_get() on this thread don't return a
+		// dangling pointer and a new dispatcher can be registered afterwards.
+		// Limitation: destruction on a different thread cannot clear the registering
+		// thread's slot (thread_locals are unreachable cross-thread); that case
+		// remains undefined behavior, as before.
+		if (s_current_thread_dispatcher == this)
+			s_current_thread_dispatcher = nullptr;
+	}
+
 	MH_COMPILE_LIBRARY_INLINE size_t dispatcher::run()
 	{
 		size_t count = 0;
