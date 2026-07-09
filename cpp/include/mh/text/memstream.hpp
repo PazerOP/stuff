@@ -35,8 +35,8 @@ namespace mh
 			this->setg(buf, buf, buf + existingSize);
 		}
 
-		sv_type view() const { return sv_type(gcur(), gend() - gcur()); }
-		sv_type view_full() const { return sv_type(gbeg(), gend() - gbeg()); }
+		sv_type view() const { return sv_type(gcur(), gend_live() - gcur()); }
+		sv_type view_full() const { return sv_type(gbeg(), gend_live() - gbeg()); }
 
 	protected:
 		base_streambuf_type* setbuf(CharT* s, std::streamsize n) override
@@ -144,6 +144,15 @@ namespace mh
 			return count;
 		}
 
+		int_type underflow() override
+		{
+			update_get_area_size();
+			if (gcur() == gend())
+				return Traits::eof();
+
+			return Traits::to_int_type(*gcur());
+		}
+
 		int_type overflow(int_type ch = Traits::eof()) override
 		{
 			if (ch != Traits::eof())
@@ -166,6 +175,7 @@ namespace mh
 		CharT* gbeg() const { return this->eback(); }
 		CharT* gcur() const { return this->gptr(); }
 		CharT* gend() const { return this->egptr(); }
+		CharT* gend_live() const { return detail::memstream_hpp::max(pcur(), gend()); }
 
 		off_type length_p() const { return pend() - pbeg(); }
 		off_type length_g() const { return gend() - gbeg(); }
