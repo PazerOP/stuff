@@ -86,7 +86,8 @@ namespace mh
 			if (a == 0)
 				return false;
 
-			return T(T(a * b) / a) != b;
+			using TU = std::make_unsigned_t<decltype(a * b)>; // promoted operand type, made unsigned
+			return T(T(TU(a) * TU(b)) / a) != b;
 		}
 
 		template<typename T>
@@ -239,7 +240,7 @@ namespace mh
 					using frac_t = std::conditional_t<has_more_native_bits, larger_version_t<TCommon>, TCommon>;
 					static_assert(std::numeric_limits<TCommon>::max() <= std::numeric_limits<frac_t>::max());
 					static_assert(!will_overflow_mul<frac_t>(src_urange, fracMultiplier));
-					constexpr frac_t frac_max = src_urange * fracMultiplier;
+					constexpr frac_t frac_max = frac_t(src_urange) * frac_t(fracMultiplier);
 
 					const frac_t frac = frac_t(valueOffset) * frac_t(fracMultiplier);
 
