@@ -135,9 +135,9 @@ namespace mh
 	template<typename TOutputIt, typename TFmtStr, typename... TArgs,
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
 		inline auto format_to(TOutputIt&& outputIt, const TFmtStr& fmtStr, const TArgs&... args) ->
-		decltype(detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), fmtStr, args...))
+		decltype(detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), detail::format_hpp::fmtns::runtime(fmtStr), args...))
 	{
-		return detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), fmtStr, args...);
+		return detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), detail::format_hpp::fmtns::runtime(fmtStr), args...);
 	}
 
 	template<typename TContainer, typename TFmtStr, typename... TArgs,
@@ -151,7 +151,7 @@ namespace mh
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
 		inline auto format_to_n(TOutputIt&& outputIt, size_t n, const TFmtStr& fmtStr, const TArgs&... args)
 	{
-		return detail::format_hpp::fmtns::format_to_n(std::forward<TOutputIt>(outputIt), n, fmtStr, args...);
+		return detail::format_hpp::fmtns::format_to_n(std::forward<TOutputIt>(outputIt), n, detail::format_hpp::fmtns::runtime(fmtStr), args...);
 	}
 
 	template<typename TFmtStr, typename... TArgs>
@@ -193,7 +193,7 @@ namespace mh
 		std::basic_string<TChar, TTraits, TAlloc> str;
 
 		auto inserter = std::back_inserter(str);
-		(format_to(inserter, MH_FMT_STRING("{}"), args), ...);
+		(format_to(inserter, "{}", args), ...);
 
 		return str;
 	}
