@@ -419,7 +419,7 @@ namespace mh
 	}
 
 	// Static member definition
-	thread_local dispatcher* dispatcher::s_current_thread_dispatcher = nullptr;
+	MH_COMPILE_LIBRARY_INLINE thread_local dispatcher* dispatcher::s_current_thread_dispatcher = nullptr;
 
 	MH_COMPILE_LIBRARY_INLINE void dispatcher::register_for_current_thread()
 	{
