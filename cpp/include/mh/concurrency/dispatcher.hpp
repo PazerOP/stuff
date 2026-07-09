@@ -146,23 +146,8 @@ namespace mh
 			return run_until(clock_t::now() + duration);
 		}
 
-		MH_STUFF_API void wait_tasks() const;
-		MH_STUFF_API bool wait_tasks_while(bool(*predicateFunc)(void* userData), void* userData = nullptr) const;
-		MH_STUFF_API bool wait_tasks_while(bool(*predicateFunc)(const void* userData), const void* userData = nullptr) const;
 		MH_STUFF_API bool wait_tasks_until(clock_t::time_point endTime) const;
 		MH_STUFF_API bool wait_tasks_for(clock_t::duration duration) const;
-
-		template<typename TFunc>
-		bool wait_tasks_while(TFunc&& func) const
-		{
-			using vp_func = std::conditional_t<std::is_const_v<TFunc>, const void*, void*>;
-
-			bool (*predicateFunc)(vp_func* userData) = [](vp_func* userData)
-			{
-				return (*reinterpret_cast<TFunc*>(userData))();
-			};
-			return wait_tasks_while(predicateFunc, reinterpret_cast<vp_func>(&func));
-		}
 
 	private:
 		std::shared_ptr<thread_data> m_ThreadData;
