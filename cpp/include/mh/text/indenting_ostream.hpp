@@ -101,10 +101,10 @@ namespace mh
 	struct indented
 	{
 		constexpr indented(const TObject& obj, CharT indentChar = '\t', size_t indentCount = 1, CharT newlineChar = '\n') :
-			m_Object(obj),
 			m_IndentChar(indentChar),
+			m_NewlineChar(newlineChar),
 			m_IndentCharCount(indentCount),
-			m_NewlineChar(newlineChar)
+			m_Object(obj)
 		{
 		}
 
