@@ -57,17 +57,6 @@ namespace mh
 			using storage_type = std::reference_wrapper<std::remove_reference_t<T>>;
 		};
 
-		struct suspend_sometimes
-		{
-			constexpr suspend_sometimes(bool suspend) : m_Suspend(suspend) {}
-
-			[[nodiscard]] constexpr bool await_ready() const noexcept { return !m_Suspend; }
-			constexpr void await_suspend(coro::coroutine_handle<>) const noexcept {}
-			constexpr void await_resume() const noexcept {}
-
-			bool m_Suspend;
-		};
-
 		template<typename T>
 		class promise_base
 		{
@@ -204,15 +193,32 @@ namespace mh
 			}
 
 			constexpr coro::suspend_never initial_suspend() const noexcept { return {}; }
-			suspend_sometimes final_suspend() const noexcept
-			{
-				std::lock_guard lock(m_Mutex);
-				m_FinalSuspendHasRun = true;
 
-				// If m_RefCount == 0, we are in charge of our own destiny (all referencing tasks have gone out of
-				// scope, so just delete ourselves when we're done)
-				return m_RefCount != 0;
-			}
+			struct final_suspend_awaiter
+			{
+				const promise_base<T>* m_Promise;
+
+				bool await_ready() const noexcept { return false; }
+				void await_suspend(coro::coroutine_handle<> handle) const noexcept
+				{
+					// The coroutine is fully suspended by the time await_suspend runs, so it is
+					// now safe for whichever side sees (refcount == 0 && flag set) to destroy it.
+					// If m_RefCount == 0, we are in charge of our own destiny (all referencing tasks
+					// have gone out of scope, so just delete ourselves now that we're done).
+					bool destroy;
+					{
+						std::lock_guard lock(m_Promise->m_Mutex);
+						m_Promise->m_FinalSuspendHasRun = true;
+						destroy = (m_Promise->m_RefCount == 0);
+					}
+
+					if (destroy)
+						handle.destroy();
+				}
+				void await_resume() const noexcept {}
+			};
+
+			final_suspend_awaiter final_suspend() const noexcept { return { this }; }
 
 			bool await_ready() const { return is_ready(); }
 			bool await_suspend(coro::coroutine_handle<> parent)
@@ -286,11 +292,11 @@ namespace mh
 			int32_t get_ref_count() const noexcept { return m_RefCount; }
 
 			template<typename TFreeFunc>
-			void release_promise_ref(TFreeFunc&& freeFunc)
+			void release_promise_ref(bool isCoroutine, TFreeFunc&& freeFunc)
 			{
 				std::unique_lock scopeLock(m_Mutex);
 
-				if (remove_ref() && final_suspend_has_run())
+				if (remove_ref() && (!isCoroutine || final_suspend_has_run()))
 				{
 					scopeLock.unlock();
 					freeFunc();
@@ -526,7 +532,7 @@ namespace mh
 				{
 					if (m_HandleOpt)
 					{
-						m_HandleOpt.promise().release_promise_ref([&]
+						m_HandleOpt.promise().release_promise_ref(true, [&]
 							{
 								m_HandleOpt.destroy();
 							});
@@ -536,7 +542,7 @@ namespace mh
 				}
 				else if (m_PromiseOpt)
 				{
-					m_PromiseOpt->release_promise_ref([&]
+					m_PromiseOpt->release_promise_ref(false, [&]
 						{
 							delete m_PromiseOpt;
 						});
