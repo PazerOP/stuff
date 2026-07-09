@@ -364,6 +364,15 @@ namespace mh
 			return native_bitfloat_t::template bits_to_bits<this_t>(
 				detail::bit_float_hpp::bit_cast<typename native_bitfloat_t::bits_t>(native));
 		}
+
+		// Hidden friend so ADL can find it: MantissaBits/ExponentBits/SignBit are
+		// non-deducible from bits_t, so a namespace-scope operator template can
+		// never be selected for this enum.
+		template<typename CharT, typename Traits>
+		friend std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, bits_t bits)
+		{
+			return os << bit_float::bits_to_native(bits);
+		}
 	};
 
 	using half_float = mh::bit_float<detail::bit_float_hpp::HLF_MNT_BITS, detail::bit_float_hpp::HLF_EXP_BITS, true>;
@@ -437,11 +446,4 @@ template<typename CharT, typename Traits, unsigned Bits>
 std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, mh::mantissa_t<Bits> mantissa)
 {
 	return os << +mantissa.value;
-}
-
-template<typename CharT, typename Traits, unsigned MantissaBits, unsigned ExponentBits, bool SignBit>
-std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os,
-	typename mh::bit_float<MantissaBits, ExponentBits, SignBit>::bits_t bits)
-{
-	return os << mh::bit_float<MantissaBits, ExponentBits, SignBit>::bits_to_native(bits);
 }
