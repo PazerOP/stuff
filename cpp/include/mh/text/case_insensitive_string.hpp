@@ -63,9 +63,9 @@ namespace mh
 
 		static const char_type* find(const char_type* p, size_t count, const char_type& ch)
 		{
-			while (count-- && *p)
+			while (count--)
 			{
-				if (*p == ch)
+				if (eq(*p, ch))
 					return p;
 
 				p++;
