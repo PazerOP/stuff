@@ -4,7 +4,23 @@
 #define MH_FORMATTER_FMTLIB 1
 #define MH_FORMATTER_STL 2
 
-#if __has_include(<fmt/format.h>)
+// The build system may pre-define MH_FORMATTER to force a backend (the mh-stuff
+// CMake target does this with MH_FORMATTER_NONE when fmt's headers are visible
+// but the compiled fmt library is not linkable with the chosen toolchain, e.g.
+// a libstdc++-built distro libfmt while building with clang + libc++).
+// __has_include only proves the headers are reachable, not that libfmt's
+// compiled symbols will resolve at link time, so an explicit decision wins.
+#ifndef MH_FORMATTER
+	#if __has_include(<fmt/format.h>)
+		#define MH_FORMATTER MH_FORMATTER_FMTLIB
+	#elif __has_include(<format>) && 0 // std::format honestly kind of awful
+		#define MH_FORMATTER MH_FORMATTER_STL
+	#else
+		#define MH_FORMATTER MH_FORMATTER_NONE
+	#endif
+#endif
+
+#if MH_FORMATTER == MH_FORMATTER_FMTLIB
 
 #include <fmt/format.h>
 
@@ -14,25 +30,21 @@
 #if __has_include(<fmt/ostream.h>)
 	#include <fmt/ostream.h>
 #endif
-#define MH_FORMATTER MH_FORMATTER_FMTLIB
 namespace mh::detail::format_hpp
 {
 #define MH_FMT_STRING(...) FMT_STRING(__VA_ARGS__)
 	namespace fmtns = ::fmt;
 }
 
-#elif __has_include(<format>) && 0 // std::format honestly kind of awful
+#elif MH_FORMATTER == MH_FORMATTER_STL
 
 #include <format>
-#define MH_FORMATTER MH_FORMATTER_STL
 namespace mh::detail::format_hpp
 {
 #define MH_FMT_STRING(...) __VA_ARGS__
 	namespace fmtns = ::std;
 }
 
-#else
-#define MH_FORMATTER MH_FORMATTER_NONE
 #endif
 
 #if MH_FORMATTER != MH_FORMATTER_NONE

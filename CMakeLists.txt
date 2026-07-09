@@ -129,6 +129,14 @@ if (MH_STUFF_USE_FMT)
 	target_link_libraries(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} fmt::fmt)
 elseif (fmt_FOUND)
 	message(STATUS "fmt found (${fmt_VERSION}) but not linkable with this toolchain; mh::format falls back to MH_FORMATTER_NONE")
+	# fmt's headers can be visible to the compiler without any help from us
+	# (e.g. a distro libfmt-dev in /usr/include). text/format.hpp's
+	# __has_include probe would then select the fmtlib backend even though we
+	# are NOT linking libfmt, and every TU that instantiates a compiled-fmt
+	# symbol would fail to link. Export the fallback decision so the
+	# preprocessor agrees with the linker (format.hpp honors a pre-defined
+	# MH_FORMATTER).
+	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_FORMATTER=MH_FORMATTER_NONE")
 endif()
 
 target_include_directories(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
