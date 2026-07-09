@@ -3,7 +3,6 @@
 	"version-date": "2021-10-19",
 	"dependencies": [
 		"mh-cmake-common",
-		"catch2",
 		"curl",
 		"fmt"
 	]

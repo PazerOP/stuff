@@ -92,6 +92,45 @@ endif()
 mh_check_cxx_coroutine_support(SUPPORTS_COROUTINES COROUTINES_FLAGS)
 target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} ${COROUTINES_FLAGS})
 
+# Optional fmt support: the vcpkg manifest has always shipped fmt, but nothing
+# ever put its headers on the include path, so text/format.hpp's
+# __has_include(<fmt/format.h>) was false and the whole fmt-backed formatter
+# layer silently compiled as MH_FORMATTER_NONE (untested, unusable). Link it
+# when present AND actually linkable: a found fmt can still be ABI-incompatible
+# (e.g. a libstdc++-built libfmt while this target uses clang + libc++), so
+# probe a real compile+link of a compiled-fmt symbol before committing to it.
+# On probe failure we fall back to MH_FORMATTER_NONE - the status quo.
+find_package(fmt CONFIG QUIET)
+set(MH_STUFF_USE_FMT FALSE)
+if (fmt_FOUND)
+	include(CheckCXXSourceCompiles)
+	set(CMAKE_REQUIRED_LIBRARIES fmt::fmt)
+	if (MSVC)
+		set(CMAKE_REQUIRED_FLAGS "/std:c++20")
+	elseif (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+		set(CMAKE_REQUIRED_FLAGS "-std=c++20 -stdlib=libc++")
+	else()
+		set(CMAKE_REQUIRED_FLAGS "-std=c++20")
+	endif()
+	check_cxx_source_compiles("
+#include <fmt/format.h>
+int main() { return static_cast<int>(fmt::format(\"{}\", 42).size()) - 2; }
+" MH_STUFF_FMT_LINKS)
+	set(CMAKE_REQUIRED_LIBRARIES "")
+	set(CMAKE_REQUIRED_FLAGS "")
+
+	if (MH_STUFF_FMT_LINKS)
+		set(MH_STUFF_USE_FMT TRUE)
+	endif()
+endif()
+
+if (MH_STUFF_USE_FMT)
+	message(STATUS "fmt found (${fmt_VERSION}): mh::format will use fmtlib")
+	target_link_libraries(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} fmt::fmt)
+elseif (fmt_FOUND)
+	message(STATUS "fmt found (${fmt_VERSION}) but not linkable with this toolchain; mh::format falls back to MH_FORMATTER_NONE")
+endif()
+
 target_include_directories(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 	"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cpp/include>"
 	"$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
@@ -157,6 +196,9 @@ endif()
 # a genexp: configure_package_config_file cannot evaluate generator expressions.
 if (MH_STUFF_COMPILE_LIBRARY)
 	set(MH_STUFF_INSTALL_DEPS CURL)
+endif()
+if (MH_STUFF_USE_FMT)
+	list(APPEND MH_STUFF_INSTALL_DEPS fmt)
 endif()
 
 mh_basic_install(
