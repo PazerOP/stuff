@@ -35,7 +35,15 @@ namespace mh
 	{
 		using this_type = unique_object<T, Traits>;
 	public:
-		unique_object() : m_Object{}, m_Traits{} {}
+		unique_object() : m_Object(invalid_value()), m_Traits{} {}
+
+		static constexpr T invalid_value()
+		{
+			if constexpr (requires { { Traits::invalid() }; })
+				return Traits::invalid();
+			else
+				return T{};
+		}
 
 		explicit unique_object(const T& value, const Traits& traits) :
 			m_Object(value), m_Traits(traits) {}
@@ -43,7 +51,7 @@ namespace mh
 			m_Object(value), m_Traits(std::move(traits)) {}
 		explicit unique_object(T&& value, const Traits& traits) :
 			m_Object(std::move(value)), m_Traits(traits) {}
-		explicit unique_object(T&& value, Traits&& traits) :
+		explicit unique_object(T&& value, Traits&& traits = {}) :
 			m_Object(std::move(value)), m_Traits(std::move(traits)) {}
 
 		unique_object(const this_type& other) = delete;
@@ -74,7 +82,7 @@ namespace mh
 
 		T release() { return m_Traits.release_obj(m_Object); }
 
-		void reset() { m_Traits.delete_obj(m_Object); }
+		void reset() { m_Traits.delete_obj(m_Object); m_Object = invalid_value(); }
 		void reset(T obj) { *this = this_type(std::move(obj)); }
 
 		T& reset_and_get_ref()
