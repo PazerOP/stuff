@@ -30,6 +30,7 @@ namespace mh
 		explicit heap(std::initializer_list<T> values, TComparator comparator = TComparator{}) :
 			m_Container(values.begin(), values.end()), m_Comparator(std::move(comparator))
 		{
+			std::make_heap(m_Container.begin(), m_Container.end(), m_Comparator);
 		}
 
 		void push(const T& value)

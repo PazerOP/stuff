@@ -246,11 +246,11 @@ TEST_CASE("remap_static", "[math][interpolation]")
 	REQUIRE(+mh::remap_static<int64_t, uint8_t>(-36170086419038337) == 127);
 	REQUIRE(+mh::remap_static<int64_t, uint8_t>(-36170086419038336) == 127);
 	REQUIRE(+mh::remap_static<int64_t, uint8_t>(-1) == 127);
-	REQUIRE(+mh::remap_static<int64_t, uint8_t>(0) == 127);
+	REQUIRE(+mh::remap_static<int64_t, uint8_t>(0) == 128);
 	REQUIRE(+mh::remap_static<int64_t, uint8_t>(1) == 128);
 
 	REQUIRE(+mh::remap_static<int16_t, uint8_t>(-1) == 127);
-	REQUIRE(+mh::remap_static<int16_t, uint8_t>(0) == 127);
+	REQUIRE(+mh::remap_static<int16_t, uint8_t>(0) == 128);
 	REQUIRE(+mh::remap_static<int16_t, uint8_t>(1) == 128);
 
 	REQUIRE(+mh::remap_static<uint8_t, uint8_t, 0, 255, 0, 31>(46) == 6);

@@ -16,7 +16,9 @@
 #endif
 #endif
 
+#include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <numeric>
 #include <type_traits>
@@ -44,16 +46,20 @@ namespace mh
 			else
 			{
 				// Round half away from zero - match std::round exactly
-				// std::round rounds halfway cases away from zero
-				T integral_part;
-				T fractional_part = std::modf(in, &integral_part);
-				
-				if (fractional_part > T(0.5) || (fractional_part == T(0.5) && integral_part >= T(0)))
-					return integral_part + T(1);
-				else if (fractional_part < T(-0.5) || (fractional_part == T(-0.5) && integral_part < T(0)))
-					return integral_part - T(1);
+				if (in != in)
+					return in; // NaN
+
+				if (in >= T(std::numeric_limits<intmax_t>::max()) || in <= T(std::numeric_limits<intmax_t>::min()))
+					return in; // no fractional part representable at this magnitude
+
+				const T truncated = T(intmax_t(in));
+				const T frac = in - truncated;
+				if (frac >= T(0.5))
+					return truncated + T(1);
+				else if (frac <= T(-0.5))
+					return truncated - T(1);
 				else
-					return integral_part;
+					return truncated;
 			}
 		}
 
@@ -86,7 +92,8 @@ namespace mh
 			if (a == 0)
 				return false;
 
-			return T(T(a * b) / a) != b;
+			using TU = std::make_unsigned_t<decltype(a * b)>; // promoted operand type, made unsigned
+			return T(T(TU(a) * TU(b)) / a) != b;
 		}
 
 		template<typename T>
@@ -220,7 +227,7 @@ namespace mh
 			{
 				// Calculate the fractional part
 				constexpr TCommon fracMultiplier = (num % den);
-				constexpr auto half_den = (den / 2) - 1;
+				constexpr auto half_den = (den - 1) / 2;
 
 				constexpr bool has_more_native_bits = has_larger_version_v<TCommon>;
 
@@ -239,7 +246,7 @@ namespace mh
 					using frac_t = std::conditional_t<has_more_native_bits, larger_version_t<TCommon>, TCommon>;
 					static_assert(std::numeric_limits<TCommon>::max() <= std::numeric_limits<frac_t>::max());
 					static_assert(!will_overflow_mul<frac_t>(src_urange, fracMultiplier));
-					constexpr frac_t frac_max = src_urange * fracMultiplier;
+					constexpr frac_t frac_max = frac_t(src_urange) * frac_t(fracMultiplier);
 
 					const frac_t frac = frac_t(valueOffset) * frac_t(fracMultiplier);
 
@@ -261,7 +268,7 @@ namespace mh
 						const auto remainder = frac % den;
 						result += frac / den;
 
-						constexpr auto half_den_mod = (den / 2) + (den % 2);
+						constexpr auto half_den_mod = den / 2;
 						if (remainder > half_den_mod)
 							result += 1;
 					}
