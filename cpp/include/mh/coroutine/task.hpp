@@ -86,23 +86,26 @@ namespace mh
 
 			bool is_ready() const noexcept
 			{
-				auto index = m_State.index();
-				return index == IDX_VALUE || index == IDX_EXCEPTION;
+				std::lock_guard lock(m_Mutex);
+				return is_ready_unlocked();
 			}
 
 			bool valid() const noexcept
 			{
-				return m_State.index() != IDX_INVALID;
+				std::lock_guard lock(m_Mutex);
+				return valid_unlocked();
 			}
 
 			std::exception_ptr get_exception() const noexcept
 			{
+				std::lock_guard lock(m_Mutex);
 				auto result = std::get_if<IDX_EXCEPTION>(&m_State);
 				return result ? *result : nullptr;
 			}
 
 			task_state get_task_state() const
 			{
+				std::lock_guard lock(m_Mutex);
 				const auto state = m_State.index();
 				switch (state)
 				{
@@ -121,12 +124,9 @@ namespace mh
 				if (!valid())
 					throw std::future_error(std::future_errc::no_state);
 
-				if (!is_ready())
-				{
-					std::unique_lock lock(m_Mutex);
-					m_ValueReadyCV.wait(lock, [&] { return is_ready(); });
-					assert(is_ready());
-				}
+				std::unique_lock lock(m_Mutex);
+				m_ValueReadyCV.wait(lock, [&] { return is_ready_unlocked(); });
+				assert(is_ready_unlocked());
 			}
 			template<typename Rep, typename Period>
 			std::future_status wait_for(const std::chrono::duration<Rep, Period>& timeout_duration) const
@@ -135,13 +135,13 @@ namespace mh
 					throw std::future_error(std::future_errc::no_state);
 
 				std::unique_lock lock(m_Mutex);
-				if (is_ready())
+				if (is_ready_unlocked())
 					return std::future_status::ready;
 
-				if (!m_ValueReadyCV.wait_for(lock, timeout_duration, [&] { return is_ready(); }))
+				if (!m_ValueReadyCV.wait_for(lock, timeout_duration, [&] { return is_ready_unlocked(); }))
 					return std::future_status::timeout;
 
-				assert(is_ready());
+				assert(is_ready_unlocked());
 				return std::future_status::ready;
 			}
 			template<typename Clock, typename Period>
@@ -151,13 +151,13 @@ namespace mh
 					throw std::future_error(std::future_errc::no_state);
 
 				std::unique_lock lock(m_Mutex);
-				if (is_ready())
+				if (is_ready_unlocked())
 					return std::future_status::ready;
 
-				if (!m_ValueReadyCV.wait_until(lock, timeout_time, [&] { return is_ready(); }))
+				if (!m_ValueReadyCV.wait_until(lock, timeout_time, [&] { return is_ready_unlocked(); }))
 					return std::future_status::timeout;
 
-				assert(is_ready());
+				assert(is_ready_unlocked());
 				return std::future_status::ready;
 			}
 
@@ -230,7 +230,7 @@ namespace mh
 				else
 				{
 					std::lock_guard lock(m_Mutex);
-					if (is_ready())
+					if (is_ready_unlocked())
 					{
 						return false;
 					}
@@ -250,7 +250,7 @@ namespace mh
 				{
 					std::lock_guard lock(m_Mutex);
 
-					if (is_ready())
+					if (is_ready_unlocked())
 						throw std::future_error(std::future_errc::promise_already_satisfied);
 
 					waiters = std::move(std::get<IDX_WAITERS>(m_State));
@@ -269,8 +269,8 @@ namespace mh
 				}
 			}
 
-			const storage_type* try_get_value() const { return std::get_if<IDX_VALUE>(&m_State); }
-			storage_type* try_get_value() { return std::get_if<IDX_VALUE>(&m_State); }
+			const storage_type* try_get_value() const { std::lock_guard lock(m_Mutex); return std::get_if<IDX_VALUE>(&m_State); }
+			storage_type* try_get_value() { std::lock_guard lock(m_Mutex); return std::get_if<IDX_VALUE>(&m_State); }
 
 			void add_ref()
 			{
@@ -309,6 +309,19 @@ namespace mh
 			std::variant<std::vector<coro::coroutine_handle<>>, std::monostate, storage_type, std::exception_ptr> m_State;
 			std::atomic_int32_t m_RefCount = REFCOUNT_UNSET;
 			mutable bool m_FinalSuspendHasRun = false;
+
+		private:
+			// Callers must hold m_Mutex (m_State's discriminator is written under it in set_state).
+			bool is_ready_unlocked() const noexcept
+			{
+				auto index = m_State.index();
+				return index == IDX_VALUE || index == IDX_EXCEPTION;
+			}
+
+			bool valid_unlocked() const noexcept
+			{
+				return m_State.index() != IDX_INVALID;
+			}
 		};
 	}
 
