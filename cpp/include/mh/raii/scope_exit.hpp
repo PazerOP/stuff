@@ -49,11 +49,13 @@ namespace mh
 		};
 		struct scope_traits_fail final
 		{
-			bool operator()() const { return std::uncaught_exceptions() > 0; }
+			int m_UncaughtExceptions = std::uncaught_exceptions();
+			bool operator()() const { return std::uncaught_exceptions() > m_UncaughtExceptions; }
 		};
 		struct scope_traits_success final
 		{
-			bool operator()() const { return std::uncaught_exceptions() <= 0; }
+			int m_UncaughtExceptions = std::uncaught_exceptions();
+			bool operator()() const { return std::uncaught_exceptions() <= m_UncaughtExceptions; }
 		};
 
 		// https://en.cppreference.com/w/cpp/experimental/scope_exit
