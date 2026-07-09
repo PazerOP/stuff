@@ -5,7 +5,7 @@
 namespace mh
 {
 	template<typename To, typename From>
-	inline constexpr To assert_cast(From f)
+	inline constexpr To assert_cast(From&& f)
 	{
 		To sc = static_cast<To>(f);
 
