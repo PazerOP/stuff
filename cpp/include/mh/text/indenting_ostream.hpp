@@ -118,6 +118,7 @@ namespace mh
 	std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, const indented<TObject, CharT>& obj)
 	{
 		mh::indenting_ostream<CharT, Traits> indenting_os(os, obj.m_IndentChar, obj.m_IndentCharCount, obj.m_NewlineChar);
-		return indenting_os << obj.m_Object;
+		indenting_os << obj.m_Object;
+		return os;
 	}
 }
