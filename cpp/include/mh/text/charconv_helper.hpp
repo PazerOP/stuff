@@ -68,7 +68,7 @@ namespace mh
 		const auto result = from_chars(str, value, fmt);
 
 		if (charsRead)
-			*charsRead = result.ptr - (str.data() + str.size());
+			*charsRead = result.ptr - str.data();
 
 		return result ? value : std::nullopt;
 	}
@@ -79,7 +79,7 @@ namespace mh
 		const auto result = from_chars(str, value, base);
 
 		if (charsRead)
-			*charsRead = result.ptr - (str.data() + str.size());
+			*charsRead = result.ptr - str.data();
 
 		return result ? std::optional<T>(value) : std::nullopt;
 	}
