@@ -586,7 +586,6 @@ namespace mh
 
 	public:
 		using super::super;
-		~task() {}
 
 		const T& get() const { return this->get_promise().get_value(); }
 		T& get() { return this->get_promise().get_value(); }
@@ -606,7 +605,6 @@ namespace mh
 
 	public:
 		using super::super;
-		~task() {}
 	};
 
 	template<typename T>
