@@ -7,6 +7,14 @@ if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
 endif()
 
+# Build Catch2 with the same C++ standard as the tests that link it. Catch2 only
+# requires cxx_std_14 (a minimum), so on compilers whose default is pre-C++17
+# (clang < 16) libCatch2.a would otherwise lack symbols that its headers declare
+# for C++17+ consumers (e.g. Catch::StringMaker<std::string_view>::convert),
+# breaking the link of any C++20 test that stringifies a string_view.
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # Include CPM for package management
 include(${PROJECT_SOURCE_DIR}/cmake/get_cpm.cmake)
 
