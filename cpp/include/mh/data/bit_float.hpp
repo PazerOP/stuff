@@ -35,7 +35,10 @@ namespace mh
 		template<unsigned bits> using int_for_bits_t = std::make_signed_t<uint_for_bits_t<bits>>;
 
 		template<typename T>
-		constexpr T bits_to_mask(T bits) { return (T(1) << bits) - 1; }
+		constexpr T bits_to_mask(T bits)
+		{
+			return bits >= T(sizeof(T) * CHAR_BIT) ? T(~T(0)) : T((T(1) << bits) - 1);
+		}
 
 		constexpr unsigned HLF_MNT_BITS = 10;
 		constexpr unsigned HLF_EXP_BITS = 5;
