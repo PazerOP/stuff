@@ -21,7 +21,10 @@ template<typename CharT, typename Traits, typename CharT2, typename Traits2, typ
 	typename = std::enable_if_t<!std::is_same_v<CharT, CharT2> && mh::detail::insertion_conversion_hpp::is_char_v<CharT2>>>
 inline std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, const std::basic_string<CharT2, Traits2, Alloc>& str)
 {
-	return os << str.c_str();
+	for (auto ch : str)
+		os.put(static_cast<CharT>(ch));
+
+	return os;
 }
 
 template<typename CharT, typename Traits, typename CharT2, typename Traits2,
