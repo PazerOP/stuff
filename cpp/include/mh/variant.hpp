@@ -29,7 +29,7 @@ namespace mh
 
 				return Index;
 			}
-			else if (sizeof...(TOthers) < 1)
+			else if constexpr (sizeof...(TOthers) < 1)
 			{
 				return INVALID_TYPE_INDEX;
 			}
