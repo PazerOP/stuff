@@ -66,10 +66,12 @@ branches:
       required_status_checks:
         # Required. Require branches to be up to date before merging
         strict: true
-        # Required. The list of status checks to require in order to merge into this branch
+        # Required. The list of status checks to require in order to merge into this branch.
+        # all-checks-passed is the aggregate gate job in ccpp.yml: matrix jobs report
+        # per-configuration names like "build-linux (true, g++-12, g++-12)" (a bare
+        # "build-linux" context is never reported), and build-windows does not exist.
         contexts:
-          - build-linux
-          - build-windows
+          - all-checks-passed
 
       # Required. Enforce all configured restrictions for administrators
       enforce_admins: false
