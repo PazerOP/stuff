@@ -92,7 +92,7 @@ namespace mh
 				noexcept(std::is_nothrow_move_constructible_v<EF> || std::is_nothrow_copy_constructible_v<EF>)
 				requires MoveCopyFunc<EF> :
 				m_Active(other.m_Active),
-				m_Func(std::forward<EF>(other.m_Func))
+				m_Func(other.m_Func)
 			{
 				other.release();
 			}
