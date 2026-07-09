@@ -476,9 +476,12 @@ namespace mh
 	template <typename CharT, typename Traits>
 	std::basic_ostream<CharT, Traits> &operator<<(std::basic_ostream<CharT, Traits> &os, const mh::uint128 &rhs)
 	{
-		return os << '['
-				  << std::hex << rhs.template get_u64<1>() << '|'
-				  << std::hex << rhs.template get_u64<0>() << ']';
+		const auto oldFlags = os.flags();
+		os << '['
+		   << std::hex << rhs.template get_u64<1>() << '|'
+		   << std::hex << rhs.template get_u64<0>() << ']';
+		os.flags(oldFlags);
+		return os;
 	}
 
 	inline constexpr mh::uint128 mh::uint128::operator/(uint64_t divisor) const
