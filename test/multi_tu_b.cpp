@@ -17,7 +17,10 @@ bool is_main_thread_tu_b()
 void check_thread_sentinel_tu_b()
 {
 	mh::thread_sentinel sentinel;
-	sentinel.check();
+	// Pass the location explicitly: on toolchains without std::source_location
+	// (e.g. clang-14/libc++-14), MH_SOURCE_LOCATION_AUTO degrades to a
+	// parameter with no default argument.
+	sentinel.check(MH_SOURCE_LOCATION_CURRENT());
 }
 
 #ifdef MH_COROUTINES_SUPPORTED
