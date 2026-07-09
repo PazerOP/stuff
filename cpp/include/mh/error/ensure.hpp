@@ -2,8 +2,13 @@
 
 #include <mh/source_location.hpp>
 
+#include <csignal>
 #include <ostream>
 #include <utility>
+
+#ifndef MH_STUFF_API
+#define MH_STUFF_API
+#endif
 
 namespace mh
 {
