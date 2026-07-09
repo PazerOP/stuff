@@ -408,6 +408,9 @@ namespace mh
 			}
 			task_base& operator=(const task_base& other) noexcept
 			{
+				if (this == std::addressof(other))
+					return *this;
+
 				release();
 
 				m_IsCoroutine = other.m_IsCoroutine;
@@ -433,7 +436,9 @@ namespace mh
 			}
 			task_base& operator=(task_base&& other) noexcept
 			{
-				assert(std::addressof(other) != this);
+				if (this == std::addressof(other))
+					return *this;
+
 				release();
 
 				m_IsCoroutine = other.m_IsCoroutine;
