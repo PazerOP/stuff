@@ -118,6 +118,10 @@ namespace mh
 			{
 				std::lock_guard lock(m_TasksMutex);
 				m_DelayTasks.push(std::move(data));
+
+				// Wake all sleepers: their wait deadlines may be pinned to a later
+				// (now stale) heap front, so they must re-derive their end times.
+				m_TasksAvailableCV.notify_all();
 			}
 
 			bool wait_tasks_until(const clock_t::time_point endTime) const
@@ -135,17 +139,22 @@ namespace mh
 					return false;
 				};
 
-				while (endTime > clock_t::now())
+				while (!IsTaskAvailable())
 				{
+					if (clock_t::now() >= endTime)
+						return false;
+
 					auto localEndTime = endTime;
 					if (!m_DelayTasks.empty())
 						localEndTime = std::min(localEndTime, m_DelayTasks.front().m_DelayUntilTime);
 
-					if (m_TasksAvailableCV.wait_until(lock, localEndTime, IsTaskAvailable))
-						return true;
+					// Predicate-less wait: every wakeup (notify, deadline, or spurious)
+					// loops back around and re-derives localEndTime from the current
+					// heap front, so a newly added earlier delay task takes effect.
+					m_TasksAvailableCV.wait_until(lock, localEndTime);
 				}
 
-				return false;
+				return true;
 			}
 
 			void add_fd_read_task(task_fd_data data)
