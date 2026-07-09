@@ -137,7 +137,7 @@ struct mh::formatter<mh::source_location, CharT>
 	}
 
 	template<typename FormatContext>
-	auto format(const mh::source_location& loc, FormatContext& ctx)
+	auto format(const mh::source_location& loc, FormatContext& ctx) const
 	{
 		const auto path = [&]() -> std::string_view
 		{
