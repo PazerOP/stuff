@@ -119,10 +119,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	target_link_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -pthread)
 endif()
 
-# Define __unix__ for Unix-like systems (Linux, macOS, etc.)
-if (UNIX)
-	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "__unix__")
-endif()
+# NOTE: __unix__ is deliberately NOT defined here. It is a compiler-reserved
+# identifier that every Unix compiler predefines itself; force-defining it
+# PUBLIC/INTERFACE injected it into every consumer TU (and, being exported,
+# flipped platform detection of unrelated third-party headers on platforms
+# like macOS that do not predefine it).
 
 if (NOT MSVC)
 	include(CheckCXXCompilerFlag)
