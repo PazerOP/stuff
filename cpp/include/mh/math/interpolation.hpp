@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <numeric>
 #include <type_traits>
@@ -45,16 +46,20 @@ namespace mh
 			else
 			{
 				// Round half away from zero - match std::round exactly
-				// std::round rounds halfway cases away from zero
-				T integral_part;
-				T fractional_part = std::modf(in, &integral_part);
-				
-				if (fractional_part > T(0.5) || (fractional_part == T(0.5) && integral_part >= T(0)))
-					return integral_part + T(1);
-				else if (fractional_part < T(-0.5) || (fractional_part == T(-0.5) && integral_part < T(0)))
-					return integral_part - T(1);
+				if (in != in)
+					return in; // NaN
+
+				if (in >= T(std::numeric_limits<intmax_t>::max()) || in <= T(std::numeric_limits<intmax_t>::min()))
+					return in; // no fractional part representable at this magnitude
+
+				const T truncated = T(intmax_t(in));
+				const T frac = in - truncated;
+				if (frac >= T(0.5))
+					return truncated + T(1);
+				else if (frac <= T(-0.5))
+					return truncated - T(1);
 				else
-					return integral_part;
+					return truncated;
 			}
 		}
 
