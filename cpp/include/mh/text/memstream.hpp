@@ -188,7 +188,6 @@ namespace mh
 		using off_type = typename streambuf_type::off_type;
 
 	public:
-		basic_memstream() : iostream_type(this) {}
 		template<size_t size> basic_memstream(CharT (&buf)[size]) : basic_memstream(buf, size) {}
 		basic_memstream(CharT* buf, size_t size) :
 			streambuf_type(buf, size),
