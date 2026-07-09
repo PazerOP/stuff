@@ -6,6 +6,7 @@
 
 #ifdef MH_COROUTINES_SUPPORTED
 
+#include <atomic>
 #include <utility>
 
 namespace mh
@@ -14,7 +15,7 @@ namespace mh
 	{
 		struct thread_data
 		{
-			bool m_IsShuttingDown = false;
+			std::atomic<bool> m_IsShuttingDown = false;
 
 			mh::dispatcher m_Dispatcher{ false };
 			std::vector<std::thread> m_Threads;
