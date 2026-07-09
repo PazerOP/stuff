@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cctype>
+#include <cwctype>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -22,12 +23,20 @@ namespace mh
 		case_insensitive_char_traits(const BaseTraits& base) : BaseTraits(base) {}
 		case_insensitive_char_traits(BaseTraits&& base) : BaseTraits(base) {}
 
+		static auto to_upper(char_type c)
+		{
+			if constexpr (sizeof(char_type) == 1)
+				return std::toupper(static_cast<unsigned char>(c));
+			else
+				return std::towupper(static_cast<wint_t>(c));
+		}
+
 		static int compare(const char_type* s1, const char_type* s2, size_t count)
 		{
 			while (count--)
 			{
-				const auto c1 = std::toupper(*s1);
-				const auto c2 = std::toupper(*s2);
+				const auto c1 = to_upper(*s1);
+				const auto c2 = to_upper(*s2);
 
 				s1++;
 				s2++;
@@ -58,8 +67,8 @@ namespace mh
 			return 0;
 		}
 
-		static bool eq(char_type c1, char_type c2) { return std::toupper(c1) == std::toupper(c2); }
-		static bool lt(char_type c1, char_type c2) { return std::toupper(c1) < std::toupper(c2); }
+		static bool eq(char_type c1, char_type c2) { return to_upper(c1) == to_upper(c2); }
+		static bool lt(char_type c1, char_type c2) { return to_upper(c1) < to_upper(c2); }
 
 		static const char_type* find(const char_type* p, size_t count, const char_type& ch)
 		{
