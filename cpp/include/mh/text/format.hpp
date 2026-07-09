@@ -135,9 +135,9 @@ namespace mh
 	template<typename TOutputIt, typename TFmtStr, typename... TArgs,
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
 		inline auto format_to(TOutputIt&& outputIt, const TFmtStr& fmtStr, const TArgs&... args) ->
-		decltype(detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), fmtStr, args...))
+		decltype(detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), detail::format_hpp::fmtns::runtime(fmtStr), args...))
 	{
-		return detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), fmtStr, args...);
+		return detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), detail::format_hpp::fmtns::runtime(fmtStr), args...);
 	}
 
 	template<typename TContainer, typename TFmtStr, typename... TArgs,
@@ -151,7 +151,7 @@ namespace mh
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
 		inline auto format_to_n(TOutputIt&& outputIt, size_t n, const TFmtStr& fmtStr, const TArgs&... args)
 	{
-		return detail::format_hpp::fmtns::format_to_n(std::forward<TOutputIt>(outputIt), n, fmtStr, args...);
+		return detail::format_hpp::fmtns::format_to_n(std::forward<TOutputIt>(outputIt), n, detail::format_hpp::fmtns::runtime(fmtStr), args...);
 	}
 
 	template<typename TFmtStr, typename... TArgs>
@@ -161,7 +161,7 @@ namespace mh
 	}
 	catch (const format_error& e)
 	{
-		return ::mh::format(MH_FMT_STRING("FORMATTING ERROR: Unable to construct string with fmtstr {}: {}"), std::quoted(fmtStr), e.what());
+		return ::mh::format("FORMATTING ERROR: Unable to construct string with fmtstr \"{}\": {}", fmtStr, e.what());
 	}
 
 	template<typename TFmtStr, typename TFmtArgs>
@@ -174,16 +174,18 @@ namespace mh
 		using char_type_t = std::decay_t<decltype(fmtStr[0])>;
 		if constexpr (std::is_same_v<char_type_t, char>)
 		{
-			return ::mh::format(MH_FMT_STRING("FORMATTING ERROR: Unable to construct string with fmtstr {}: {}"), std::quoted(fmtStr), e.what());
+			return ::mh::format("FORMATTING ERROR: Unable to construct string with fmtstr \"{}\": {}", fmtStr, e.what());
 		}
 		else if constexpr (std::is_same_v<char_type_t, wchar_t>)
 		{
 			// Can't print error message from exception because fmt does not handle conversion from char -> wchar_t on its own unfortunately
-			return ::mh::format(MH_FMT_STRING(L"FORMATTING ERROR: Unable to construct string with fmtstr {}"), std::quoted(fmtStr));
+			return ::mh::format(L"FORMATTING ERROR: Unable to construct string with fmtstr \"{}\"", fmtStr);
 		}
 		else
 		{
 			// Other character types are a compile error for now
+			static_assert(std::is_same_v<char_type_t, char> || std::is_same_v<char_type_t, wchar_t>,
+				"try_vformat only supports char and wchar_t format strings");
 		}
 	}
 
@@ -193,7 +195,7 @@ namespace mh
 		std::basic_string<TChar, TTraits, TAlloc> str;
 
 		auto inserter = std::back_inserter(str);
-		(format_to(inserter, MH_FMT_STRING("{}"), args), ...);
+		(format_to(inserter, "{}", args), ...);
 
 		return str;
 	}

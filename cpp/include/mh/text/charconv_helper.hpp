@@ -68,9 +68,9 @@ namespace mh
 		const auto result = from_chars(str, value, fmt);
 
 		if (charsRead)
-			*charsRead = result.ptr - (str.data() + str.size());
+			*charsRead = result.ptr - str.data();
 
-		return result ? value : std::nullopt;
+		return result ? std::optional<T>(value) : std::nullopt;
 	}
 	template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
 	[[nodiscard]] inline std::optional<T> from_chars(const std::string_view& str, size_t* charsRead = nullptr, int base = 10)
@@ -79,7 +79,7 @@ namespace mh
 		const auto result = from_chars(str, value, base);
 
 		if (charsRead)
-			*charsRead = result.ptr - (str.data() + str.size());
+			*charsRead = result.ptr - str.data();
 
 		return result ? std::optional<T>(value) : std::nullopt;
 	}

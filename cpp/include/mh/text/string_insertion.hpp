@@ -87,6 +87,6 @@ namespace std
 		-> decltype(std::declval<std::basic_ostream<CharT, Traits>>() << value, str)
 	{
 		mh::detail::string_insertion_hpp::insertion_op_impl<T, CharT, Traits, Alloc>(str, value);
-		return std::move(str);
+		return str;
 	}
 }
