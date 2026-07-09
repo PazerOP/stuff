@@ -6,7 +6,7 @@ mkdir out_test_linux
 cd out_test_linux
 
 echo Configuring...
-CXX=g++-10 cmake ../ -G Ninja
+CXX=${CXX:-g++} cmake ../ -G Ninja
 
 echo Building...
 cmake --build .
