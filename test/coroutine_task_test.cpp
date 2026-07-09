@@ -149,9 +149,9 @@ TEST_CASE("task - exceptions in discarded tasks")
 {
 	mh::thread_pool tp(2);
 
-	int value = 0;
+	std::atomic<int> value = 0;
 	// Intentionally discarding the task - cast to void to suppress nodiscard warning
-	(void)[](mh::thread_pool& tp, int& val) -> mh::task<>
+	(void)[](mh::thread_pool& tp, std::atomic<int>& val) -> mh::task<>
 	{
 		co_await tp.co_add_task();
 		co_await tp.co_delay_for(2s);
