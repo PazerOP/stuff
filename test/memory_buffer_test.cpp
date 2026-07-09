@@ -88,7 +88,13 @@ TEST_CASE("buffer - constructor - initial data", "[memory][buffer]")
 TEST_CASE("buffer - constructor - copy constructor", "[memory][buffer]")
 {
 	constexpr const char TEST_DATA[] = "very cool test framework";
-	mh::buffer buf((const std::byte*)TEST_DATA, sizeof(TEST_DATA));
+	mh::buffer src((const std::byte*)TEST_DATA, sizeof(TEST_DATA));
+	mh::buffer buf(src);
 	REQUIRE(buf.size() == sizeof(TEST_DATA));
+	REQUIRE(buf.data() != src.data());
 	REQUIRE(!std::memcmp(buf.data(), TEST_DATA, sizeof(TEST_DATA)));
+
+	mh::buffer emptySrc;
+	mh::buffer emptyCopy(emptySrc);
+	REQUIRE(emptyCopy.size() == 0);
 }
