@@ -33,7 +33,7 @@ namespace mh
 
 			assert(buf);
 
-			this->setp(buf + existingSize, buf + size - existingSize);
+			this->setp(buf, buf + existingSize, buf + size);
 			this->setg(buf, buf, buf + existingSize);
 		}
 
