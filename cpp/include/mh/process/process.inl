@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <vector>
 
 namespace mh
 {
@@ -46,6 +47,21 @@ namespace mh
             if (started_)
                 return false;
 
+            // io redirection is not implemented yet: fail cleanly in the parent,
+            // never after fork. Throwing in the forked child would unwind a copy of
+            // the parent's call stack - a caller that catches would keep the child
+            // alive as a duplicate of the application.
+            if (input_source_ || output_sink_ || error_sink_)
+                throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT());
+
+            // Build argv before fork: allocating after fork in a multithreaded
+            // process can deadlock on an allocator lock held by a defunct thread.
+            std::vector<char*> arg_array;
+            arg_array.reserve(args_.size() + 1);
+            for (auto& arg : args_)
+                arg_array.push_back(arg.data());
+            arg_array.push_back(nullptr);
+
             pid_ = fork();
 
             if (pid_ == -1)
@@ -54,23 +70,13 @@ namespace mh
             }
             else if (pid_ == 0)
             {
-                // Child process
-                setup_child_io();
+                // Child process: execute the command
+                execvp(command_.c_str(), arg_array.data());
 
-                // Convert args to C-style array
-                char **arg_array = new char *[args_.size() + 1];
-                for (size_t i = 0; i < args_.size(); ++i)
-                {
-                    arg_array[i] = const_cast<char *>(args_[i].c_str());
-                }
-                arg_array[args_.size()] = nullptr;
-
-                // Execute the command
-                execvp(command_.c_str(), arg_array);
-
-                // If execvp returns, an error occurred
-                delete[] arg_array;
-                exit(1);
+                // exec failed: _exit, not exit - running atexit handlers and
+                // flushing stdio buffers duplicated from the parent would emit
+                // buffered parent output twice. 127 mirrors the shell convention.
+                _exit(127);
             }
             else
             {
@@ -158,28 +164,6 @@ namespace mh
             if (!started_ || completed_)
                 return false;
             return kill(pid_, force ? SIGKILL : SIGTERM) == 0;
-        }
-
-    private:
-        void setup_child_io()
-        {
-            // Handle input (stdin)
-            if (input_source_)
-            {
-                throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT()); // Input redirection not yet implemented
-            }
-
-            // Handle output (stdout)
-            if (output_sink_)
-            {
-                throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT()); // Output redirection not yet implemented
-            }
-
-            // Handle error (stderr)
-            if (error_sink_)
-            {
-                throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT()); // Error redirection not yet implemented
-            }
         }
     };
 
