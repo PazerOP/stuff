@@ -152,7 +152,7 @@ namespace mh
 			noexcept(noexcept(emplace(unexpect, std::forward<T>(error))))
 			requires std::is_constructible_v<TError, T>
 		{
-			emplace(unexpect, error);
+			emplace(unexpect, std::forward<T>(error));
 			return *this;
 		}
 
