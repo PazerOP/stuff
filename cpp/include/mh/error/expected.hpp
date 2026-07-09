@@ -184,7 +184,7 @@ namespace mh
 		template<typename TRet = std::common_comparison_category_t<std::compare_three_way_result_t<bool>, std::compare_three_way_result_t<error_type>>>
 		friend constexpr TRet operator<=>(const error_type& lhs, const this_type& rhs)
 		{
-			if (!lhs.has_error())
+			if (!rhs.has_error())
 				return true <=> false;
 
 			return lhs <=> rhs.error();
