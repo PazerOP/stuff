@@ -82,10 +82,9 @@ namespace mh
 					return ready_fd_tasks[0]; // Return first ready FD task
 				}
 
+				std::lock_guard lock(m_TasksMutex);
 				if (!m_Tasks.empty() || !m_DelayTasks.empty())
 				{
-					std::lock_guard lock(m_TasksMutex);
-
 					if (!m_DelayTasks.empty())
 					{
 						auto now = clock_t::now();
@@ -233,7 +232,7 @@ namespace mh
 				return ready_tasks;
 			}
 
-			size_t task_count() const { return m_Tasks.size() + m_DelayTasks.size() + m_ReadTasks.size() + m_WriteTasks.size(); }
+			size_t task_count() const { std::lock_guard lock(m_TasksMutex); return m_Tasks.size() + m_DelayTasks.size() + m_ReadTasks.size() + m_WriteTasks.size(); }
 
 			bool m_IsSingleThread{};
 
