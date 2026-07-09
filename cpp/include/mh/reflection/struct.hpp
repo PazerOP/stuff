@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <string_view>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 namespace mh
@@ -35,13 +36,13 @@ namespace mh
 		template<typename T>
 		concept HasBaseTypes = requires
 		{
-			typename T::mh_struct_reflect_bases_t;
+			typename std::remove_cvref_t<T>::mh_struct_reflect_bases_t;
 		};
 
 		template<typename TObj, typename TFunc, size_t I>
 		constexpr void handle_bases_impl(TObj&& obj, TFunc&& func)
 		{
-			using tuple_t = typename TObj::mh_struct_reflect_bases_t;
+			using tuple_t = typename std::remove_cvref_t<TObj>::mh_struct_reflect_bases_t;
 			if constexpr (I >= std::tuple_size_v<tuple_t>)
 			{
 				return;
@@ -49,7 +50,10 @@ namespace mh
 			else
 			{
 				using current_t = std::tuple_element_t<I, tuple_t>;
-				impl<current_t>::for_each(std::forward<current_t>(obj), std::forward<TFunc>(func));
+				using base_ref_t = std::conditional_t<std::is_lvalue_reference_v<TObj>,
+					std::conditional_t<std::is_const_v<std::remove_reference_t<TObj>>, const current_t&, current_t&>,
+					current_t&&>;
+				impl<current_t>::for_each(static_cast<base_ref_t>(obj), std::forward<TFunc>(func));
 				return handle_bases_impl<TObj, TFunc, I + 1>(std::forward<TObj>(obj), std::forward<TFunc>(func));
 			}
 		}
@@ -92,7 +96,7 @@ namespace mh
 		template<typename TObj, typename TFunc, typename = std::enable_if_t<std::is_same_v<std::decay_t<TObj>, value_type>>> \
 		static constexpr void for_each(TObj&& obj, TFunc&& func) \
 		{ \
-			mh::detail::reflection::struct_hpp::handle_bases<TObj, TFunc>(std::forward<value_type>(obj), std::forward<TFunc>(func), 0);
+			mh::detail::reflection::struct_hpp::handle_bases<TObj, TFunc>(std::forward<TObj>(obj), std::forward<TFunc>(func), 0);
 
 #define MH_STRUCT_REFLECT_MEMBER(member) \
 			func(mh::struct_member_info<value_type, decltype(obj.member)>{ #member, obj, obj.member, &value_type::member, offsetof(value_type, member) });
