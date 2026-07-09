@@ -119,9 +119,9 @@ namespace mh
 				pos_type result{};
 
 				if (which & std::ios::in)
-					result = seekpos((gend() - gbeg()) - off, std::ios::in);
+					result = seekpos((gend() - gbeg()) + off, std::ios::in);
 				if (which & std::ios::out)
-					result = seekpos((pend() - pbeg()) - off, std::ios::out);
+					result = seekpos((pend() - pbeg()) + off, std::ios::out);
 
 				return result;
 			}
