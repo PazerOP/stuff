@@ -122,7 +122,7 @@ namespace mh
 			if (result == ::mh::ensure_trigger_result::debugger_break) \
 				MH_ERROR_ENSURE_HPP_DEBUGBREAK(); \
 		} \
-		return std::move(value); \
+		return std::forward<decltype(value)>(value); \
 	}(expr, MH_SOURCE_LOCATION_CURRENT()))
 
 #ifdef _DEBUG
