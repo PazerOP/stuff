@@ -157,8 +157,8 @@ namespace mh
 				{
 					if (old_exponent_actual >= new_exponent_t::inf_or_nan().actual_value())
 						return new_exponent_t::inf_or_nan();
-					//if (old_exponent_actual < MIN)
-					//	return
+					if (old_exponent_actual + native_exp_offset < 1)
+						return new_exponent_t(0); // underflow
 				}
 
 				const int new_exponent = old_exponent_actual + native_exp_offset;
@@ -289,7 +289,46 @@ namespace mh
 				}
 
 				const auto old_exponent = bits_to_exponent(bits);
+
+				if (old_exponent.value == 0)
+				{
+					// zero or denormal
+					const auto old_mantissa = bits_to_mantissa(bits);
+					if constexpr (new_bit_float::ExponentBits > ExponentBits)
+					{
+						if (old_mantissa.value != 0)
+						{
+							// denormal: normalize into the wider exponent range
+							unsigned shift = 0;
+							auto m = old_mantissa.value;
+							while (!(m & (typename mantissa_t::value_t(1) << (MantissaBits - 1))))
+							{
+								m = typename mantissa_t::value_t(m << 1);
+								shift++;
+							}
+							m = typename mantissa_t::value_t(m << 1); // drop the implicit leading 1
+
+							const int actual = exponent_t::min().actual_value() - 1 - int(shift);
+							constexpr int new_offset = ((1 << new_bit_float::ExponentBits) / 2) - 1;
+							return new_bit_float::components_to_bits(
+								mantissa_t(m).template convert<new_bit_float::MantissaBits>(),
+								typename new_bit_float::exponent_t(
+									typename new_bit_float::exponent_t::value_t(actual + new_offset)),
+								sign);
+						}
+					}
+					// +-0 stays 0; denormals narrower than the target range flush to +-0
+					return new_bit_float::components_to_bits({}, {}, sign);
+				}
+
 				const auto new_exponent = old_exponent.template convert<new_bit_float::ExponentBits>();
+
+				if constexpr (new_bit_float::ExponentBits < ExponentBits)
+				{
+					// exponent underflow: flush to +-0 (no denormal generation)
+					if (new_exponent.value == 0)
+						return new_bit_float::components_to_bits({}, new_exponent, sign);
+				}
 
 				// Can we overflow to infinity from this conversion?
 				constexpr bool needsOverflowCheck = new_bit_float::ExponentBits < ExponentBits;
