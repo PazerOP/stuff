@@ -161,7 +161,7 @@ namespace mh
 	}
 	catch (const format_error& e)
 	{
-		return ::mh::format(MH_FMT_STRING("FORMATTING ERROR: Unable to construct string with fmtstr {}: {}"), std::quoted(fmtStr), e.what());
+		return ::mh::format("FORMATTING ERROR: Unable to construct string with fmtstr \"{}\": {}", fmtStr, e.what());
 	}
 
 	template<typename TFmtStr, typename TFmtArgs>
@@ -174,16 +174,18 @@ namespace mh
 		using char_type_t = std::decay_t<decltype(fmtStr[0])>;
 		if constexpr (std::is_same_v<char_type_t, char>)
 		{
-			return ::mh::format(MH_FMT_STRING("FORMATTING ERROR: Unable to construct string with fmtstr {}: {}"), std::quoted(fmtStr), e.what());
+			return ::mh::format("FORMATTING ERROR: Unable to construct string with fmtstr \"{}\": {}", fmtStr, e.what());
 		}
 		else if constexpr (std::is_same_v<char_type_t, wchar_t>)
 		{
 			// Can't print error message from exception because fmt does not handle conversion from char -> wchar_t on its own unfortunately
-			return ::mh::format(MH_FMT_STRING(L"FORMATTING ERROR: Unable to construct string with fmtstr {}"), std::quoted(fmtStr));
+			return ::mh::format(L"FORMATTING ERROR: Unable to construct string with fmtstr \"{}\"", fmtStr);
 		}
 		else
 		{
 			// Other character types are a compile error for now
+			static_assert(std::is_same_v<char_type_t, char> || std::is_same_v<char_type_t, wchar_t>,
+				"try_vformat only supports char and wchar_t format strings");
 		}
 	}
 
