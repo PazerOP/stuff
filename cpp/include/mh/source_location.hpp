@@ -201,7 +201,9 @@ struct mh::formatter<mh::source_location, CharT>
 	}
 };
 
+#ifdef MH_COMPILE_LIBRARY
 extern template struct mh::formatter<mh::source_location, char>;
 extern template struct mh::formatter<mh::source_location, wchar_t>;
+#endif
 #endif
 #endif
