@@ -53,25 +53,67 @@ function(mh_test name)
 endfunction()
 
 mh_test(algorithm_algorithm_test)
+mh_test(chrono_helpers_test)
+mh_test(concurrency_dispatcher_test)
+mh_test(concurrency_thread_pool_test)
+mh_test(containers_heap_test)
+mh_test(coroutine_generator_test)
 mh_test(coroutine_task_test)
 mh_test(data_bit_float_test)
 mh_test(data_bits_test)
 mh_test(data_variable_pusher_test)
+mh_test(error_ensure_test)
+mh_test(error_expected_test)
+mh_test(error_nested_exception_test)
+mh_test(error_status_test)
+mh_test(future_test)
 mh_test(http_client_test)
 mh_test(io_fd_test)
 mh_test(io_file_test)
 mh_test(math_interpolation_test)
 mh_test(math_uint128_test)
 mh_test(memory_buffer_test)
+mh_test(memory_cached_variable_test)
+mh_test(memory_checked_ptr_test)
+mh_test(memory_helpers_test)
+mh_test(memory_unique_object_test)
 mh_test(process_process_test)
+mh_test(raii_scope_exit_test)
 mh_test(reflection_struct_test)
 mh_test(text_case_insensitive_string_test)
 mh_test(text_codecvt_test)
 mh_test(text_charconv_helper_test)
 mh_test(text_filebuf_test)
+mh_test(text_fmtstr_test)
+mh_test(text_indenting_ostream_test)
+mh_test(text_insertion_conversion_test)
 mh_test(text_memstream_test)
 mh_test(text_string_insertion_test)
 mh_test(text_stringops_test)
+mh_test(types_test)
+mh_test(variant_test)
+
+# text_format_test gets a second, test-case-free translation unit: formatting a
+# source_location from more than one TU must compile AND link in both
+# header-only and library builds (was an undefined-reference regression).
+mh_test(text_format_test)
+target_sources(text_format_test PRIVATE text_format_link_tu.cpp)
+
+# Multi-TU link test. Deliberately does NOT link mh::stuff: it must build with
+# only the include directory, so that the build system's injected defines
+# (e.g. MH_STUFF_API=) and compiled-library mode cannot mask header-only-mode
+# bugs (missing MH_COMPILE_LIBRARY_INLINE markers -> multiple-definition link
+# errors, per-TU copies of program-wide entities, headers that rely on
+# build-system macros). Linking this executable is the core of the test.
+add_executable(multi_tu_test multi_tu_a.cpp multi_tu_b.cpp)
+target_compile_features(multi_tu_test PRIVATE cxx_std_20)
+target_include_directories(multi_tu_test PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+target_link_libraries(multi_tu_test Catch2::Catch2WithMain)
+if (NOT MSVC)
+	target_compile_options(multi_tu_test PRIVATE -pthread)
+	target_link_options(multi_tu_test PRIVATE -pthread)
+endif()
+catch_discover_tests(multi_tu_test TEST_PREFIX "${PROJECT_NAME}.")
 
 include(CheckIncludeFileCXX)
 check_include_file_cxx("getopt.h" HAS_GETOPT)
