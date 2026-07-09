@@ -106,6 +106,7 @@ namespace mh
 
 		constexpr this_type& operator=(const view_type& rhs)
 		{
+			clear();
 			puts(rhs);
 			return *this;
 		}
@@ -150,6 +151,7 @@ namespace mh
 
 		constexpr this_type& operator=(const view_type& rhs)
 		{
+			base_type::clear();
 			base_type::puts(rhs);
 			return *this;
 		}
@@ -178,6 +180,7 @@ namespace mh
 
 		constexpr this_type& operator=(const view_type& rhs)
 		{
+			base_type::clear();
 			base_type::puts(rhs);
 			return *this;
 		}
