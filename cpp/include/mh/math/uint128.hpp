@@ -501,7 +501,7 @@ namespace mh
 
 			uint64_t buffer = get_u64<0>();
 
-			const uint8_t skip = remainder64 ? 0 : detail::uint128_hpp::countl_zero(buffer);
+			const uint8_t skip = (remainder64 == 0 && buffer != 0) ? detail::uint128_hpp::countl_zero(buffer) : 0;
 			buffer <<= skip;
 			uint8_t count = 64 - skip;
 
