@@ -15,11 +15,22 @@ namespace mh::chrono
 	{
 		return std::chrono::system_clock::to_time_t(t);
 	}
-	MH_COMPILE_LIBRARY_INLINE std::time_t to_time_t(std::tm t, [[maybe_unused]] time_zone zone)
+	MH_COMPILE_LIBRARY_INLINE std::time_t to_time_t(std::tm t, time_zone zone)
 	{
-		assert(zone == time_zone::local); // All others unsupported
+		std::time_t result;
+		if (zone == time_zone::utc)
+		{
+#ifdef _MSC_VER
+			result = _mkgmtime(&t);
+#else
+			result = timegm(&t);
+#endif
+		}
+		else
+		{
+			result = std::mktime(&t);
+		}
 
-		auto result = std::mktime(&t);
 		assert(result != -1);
 		return result;
 	}
