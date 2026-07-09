@@ -223,7 +223,16 @@ namespace mh
 		template <typename T>
 		constexpr uint128 operator<<(T bits) const
 		{
+			static_assert(std::is_integral_v<T>);
 			uint128 retVal;
+			if constexpr (std::is_signed_v<T>)
+			{
+				if (bits < 0)
+					throw "uint128: operator<<: bits cannot be less than zero";
+			}
+			if (static_cast<std::make_unsigned_t<T>>(bits) >= 128u)
+				return retVal; // shifted fully out: zero (a full-width platform u128 shift would be UB)
+
 			if (!detail::uint128_hpp::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
@@ -232,18 +241,9 @@ namespace mh
 #endif
 			}
 
-			static_assert(std::is_integral_v<T>);
 			if (bits == 0)
 			{
 				retVal = *this;
-			}
-			else if (bits >= 128)
-			{
-				// retVal = 0
-			}
-			else if (bits < 0)
-			{
-				throw "uint128: operator<<: bits cannot be less than zero";
 			}
 			else if (bits <= 63)
 			{
@@ -266,7 +266,16 @@ namespace mh
 		template <typename T>
 		constexpr uint128 operator>>(T bits) const
 		{
+			static_assert(std::is_integral_v<T>);
 			uint128 retVal;
+			if constexpr (std::is_signed_v<T>)
+			{
+				if (bits < 0)
+					throw "uint128: operator>>: bits cannot be less than zero";
+			}
+			if (static_cast<std::make_unsigned_t<T>>(bits) >= 128u)
+				return retVal; // shifted fully out: zero (a full-width platform u128 shift would be UB)
+
 			if (!detail::uint128_hpp::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
@@ -276,18 +285,9 @@ namespace mh
 			}
 
 #if true
-			static_assert(std::is_integral_v<T>);
 			if (bits == 0)
 			{
 				retVal = *this;
-			}
-			else if (bits >= 128)
-			{
-				// retVal = 0
-			}
-			else if (bits < 0)
-			{
-				throw "uint128: operator>>: bits cannot be less than zero";
 			}
 			else if (bits <= 63)
 			{
