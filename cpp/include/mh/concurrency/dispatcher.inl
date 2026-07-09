@@ -175,8 +175,9 @@ namespace mh
 				std::lock_guard lock(m_TasksMutex);
 
 #ifdef _WIN32
-				// Windows: stub implementation for now
-				throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT());
+				// Windows: fd monitoring is not implemented yet
+				if (!m_ReadTasks.empty() || !m_WriteTasks.empty())
+					throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT());
 #else
 				// Unix: use select()
 				if (!m_ReadTasks.empty() || !m_WriteTasks.empty())
