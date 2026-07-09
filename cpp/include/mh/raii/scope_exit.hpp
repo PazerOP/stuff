@@ -73,7 +73,7 @@ namespace mh
 			}
 			template<typename Fn>
 			explicit scope_exit_base(Fn&& fn, bool enabled = true)
-				noexcept(std::is_nothrow_move_constructible_v<EF> || std::is_nothrow_copy_constructible_v<EF>)
+				noexcept(std::is_nothrow_constructible_v<EF, Fn&>)
 				requires ConstructibleCopyFunc<EF, Fn, self_type> :
 				m_Active(enabled),
 				m_Func(fn)
