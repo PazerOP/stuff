@@ -14,6 +14,8 @@ namespace mh::http
 		std::string body;
 	};
 
-	// Coroutine-based HTTP GET
-	task<response> get(const std::string& url);
+	// Coroutine-based HTTP GET.
+	// The URL is taken BY VALUE on purpose: this coroutine hops to another thread,
+	// and a reference parameter would dangle once the caller's argument dies.
+	task<response> get(std::string url);
 }

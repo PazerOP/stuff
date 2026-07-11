@@ -42,4 +42,8 @@ namespace mh::io
     };
 }
 
+#ifndef MH_COMPILE_LIBRARY
+#include "fd_sink.inl"
+#endif
+
 #endif // __unix__

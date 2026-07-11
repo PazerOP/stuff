@@ -70,13 +70,21 @@ namespace mh
 				auto ready_fd_tasks = check_fd_tasks();
 				if (!ready_fd_tasks.empty())
 				{
+					if (ready_fd_tasks.size() > 1)
+					{
+						// Re-queue the other ready FD tasks so they are not lost
+						std::lock_guard lock(m_TasksMutex);
+						for (size_t i = 1; i < ready_fd_tasks.size(); i++)
+							m_Tasks.push(ready_fd_tasks[i]);
+						m_TasksAvailableCV.notify_all();
+					}
+
 					return ready_fd_tasks[0]; // Return first ready FD task
 				}
 
+				std::lock_guard lock(m_TasksMutex);
 				if (!m_Tasks.empty() || !m_DelayTasks.empty())
 				{
-					std::lock_guard lock(m_TasksMutex);
-
 					if (!m_DelayTasks.empty())
 					{
 						auto now = clock_t::now();
@@ -110,6 +118,10 @@ namespace mh
 			{
 				std::lock_guard lock(m_TasksMutex);
 				m_DelayTasks.push(std::move(data));
+
+				// Wake all sleepers: their wait deadlines may be pinned to a later
+				// (now stale) heap front, so they must re-derive their end times.
+				m_TasksAvailableCV.notify_all();
 			}
 
 			bool wait_tasks_until(const clock_t::time_point endTime) const
@@ -127,17 +139,22 @@ namespace mh
 					return false;
 				};
 
-				while (endTime > clock_t::now())
+				while (!IsTaskAvailable())
 				{
+					if (clock_t::now() >= endTime)
+						return false;
+
 					auto localEndTime = endTime;
 					if (!m_DelayTasks.empty())
 						localEndTime = std::min(localEndTime, m_DelayTasks.front().m_DelayUntilTime);
 
-					if (m_TasksAvailableCV.wait_until(lock, localEndTime, IsTaskAvailable))
-						return true;
+					// Predicate-less wait: every wakeup (notify, deadline, or spurious)
+					// loops back around and re-derives localEndTime from the current
+					// heap front, so a newly added earlier delay task takes effect.
+					m_TasksAvailableCV.wait_until(lock, localEndTime);
 				}
 
-				return false;
+				return true;
 			}
 
 			void add_fd_read_task(task_fd_data data)
@@ -158,8 +175,9 @@ namespace mh
 				std::lock_guard lock(m_TasksMutex);
 
 #ifdef _WIN32
-				// Windows: stub implementation for now
-				throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT());
+				// Windows: fd monitoring is not implemented yet
+				if (!m_ReadTasks.empty() || !m_WriteTasks.empty())
+					throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT());
 #else
 				// Unix: use select()
 				if (!m_ReadTasks.empty() || !m_WriteTasks.empty())
@@ -224,7 +242,7 @@ namespace mh
 				return ready_tasks;
 			}
 
-			size_t task_count() const { return m_Tasks.size() + m_DelayTasks.size() + m_ReadTasks.size() + m_WriteTasks.size(); }
+			size_t task_count() const { std::lock_guard lock(m_TasksMutex); return m_Tasks.size() + m_DelayTasks.size() + m_ReadTasks.size() + m_WriteTasks.size(); }
 
 			bool m_IsSingleThread{};
 
@@ -349,6 +367,17 @@ namespace mh
 	{
 	}
 
+	MH_COMPILE_LIBRARY_INLINE dispatcher::~dispatcher()
+	{
+		// Unregister so dispatcher::get()/try_get() on this thread don't return a
+		// dangling pointer and a new dispatcher can be registered afterwards.
+		// Limitation: destruction on a different thread cannot clear the registering
+		// thread's slot (thread_locals are unreachable cross-thread); that case
+		// remains undefined behavior, as before.
+		if (s_current_thread_dispatcher == this)
+			s_current_thread_dispatcher = nullptr;
+	}
+
 	MH_COMPILE_LIBRARY_INLINE size_t dispatcher::run()
 	{
 		size_t count = 0;
@@ -419,7 +448,7 @@ namespace mh
 	}
 
 	// Static member definition
-	thread_local dispatcher* dispatcher::s_current_thread_dispatcher = nullptr;
+	MH_COMPILE_LIBRARY_INLINE thread_local dispatcher* dispatcher::s_current_thread_dispatcher = nullptr;
 
 	MH_COMPILE_LIBRARY_INLINE void dispatcher::register_for_current_thread()
 	{

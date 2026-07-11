@@ -1,6 +1,7 @@
 #include "mh/memory/buffer.hpp"
 #include <catch2/catch_all.hpp>
 
+#include <compare>
 #include <cstring>
 
 TEST_CASE("buffer - common", "[memory][buffer]")
@@ -88,7 +89,82 @@ TEST_CASE("buffer - constructor - initial data", "[memory][buffer]")
 TEST_CASE("buffer - constructor - copy constructor", "[memory][buffer]")
 {
 	constexpr const char TEST_DATA[] = "very cool test framework";
-	mh::buffer buf((const std::byte*)TEST_DATA, sizeof(TEST_DATA));
+	mh::buffer src((const std::byte*)TEST_DATA, sizeof(TEST_DATA));
+	mh::buffer buf(src);
 	REQUIRE(buf.size() == sizeof(TEST_DATA));
+	REQUIRE(buf.data() != src.data());
 	REQUIRE(!std::memcmp(buf.data(), TEST_DATA, sizeof(TEST_DATA)));
+
+	mh::buffer emptySrc;
+	mh::buffer emptyCopy(emptySrc);
+	REQUIRE(emptyCopy.size() == 0);
 }
+
+TEST_CASE("buffer - resize to zero", "[memory][buffer]")
+{
+	mh::buffer buf(8);
+	REQUIRE(buf.size() == 8);
+
+	// resizing to zero is a legitimate request: it must empty the buffer, not throw
+	REQUIRE_NOTHROW(buf.resize(0));
+	REQUIRE(buf.size() == 0);
+	REQUIRE(buf.data() == nullptr);
+
+	SECTION("grow again after shrinking to zero")
+	{
+		buf.resize(16);
+		REQUIRE(buf.size() == 16);
+		REQUIRE(buf.data() != nullptr);
+		std::memset(buf.data(), 0x42, buf.size());
+
+		buf.resize(0);
+		REQUIRE(buf.size() == 0);
+		REQUIRE(buf.data() == nullptr);
+	}
+	// destruction after resize(0) must be safe (checked at end of scope)
+}
+
+TEST_CASE("buffer - constructor - zero size", "[memory][buffer]")
+{
+	mh::buffer buf(size_t(0));
+	REQUIRE(buf.size() == 0);
+	REQUIRE(buf.data() == nullptr);
+}
+
+TEST_CASE("buffer - empty buffer copies", "[memory][buffer]")
+{
+	mh::buffer empty;
+	mh::buffer alsoEmpty(empty);
+	REQUIRE(alsoEmpty.size() == 0);
+	REQUIRE(alsoEmpty.data() == nullptr);
+}
+
+// mirrors the feature guard around buffer's operator<=>
+#if ((__cpp_lib_three_way_comparison >= 201907) || defined(_MSC_VER)) && (__cpp_impl_three_way_comparison >= 201907)
+TEST_CASE("buffer - three-way comparison", "[memory][buffer]")
+{
+	SECTION("empty <=> empty")
+	{
+		const mh::buffer empty;
+		const mh::buffer alsoEmpty;
+		REQUIRE(((empty <=> alsoEmpty) == std::strong_ordering::equal));
+	}
+	SECTION("empty <=> non-empty")
+	{
+		const mh::buffer empty;
+		const mh::buffer nonEmpty((const std::byte*)"x", 1);
+		REQUIRE(((empty <=> nonEmpty) == std::strong_ordering::less));
+		REQUIRE(((nonEmpty <=> empty) == std::strong_ordering::greater));
+	}
+	SECTION("contents")
+	{
+		const mh::buffer ab((const std::byte*)"ab", 2);
+		const mh::buffer alsoAb((const std::byte*)"ab", 2);
+		const mh::buffer ac((const std::byte*)"ac", 2);
+
+		REQUIRE(((ab <=> alsoAb) == std::strong_ordering::equal));
+		REQUIRE(((ab <=> ac) == std::strong_ordering::less));
+		REQUIRE(((ac <=> ab) == std::strong_ordering::greater));
+	}
+}
+#endif

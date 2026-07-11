@@ -129,7 +129,7 @@ namespace mh
 				return 4;
 			}
 
-			return -1;
+			throw std::invalid_argument("Invalid Unicode code point (greater than U+10FFFF)");
 		}
 		MH_COMPILE_LIBRARY_INLINE size_t convert_to_u16(char32_t in, char16_t out[2])
 		{
@@ -138,7 +138,10 @@ namespace mh
 			constexpr uint16_t BYTE1_MARKER = 0xDC00;
 
 			uint32_t in_raw = in;
-			if (in_raw > 0xFFFF || ((in_raw & TOP6_MASK) == BYTE0_MARKER))
+			if (in_raw > 0x10FFFF || (in_raw >= 0xD800 && in_raw <= 0xDFFF))
+				throw std::invalid_argument("Invalid Unicode code point (surrogate or greater than U+10FFFF)");
+
+			if (in_raw > 0xFFFF)
 			{
 				in_raw -= 0x10000;
 

@@ -38,6 +38,10 @@ namespace mh
         void install_signal_handler();
         static void signal_handler(int);
         void start_monitoring_task();
+        // The monitor must be a plain (static) coroutine taking the manager as a
+        // parameter: coroutine parameters are copied into the frame, but lambda
+        // captures live in the closure object, which dies with the enclosing scope.
+        static task<void> monitor_task(process_manager* self);
         void check_processes();
     };
 }

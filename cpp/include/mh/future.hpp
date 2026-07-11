@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <future>
+#include <type_traits>
 
 namespace mh
 {
@@ -12,7 +13,7 @@ namespace mh
 		return future.valid() && future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 	}
 
-	template<typename T>
+	template<typename T, typename = std::enable_if_t<!std::is_lvalue_reference_v<T>>>
 	std::future<T> make_ready_future(T&& value)
 	{
 		std::promise<T> promise;

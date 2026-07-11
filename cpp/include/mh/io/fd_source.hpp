@@ -38,4 +38,8 @@ private:
 };
 } // namespace mh::io
 
+#ifndef MH_COMPILE_LIBRARY
+#include "fd_source.inl"
+#endif
+
 #endif // __unix__
