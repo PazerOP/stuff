@@ -408,7 +408,9 @@ namespace mh
 					else
 					{
 						assert(result != 0);
-						it += result;
+						// wcrtomb consumes exactly one wide character per call; `result`
+						// is the number of OUTPUT bytes it produced, not input consumed
+						++it;
 						retVal.append(buf, result);
 					}
 				}
