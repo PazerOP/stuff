@@ -49,6 +49,26 @@ TEST_CASE("make_failed_future - delivers the exception")
 	REQUIRE_THROWS_AS(f.get(), std::runtime_error);
 }
 
+TEST_CASE("emplace_ready_future - a throwing constructor yields a failed future")
+{
+	struct throwing_value
+	{
+		explicit throwing_value(bool doThrow)
+		{
+			if (doThrow)
+				throw std::runtime_error("construction failure");
+		}
+	};
+
+	// the constructor's exception must be captured into the future, not escape
+	auto failed = mh::emplace_ready_future<throwing_value>(true);
+	REQUIRE(failed.valid());
+	REQUIRE_THROWS_AS(failed.get(), std::runtime_error);
+
+	auto ok = mh::emplace_ready_future<throwing_value>(false);
+	REQUIRE_NOTHROW(ok.get());
+}
+
 TEST_CASE("promise<void> - can be instantiated and completed")
 {
 	// regression: mh::promise<void> used to be ill-formed (its set_value had a

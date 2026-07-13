@@ -34,6 +34,11 @@ namespace mh
 	{
 	}
 
+	MH_COMPILE_LIBRARY_INLINE const mh::source_location& thread_sentinel_exception::location() const
+	{
+		return m_Location;
+	}
+
 	MH_COMPILE_LIBRARY_INLINE thread_sentinel::thread_sentinel() noexcept :
 		m_ExpectedID(std::this_thread::get_id())
 	{

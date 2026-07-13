@@ -85,4 +85,33 @@ TEST_CASE("generator - exception after the first yield propagates")
 	REQUIRE(sum == 1); // 0 and 1 were yielded before the throw
 }
 
+TEST_CASE("generator - dereferencing an exhausted/empty generator throws")
+{
+	// An empty generator's begin() runs the body to completion without ever
+	// yielding: the promise holds no value, so operator* must throw instead of
+	// dereferencing garbage.
+	auto gen = counting_generator(0);
+	auto it = gen.begin();
+	REQUIRE(it == gen.end());
+	REQUIRE_THROWS_AS(*it, std::runtime_error);
+}
+
+TEST_CASE("generator - dereferencing after a generator exception rethrows it")
+{
+	// Once the body has thrown, the promise stores the exception; a caller that
+	// swallowed the propagated exception and then dereferences the iterator
+	// again must get the SAME error rethrown, not a stale value.
+	auto gen = throwing_generator(1);
+	auto it = gen.begin(); // yields 0
+	REQUIRE(*it == 0);
+
+	REQUIRE_THROWS_AS(++it, std::runtime_error); // the body throws here
+	REQUIRE(it.done());
+	REQUIRE_THROWS_AS(*it, std::runtime_error); // value() rethrows the stored exception
+
+	// NOTE: promise::value()'s trailing `default: throw std::logic_error` arm is
+	// unreachable: the state variant's index can only be 0/1/2 (its alternatives
+	// never throw during emplace, so it cannot become valueless_by_exception).
+}
+
 #endif
