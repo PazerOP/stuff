@@ -437,6 +437,24 @@ TEST_CASE("task - wait_for/wait_until report ready when the value arrives mid-wa
 	completer.join();
 	REQUIRE(t.get() == 31);
 
+	// the same mid-wait arrival through wait_until
+	mh::detail::promise<int>* promise2 = new mh::detail::promise<int>();
+	mh::task<int> t2(promise2);
+
+	std::atomic<bool> waiter2Running = false;
+	std::thread completer2([promise2, &waiter2Running]
+	{
+		while (!waiter2Running)
+			std::this_thread::yield();
+		std::this_thread::sleep_for(50ms);
+		promise2->return_value(32);
+	});
+
+	waiter2Running = true;
+	REQUIRE(t2.wait_until(std::chrono::steady_clock::now() + 30s) == std::future_status::ready);
+	completer2.join();
+	REQUIRE(t2.get() == 32);
+
 	// timeout paths: a task that never completes
 	mh::detail::promise<int>* neverPromise = new mh::detail::promise<int>();
 	mh::task<int> never(neverPromise);
@@ -524,6 +542,24 @@ TEST_CASE("task - exceptions surface through state, get_exception, get, and co_a
 		consumer.wait();
 		REQUIRE(caught);
 	}
+}
+
+TEST_CASE("task - co_await on a successful void task resumes normally")
+{
+	// every other void co_await in this suite awaits a FAILED task; the normal
+	// (non-throwing) return out of promise<void>::await_resume needs pinning too
+	mh::task<> done = []() -> mh::task<> { co_return; }();
+	done.wait();
+
+	bool resumed = false;
+	mh::task<> consumer = [](mh::task<> ready, bool& resumedFlag) -> mh::task<>
+	{
+		co_await ready; // already ready: must resume inline without throwing
+		resumedFlag = true;
+	}(done, resumed);
+
+	consumer.wait();
+	REQUIRE(resumed);
 }
 
 TEST_CASE("task - awaiter interface handles already-ready states directly")
