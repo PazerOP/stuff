@@ -10,6 +10,18 @@ TEST_CASE("string insertion op", "[text][string_insertion]")
 	REQUIRE(test == "Hello world !");
 }
 
+TEST_CASE("string insertion op - wide string", "[text][string_insertion]")
+{
+	// the wide basic_strwrapperstream instantiation: constructor, xsputn (string
+	// data), overflow (single characters) and formatted insertion
+	std::wstring test;
+	test << L"Wide" << L' ' << 42 << L'!';
+	REQUIRE(test == L"Wide 42!");
+
+	const std::wstring boolStr = (std::wstring(L"is ") << true);
+	REQUIRE(boolStr == L"is true");
+}
+
 TEST_CASE("string insertion op - rvalue string", "[text][string_insertion]")
 {
 	// inserting into a temporary string must compile and evaluate to the

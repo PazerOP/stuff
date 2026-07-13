@@ -77,3 +77,19 @@ TEST_CASE("read_file - missing file still throws", "[io][file]")
 {
 	CHECK_THROWS(mh::read_file(temp_file("mh_stuff_io_file_does_not_exist.txt")));
 }
+
+TEST_CASE("write_file - wide string", "[io][file]")
+{
+	// the wchar_t instantiation converts through the stream's codecvt facet;
+	// ASCII converts 1:1 in every locale
+	const auto path = temp_file("mh_stuff_io_file_wide.txt");
+
+	mh::write_file(path, std::wstring_view(L"wide line\n"));
+	CHECK(mh::read_file(path) == "wide line\n");
+
+	// the const TChar* convenience overload deduces the view type
+	mh::write_file(path, L"replaced");
+	CHECK(mh::read_file(path) == "replaced");
+
+	std::filesystem::remove(path);
+}
