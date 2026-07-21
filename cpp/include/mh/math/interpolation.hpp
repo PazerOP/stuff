@@ -37,12 +37,10 @@ namespace mh
 			{
 				return in;
 			}
-#if __cpp_lib_is_constant_evaluated >= 201811
 			else if (!std::is_constant_evaluated())
 			{
 				return std::round(in);
 			}
-#endif
 			else
 			{
 				// Round half away from zero - match std::round exactly

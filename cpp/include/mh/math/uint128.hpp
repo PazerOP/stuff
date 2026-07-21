@@ -1,9 +1,5 @@
 #pragma once
 
-#if __has_include(<version>)
-#include <version>
-#endif
-
 #include <array>
 #include <bit>
 #include <compare>
@@ -20,22 +16,11 @@ namespace mh
 {
 	namespace detail::uint128_hpp
 	{
-		constexpr bool is_constant_evaluated()
-		{
-#if __cpp_lib_is_constant_evaluated >= 201811
-			return std::is_constant_evaluated();
-#else
-			return true;
-#endif
-		}
-
 		template <typename TFunc>
 		static constexpr void debug([[maybe_unused]] const TFunc &f)
 		{
-#if __cpp_lib_is_constant_evaluated >= 201811
-			// if (!detail::is_constant_evaluated())
+			// if (!std::is_constant_evaluated())
 			//	f();
-#endif
 		}
 
 #if (defined(__x86_64__)) && (defined(__GNUC__) || defined(__clang__))
@@ -73,7 +58,7 @@ namespace mh
 		static constexpr uint128 from_mul(uint64_t a, uint64_t b)
 		{
 			uint128 retVal;
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 				retVal.u128 = a;
@@ -105,7 +90,7 @@ namespace mh
 		constexpr uint128 &operator++()
 		{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 				u128++;
 			}
@@ -130,7 +115,7 @@ namespace mh
 		constexpr uint128 operator+(uint64_t rhs) const
 		{
 			uint128 retVal;
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 				retVal.u128 = u128 + rhs;
@@ -157,7 +142,7 @@ namespace mh
 		constexpr uint128 operator-(const uint128 &rhs) const { return uint128(*this) -= rhs; }
 		constexpr uint128 &operator-=(const uint128 &rhs)
 		{
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 				u128 -= rhs.u128;
@@ -199,7 +184,7 @@ namespace mh
 			if (static_cast<std::make_unsigned_t<T>>(bits) >= 128u)
 				return retVal; // shifted fully out: zero (a full-width platform u128 shift would be UB)
 
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 				retVal.u128 = u128 << bits;
@@ -242,7 +227,7 @@ namespace mh
 			if (static_cast<std::make_unsigned_t<T>>(bits) >= 128u)
 				return retVal; // shifted fully out: zero (a full-width platform u128 shift would be UB)
 
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 				retVal.u128 = u128 >> bits;
@@ -291,29 +276,20 @@ namespace mh
 
 		constexpr detail::uint128_hpp::platform_uint128_t get_u128() const
 		{
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 				return u128;
 
-#if __cpp_lib_bit_cast >= 201806
 			return std::bit_cast<detail::uint128_hpp::platform_uint128_t>(u64);
-#else
-			return (detail::uint128_hpp::platform_uint128_t(get_u64<1>()) << 64) | get_u64<0>();
-#endif
 		}
 		constexpr void set_u128(detail::uint128_hpp::platform_uint128_t value)
 		{
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 				u128 = value;
 				return;
 			}
 
-#if __cpp_lib_bit_cast >= 201806
 			u64 = std::bit_cast<std::array<uint64_t, 2>>(value);
-#else
-			set_u64<0>(value);
-			set_u64<1>(value >> 64);
-#endif
 		}
 #endif
 	};
@@ -351,7 +327,7 @@ namespace mh
 
 		const auto rhs64 = static_cast<uint64_t>(rhs);
 
-		if (!mh::detail::uint128_hpp::is_constant_evaluated())
+		if (!std::is_constant_evaluated())
 		{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 			return lhs.u128 <=> mh::detail::uint128_hpp::platform_uint128_t(rhs64);
@@ -375,7 +351,7 @@ namespace mh
 
 		const auto lhs64 = static_cast<uint64_t>(lhs);
 
-		if (!mh::detail::uint128_hpp::is_constant_evaluated())
+		if (!std::is_constant_evaluated())
 		{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 			return mh::detail::uint128_hpp::platform_uint128_t(lhs64) <=> rhs.u128;

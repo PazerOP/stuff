@@ -1,13 +1,6 @@
 #pragma once
 
-#if __has_include(<version>)
-#include <version>
-#endif
-
-#if __cpp_lib_bit_cast >= 201806
 #include <bit>
-#endif
-
 #include <climits>
 #include <cstdint>
 #include <iosfwd>
@@ -46,26 +39,6 @@ namespace mh
 		constexpr unsigned DBL_EXP_BITS = 11;
 		constexpr unsigned FLT_MNT_BITS = std::numeric_limits<float>::digits - 1;
 		constexpr unsigned FLT_EXP_BITS = 8;
-
-		constexpr bool is_constant_evaluated() noexcept
-		{
-#if __cpp_lib_is_constant_evaluated >= 201811
-			return std::is_constant_evaluated();
-#else
-			return true;
-#endif
-		}
-
-		template<typename To, typename From>
-		constexpr To bit_cast(const From& from)
-		{
-#if __cpp_lib_bit_cast >= 201806
-			return std::bit_cast<To>(from);
-#else
-			static_assert(sizeof(To) == sizeof(From));
-			return *reinterpret_cast<const To*>(&from);
-#endif
-		}
 	}
 
 	template<unsigned bits>
@@ -355,14 +328,14 @@ namespace mh
 		static constexpr native_t bits_to_native(bits_t bits)
 		{
 			static_assert(std::numeric_limits<native_t>::is_iec559);
-			return detail::bit_float_hpp::bit_cast<native_t>(bits_to_bits<native_bitfloat_t>(bits));
+			return std::bit_cast<native_t>(bits_to_bits<native_bitfloat_t>(bits));
 		}
 
 		static constexpr bits_t native_to_bits(native_t native)
 		{
 			static_assert(std::numeric_limits<native_t>::is_iec559);
 			return native_bitfloat_t::template bits_to_bits<this_t>(
-				detail::bit_float_hpp::bit_cast<typename native_bitfloat_t::bits_t>(native));
+				std::bit_cast<typename native_bitfloat_t::bits_t>(native));
 		}
 
 		// Hidden friend so ADL can find it: MantissaBits/ExponentBits/SignBit are
