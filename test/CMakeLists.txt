@@ -150,3 +150,40 @@ foreach (F IN LISTS MH_HPP_FILES)
 
 	target_link_libraries(test_compile_file_${SAFE_FILENAME} PUBLIC mh::stuff)
 endforeach()
+
+# Compile-time format string checking: an invalid literal format string must
+# NOT compile, and - as a positive control, so a broken harness cannot fake a
+# pass - a valid one MUST. Only meaningful when the active formatter backend
+# performs compile-time checks, so it is gated on the fmt backend
+# (MH_STUFF_USE_FMT, inherited from the parent scope); the clang/libc++ CI
+# legs force MH_FORMATTER_NONE and skip it. try_compile silently ignores
+# non-imported targets in LINK_LIBRARIES, so mh::stuff cannot be used here:
+# instead the TUs get the include directory directly plus the imported
+# fmt::fmt target (whose usage requirements ARE materialized into the
+# generated project - required on CI, where vcpkg's fmt headers are not on
+# any default include path).
+if (MH_STUFF_USE_FMT)
+	set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY) # compile only, no link step
+	try_compile(MH_FMT_GOOD_COMPILES
+		"${CMAKE_CURRENT_BINARY_DIR}/negative_compile_good"
+		"${PROJECT_SOURCE_DIR}/test/negative_compile/format_good.cpp"
+		CMAKE_FLAGS "-DINCLUDE_DIRECTORIES:STRING=${PROJECT_SOURCE_DIR}/cpp/include"
+		LINK_LIBRARIES fmt::fmt
+		OUTPUT_VARIABLE MH_FMT_GOOD_OUTPUT)
+	if (NOT MH_FMT_GOOD_COMPILES)
+		message(FATAL_ERROR "negative-compile harness broken: a valid format string failed to compile:\n${MH_FMT_GOOD_OUTPUT}")
+	endif()
+
+	try_compile(MH_FMT_BAD_COMPILES
+		"${CMAKE_CURRENT_BINARY_DIR}/negative_compile_bad"
+		"${PROJECT_SOURCE_DIR}/test/negative_compile/format_bad.cpp"
+		CMAKE_FLAGS "-DINCLUDE_DIRECTORIES:STRING=${PROJECT_SOURCE_DIR}/cpp/include"
+		LINK_LIBRARIES fmt::fmt
+		OUTPUT_VARIABLE MH_FMT_BAD_OUTPUT)
+	if (MH_FMT_BAD_COMPILES)
+		message(FATAL_ERROR "compile-time format string checking is NOT active: a format string referencing a missing argument compiled")
+	endif()
+	unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
+
+	message(STATUS "Compile-time format string checking verified: invalid format string rejected")
+endif()

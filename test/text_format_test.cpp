@@ -42,6 +42,26 @@ TEST_CASE("runtime format strings require mh::runtime", "[text][format]")
 	REQUIRE(container == "have 2 cows");
 }
 
+TEST_CASE("typed and runtime format string paths agree", "[text][format]")
+{
+	// the typed (compile-time-checked) path and the untyped vformat path must
+	// produce identical output (make_format_args needs lvalues: fmt >= 11
+	// rejects rvalue arguments)
+	const int a = 1;
+	const int b = 2;
+	REQUIRE(mh::format("{}-{}", 1, 2) == mh::vformat(std::string_view("{}-{}"), mh::make_format_args(a, b)));
+
+	// mh::runtime feeds the same typed overloads and must agree with them
+	REQUIRE(mh::format(mh::runtime(std::string_view("{}-{}")), 1, 2) == mh::format("{}-{}", 1, 2));
+
+	// wrapping in mh::runtime defers checking to runtime: errors throw instead
+	// of failing the build
+	REQUIRE_THROWS_AS(mh::format(mh::runtime("{:bogus}"), 42), mh::format_error);
+
+	// wide typed overload smoke test
+	REQUIRE(mh::format(L"{}", 42) == L"42");
+}
+
 TEST_CASE("build_string", "[text][format]")
 {
 	REQUIRE(mh::build_string(1, 'x') == "1x");
