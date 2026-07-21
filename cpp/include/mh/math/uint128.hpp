@@ -5,9 +5,7 @@
 #endif
 
 #include <array>
-#if __has_include(<bit>)
 #include <bit>
-#endif
 #if (__cpp_impl_three_way_comparison >= 201907)
 #include <compare>
 #endif
@@ -50,36 +48,6 @@ namespace mh
 #endif
 
 #endif
-
-		template <typename T>
-		static constexpr int countl_zero(T x) noexcept
-		{
-#if __cpp_lib_bitops >= 201907
-			return std::countl_zero<T>(x);
-#else
-			constexpr int DIGITS = sizeof(T) * std::numeric_limits<unsigned char>::digits;
-			if (x == T(0))
-				return DIGITS;
-
-#if defined(__GNUC__) || defined(__clang__)
-			if constexpr (std::is_same_v<T, uint64_t>)
-				return __builtin_clzl(x);
-			else
-				return __builtin_clz(x);
-#else
-			int bits = 0;
-			for (T i = (T(1) << (DIGITS - 1)); i != 0; i >>= 1)
-			{
-				if (i & x)
-					break;
-
-				bits++;
-			}
-
-			return bits;
-#endif
-#endif
-		}
 	}
 
 	union uint128
@@ -214,10 +182,10 @@ namespace mh
 
 		constexpr uint8_t leading_zeros() const
 		{
-			if (auto z = detail::uint128_hpp::countl_zero(u64[1]); z != 64)
+			if (auto z = std::countl_zero(u64[1]); z != 64)
 				return z;
 
-			return 64 + detail::uint128_hpp::countl_zero(u64[0]);
+			return 64 + std::countl_zero(u64[0]);
 		}
 
 		template <typename T>
@@ -504,7 +472,7 @@ namespace mh
 
 			uint64_t buffer = get_u64<0>();
 
-			const uint8_t skip = (remainder64 == 0 && buffer != 0) ? detail::uint128_hpp::countl_zero(buffer) : 0;
+			const uint8_t skip = (remainder64 == 0 && buffer != 0) ? std::countl_zero(buffer) : 0;
 			buffer <<= skip;
 			uint8_t count = 64 - skip;
 
