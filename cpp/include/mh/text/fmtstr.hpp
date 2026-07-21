@@ -93,9 +93,9 @@ namespace mh
 #if MH_FORMATTER != MH_FORMATTER_NONE
 		template<typename... TArgs>
 		auto fmt(const view_type& fmtStr, const TArgs&... args) ->
-			decltype(mh::format_to_n((CharT*)nullptr, max_size(), fmtStr, args...), *this)
+			decltype(mh::format_to_n((CharT*)nullptr, max_size(), mh::runtime(fmtStr), args...), *this)
 		{
-			const auto result = mh::format_to_n(m_String.data() + m_Length, max_size() - m_Length, fmtStr, args...);
+			const auto result = mh::format_to_n(m_String.data() + m_Length, max_size() - m_Length, mh::runtime(fmtStr), args...);
 			m_Length = result.out - m_String.data();
 			assert(m_Length <= max_size());
 			m_String[m_Length] = value_type(0);
@@ -178,7 +178,7 @@ namespace mh
 		using array_type = typename base_type::array_type;
 
 		constexpr format_string() = default;
-		template<typename... TArgs, typename = decltype(mh::format(std::declval<view_type>(), std::declval<TArgs>()...))>
+		template<typename... TArgs, typename = decltype(mh::format(mh::runtime(std::declval<view_type>()), std::declval<TArgs>()...))>
 		explicit format_string(const view_type& fmtStr, TArgs&&... args)
 		{
 			base_type::fmt(fmtStr, std::forward<TArgs>(args)...);
