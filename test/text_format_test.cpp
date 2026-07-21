@@ -18,17 +18,18 @@ TEST_CASE("format - a known formatter backend is selected", "[text][format]")
 
 #if MH_FORMATTER != MH_FORMATTER_NONE
 
-TEST_CASE("format_to and friends accept runtime format strings", "[text][format]")
+TEST_CASE("runtime format strings require mh::runtime", "[text][format]")
 {
-	// The format strings reaching these helpers are runtime values; they must
-	// be routed around the backend's compile-time format string checks
+	// Literal format strings are checked against the argument types at compile
+	// time; a format string only known at runtime must be explicitly wrapped
+	// in mh::runtime to defer that checking to runtime
 	std::string out;
 	mh::format_to(std::back_inserter(out), "{}", 42);
 	REQUIRE(out == "42");
 
 	const std::string_view runtimeFmtStr = "{}-{}";
 	out.clear();
-	mh::format_to(std::back_inserter(out), runtimeFmtStr, 1, 2);
+	mh::format_to(std::back_inserter(out), mh::runtime(runtimeFmtStr), 1, 2);
 	REQUIRE(out == "1-2");
 
 	char buf[4] = {};
