@@ -14,6 +14,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+#include <stdexcept>
 #include <thread>
 #include <utility>
 
@@ -108,39 +109,42 @@ namespace mh
 				return nullptr;
 			}
 
-			void add_task(coro::coroutine_handle<> task)
+			// The add_* functions return false (and add nothing) once the dispatcher
+			// is closed; the awaiter then throws instead of suspending, so no handle
+			// is ever parked in a queue nothing will run again.
+			[[nodiscard]] bool add_task(coro::coroutine_handle<> task)
 			{
 				std::lock_guard lock(m_TasksMutex);
+				if (m_IsClosed)
+					return false;
+
 				m_Tasks.push(task);
 				m_TasksAvailableCV.notify_one();
+				return true;
 			}
-			void add_delay_task(task_delay_data data)
+			[[nodiscard]] bool add_delay_task(task_delay_data data)
 			{
 				std::lock_guard lock(m_TasksMutex);
+				if (m_IsClosed)
+					return false;
+
 				m_DelayTasks.push(std::move(data));
 
 				// Wake all sleepers: their wait deadlines may be pinned to a later
 				// (now stale) heap front, so they must re-derive their end times.
 				m_TasksAvailableCV.notify_all();
+				return true;
 			}
 
 			bool wait_tasks_until(const clock_t::time_point endTime) const
 			{
 				std::unique_lock lock(m_TasksMutex);
 
-				const auto IsTaskAvailable = [&]
+				while (!is_task_available())
 				{
-					if (!m_DelayTasks.empty() && m_DelayTasks.front().m_DelayUntilTime <= clock_t::now())
-						return true;
+					if (m_IsClosed)
+						return false;
 
-					if (!m_Tasks.empty())
-						return true;
-
-					return false;
-				};
-
-				while (!IsTaskAvailable())
-				{
 					if (clock_t::now() >= endTime)
 						return false;
 
@@ -157,15 +161,76 @@ namespace mh
 				return true;
 			}
 
-			void add_fd_read_task(task_fd_data data)
+			bool wait_tasks() const
 			{
-				std::lock_guard lock(m_TasksMutex);
-				m_ReadTasks.push_back(std::move(data));
+				std::unique_lock lock(m_TasksMutex);
+
+				while (!is_task_available())
+				{
+					if (m_IsClosed)
+						return false;
+
+					// Predicate-less waits, like wait_tasks_until: every wakeup loops
+					// back around and re-derives the deadline from the current heap
+					// front. No deadline of our own - close() is what unblocks us when
+					// no work ever arrives.
+					if (!m_DelayTasks.empty())
+						m_TasksAvailableCV.wait_until(lock, m_DelayTasks.front().m_DelayUntilTime);
+					else
+						m_TasksAvailableCV.wait(lock);
+				}
+
+				return true;
 			}
-			void add_fd_write_task(task_fd_data data)
+
+			void close()
 			{
 				std::lock_guard lock(m_TasksMutex);
+				m_IsClosed = true;
+
+				// Flush parked delay/fd waits into the ready queue. Their awaiters
+				// observe the closed dispatcher on resume and throw, so every parked
+				// coroutine reaches a terminal state instead of its frame leaking and
+				// its waiters blocking forever. (Externally destroy()ing the handles
+				// is not an option: task objects may still reference the frames.)
+				while (!m_DelayTasks.empty())
+				{
+					m_Tasks.push(m_DelayTasks.front().m_Handle);
+					m_DelayTasks.pop();
+				}
+				for (const auto& task : m_ReadTasks)
+					m_Tasks.push(task.m_Handle);
+				m_ReadTasks.clear();
+				for (const auto& task : m_WriteTasks)
+					m_Tasks.push(task.m_Handle);
+				m_WriteTasks.clear();
+
+				m_TasksAvailableCV.notify_all();
+			}
+
+			bool is_closed() const
+			{
+				std::lock_guard lock(m_TasksMutex);
+				return m_IsClosed;
+			}
+
+			[[nodiscard]] bool add_fd_read_task(task_fd_data data)
+			{
+				std::lock_guard lock(m_TasksMutex);
+				if (m_IsClosed)
+					return false;
+
+				m_ReadTasks.push_back(std::move(data));
+				return true;
+			}
+			[[nodiscard]] bool add_fd_write_task(task_fd_data data)
+			{
+				std::lock_guard lock(m_TasksMutex);
+				if (m_IsClosed)
+					return false;
+
 				m_WriteTasks.push_back(std::move(data));
+				return true;
 			}
 
 			// Check for ready FDs and return ready tasks
@@ -249,8 +314,18 @@ namespace mh
 			const std::thread::id m_OwnerThread = std::this_thread::get_id();
 
 		private:
+			// Callers must hold m_TasksMutex.
+			bool is_task_available() const
+			{
+				if (!m_DelayTasks.empty() && m_DelayTasks.front().m_DelayUntilTime <= clock_t::now())
+					return true;
+
+				return !m_Tasks.empty();
+			}
+
 			mutable std::mutex m_TasksMutex;
 			mutable std::condition_variable m_TasksAvailableCV;
+			bool m_IsClosed = false; // guarded by m_TasksMutex
 			std::queue<coro::coroutine_handle<>> m_Tasks;
 			mh::heap<task_delay_data> m_DelayTasks;
 			std::vector<task_fd_data> m_ReadTasks;
@@ -281,7 +356,11 @@ namespace mh
 			// to be able to defer
 			assert(!m_ThreadData->m_IsSingleThread || std::this_thread::get_id() != m_ThreadData->m_OwnerThread);
 
-			m_ThreadData->add_task(handle);
+			// Throwing from await_suspend resumes the coroutine and rethrows there,
+			// so a closed dispatcher surfaces as an exceptional task instead of a
+			// handle parked in a queue nothing will ever run again.
+			if (!m_ThreadData->add_task(handle))
+				throw std::runtime_error("mh::dispatcher: task added to a closed dispatcher");
 
 			return true; // always suspend
 		}
@@ -297,7 +376,14 @@ namespace mh
 		}
 		MH_COMPILE_LIBRARY_INLINE void co_delay_task::await_resume() const
 		{
-			// throw mh::not_implemented_error();
+			if (clock_t::now() >= m_DelayUntilTime)
+				return; // deadline reached - normal completion
+
+			// Woken before the deadline: only close() does that (it flushes pending
+			// delay tasks into the ready queue so they don't leak). Completing the
+			// co_await exceptionally lets the coroutine reach a terminal state.
+			if (m_ThreadData->is_closed())
+				throw std::runtime_error("mh::dispatcher: closed before the delay elapsed");
 		}
 		MH_COMPILE_LIBRARY_INLINE bool co_delay_task::await_suspend(coro::coroutine_handle<> parent)
 		{
@@ -308,7 +394,8 @@ namespace mh
 				task_delay_data data;
 				data.m_DelayUntilTime = m_DelayUntilTime;
 				data.m_Handle = parent;
-				m_ThreadData->add_delay_task(std::move(data));
+				if (!m_ThreadData->add_delay_task(std::move(data)))
+					throw std::runtime_error("mh::dispatcher: delay added to a closed dispatcher");
 			}
 
 			return true; // suspend
@@ -326,14 +413,20 @@ namespace mh
 		}
 		MH_COMPILE_LIBRARY_INLINE void co_fd_read_task::await_resume() const
 		{
-			// FD is ready for reading
+			// FD is ready for reading - unless close() flushed this waiter out of
+			// the queue before the fd ever became ready. (An fd that became ready in
+			// the same instant close() ran also lands here; reporting it as closed
+			// is fine, the program is tearing the dispatcher down.)
+			if (m_ThreadData->is_closed())
+				throw std::runtime_error("mh::dispatcher: closed before the fd became readable");
 		}
 		MH_COMPILE_LIBRARY_INLINE bool co_fd_read_task::await_suspend(coro::coroutine_handle<> parent)
 		{
 			task_fd_data data;
 			data.m_FD = m_FD;
 			data.m_Handle = parent;
-			m_ThreadData->add_fd_read_task(std::move(data));
+			if (!m_ThreadData->add_fd_read_task(std::move(data)))
+				throw std::runtime_error("mh::dispatcher: fd wait added to a closed dispatcher");
 
 			return true; // suspend
 		}
@@ -350,14 +443,18 @@ namespace mh
 		}
 		MH_COMPILE_LIBRARY_INLINE void co_fd_write_task::await_resume() const
 		{
-			// FD is ready for writing
+			// FD is ready for writing - unless close() flushed this waiter; see
+			// co_fd_read_task::await_resume above.
+			if (m_ThreadData->is_closed())
+				throw std::runtime_error("mh::dispatcher: closed before the fd became writable");
 		}
 		MH_COMPILE_LIBRARY_INLINE bool co_fd_write_task::await_suspend(coro::coroutine_handle<> parent)
 		{
 			task_fd_data data;
 			data.m_FD = m_FD;
 			data.m_Handle = parent;
-			m_ThreadData->add_fd_write_task(std::move(data));
+			if (!m_ThreadData->add_fd_write_task(std::move(data)))
+				throw std::runtime_error("mh::dispatcher: fd wait added to a closed dispatcher");
 
 			return true; // suspend
 		}
@@ -427,6 +524,19 @@ namespace mh
 	MH_COMPILE_LIBRARY_INLINE bool dispatcher::wait_tasks_until(clock_t::time_point endTime) const
 	{
 		return m_ThreadData->wait_tasks_until(endTime);
+	}
+	MH_COMPILE_LIBRARY_INLINE bool dispatcher::wait_tasks() const
+	{
+		return m_ThreadData->wait_tasks();
+	}
+
+	MH_COMPILE_LIBRARY_INLINE void dispatcher::close()
+	{
+		m_ThreadData->close();
+	}
+	MH_COMPILE_LIBRARY_INLINE bool dispatcher::is_closed() const
+	{
+		return m_ThreadData->is_closed();
 	}
 
 	MH_COMPILE_LIBRARY_INLINE detail::dispatcher_hpp::co_delay_task dispatcher::co_delay_for(clock_t::duration duration)
