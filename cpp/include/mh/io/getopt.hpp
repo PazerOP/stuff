@@ -221,7 +221,7 @@ std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>&
 #endif
 
 #if !defined(MH_GETOPT_DISABLE_OPTION_COMPARISON)
-#if (__cpp_impl_three_way_comparison >= 201907) && (__cpp_lib_three_way_comparison >= 201907)
+#if (__cpp_lib_three_way_comparison >= 201907)
 inline constexpr std::strong_ordering operator<=>(const option& lhs, const option& rhs)
 {
 	if (lhs.name && rhs.name)

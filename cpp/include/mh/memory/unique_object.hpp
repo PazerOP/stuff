@@ -4,20 +4,14 @@
 #include <version>
 #endif
 
-#if __cpp_impl_three_way_comparison >= 201907
 #include <compare>
-#endif
-
-#if __has_include(<concepts>)
 #include <concepts>
-#endif
 
 #include <ostream>
 #include <utility>
 
 namespace mh
 {
-#if (__cpp_concepts >= 201907) && __has_include(<concepts>)
 	template<typename Traits, typename Object>
 	concept UniqueObjectTraits = requires(Traits t, Object o)
 	{
@@ -25,12 +19,9 @@ namespace mh
 		{ t.release_obj(o) } -> std::same_as<Object>;
 		{ t.is_obj_valid(o) } -> std::same_as<bool>;
 	};
-#endif
 
 	template<typename T, typename Traits>
-#if (__cpp_concepts >= 201907) && __has_include(<concepts>)
 	requires UniqueObjectTraits<Traits, T>
-#endif
 	class unique_object
 	{
 		using this_type = unique_object<T, Traits>;
@@ -74,11 +65,9 @@ namespace mh
 
 		~unique_object() { m_Traits.delete_obj(m_Object); }
 
-#if __cpp_impl_three_way_comparison >= 201907
 		auto operator<=>(const unique_object& other) const = default;
 		auto operator<=>(const T& other) const { return m_Object <=> other; }
 		bool operator==(const T& other) const { return m_Object == other; }
-#endif
 
 		T release() { return m_Traits.release_obj(m_Object); }
 
@@ -115,9 +104,7 @@ std::basic_ostream<CharT, StreamTraits>& operator<<(std::basic_ostream<CharT, St
 		return os << "(empty)";
 }
 
-#if __cpp_impl_three_way_comparison >= 201907
 template<typename T, typename Traits> auto operator<=>(const T& lhs, const mh::unique_object<T, Traits>& rhs)
 {
 	return lhs <=> rhs.value();
 }
-#endif

@@ -6,9 +6,7 @@
 
 #include <array>
 #include <bit>
-#if (__cpp_impl_three_way_comparison >= 201907)
 #include <compare>
-#endif
 #include <cstdint>
 #include <iosfwd>
 #include <iostream>
@@ -329,7 +327,6 @@ namespace mh
 		return !(lhs == rhs);
 	}
 
-#if (__cpp_impl_three_way_comparison >= 201907)
 	inline constexpr std::strong_ordering operator<=>(
 		const mh::uint128 &lhs, const mh::uint128 &rhs)
 	{
@@ -390,23 +387,6 @@ namespace mh
 
 		return lhs64 <=> rhs.get_u64<0>();
 	}
-#else
-	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator<(const mh::uint128 &lhs, T rhs)
-	{
-		return !lhs.get_u64<1>() && lhs.get_u64<0>() < rhs;
-	}
-	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator<(T lhs, const mh::uint128 &rhs)
-	{
-		return rhs.get_u64<1>() || lhs < rhs.get_u64<0>();
-	}
-	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator>=(const mh::uint128 &lhs, T rhs)
-	{
-		return !(lhs < rhs);
-	}
-#endif
 
 	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
 	constexpr bool operator==(const mh::uint128 &lhs, T rhs)
