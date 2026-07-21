@@ -149,6 +149,31 @@ namespace mh
 		MH_STUFF_API bool wait_tasks_until(clock_t::time_point endTime) const;
 		MH_STUFF_API bool wait_tasks_for(clock_t::duration duration) const;
 
+		/**
+		 * Block until a task is ready to run or the dispatcher is closed.
+		 * Note: like wait_tasks_for/until, this does not wake for fd-wait
+		 * readiness (fds are only polled when tasks are popped).
+		 * @return true if a task is ready to run, false if the dispatcher is
+		 *         closed and nothing is ready.
+		 */
+		MH_STUFF_API bool wait_tasks() const;
+
+		/**
+		 * Permanently close the dispatcher and wake every thread blocked in the
+		 * wait_tasks family. Work that is already runnable (queued tasks, expired
+		 * delays) stays runnable so callers can drain it with run(). Pending
+		 * delay/fd waits become runnable immediately and complete by throwing on
+		 * resume, and awaiting co_dispatch, co_delay or co_wait_fd tasks after
+		 * close() throws instead of suspending - so no coroutine is ever parked
+		 * in a queue nothing will run again.
+		 */
+		MH_STUFF_API void close();
+
+		/**
+		 * @return true if close() has been called on this dispatcher.
+		 */
+		MH_STUFF_API bool is_closed() const;
+
 	private:
 		std::shared_ptr<thread_data> m_ThreadData;
 		

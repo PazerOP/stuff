@@ -73,13 +73,11 @@ namespace mh
 		{
 			assert(m_Length <= max_size());
 			const auto copyCount = std::min(str.size(), max_size() - m_Length);
-#if __cpp_lib_is_constant_evaluated >= 201811
 			if (!std::is_constant_evaluated())
 			{
 				std::memcpy(m_String.data() + m_Length, str.data(), copyCount * sizeof(value_type));
 			}
 			else
-#endif
 			{
 				for (size_t i = 0; i < copyCount; i++)
 					m_String[m_Length + i] = str[i];

@@ -6,7 +6,6 @@
 
 #ifdef MH_COROUTINES_SUPPORTED
 
-#include <atomic>
 #include <utility>
 
 namespace mh
@@ -15,8 +14,6 @@ namespace mh
 	{
 		struct thread_data
 		{
-			std::atomic<bool> m_IsShuttingDown = false;
-
 			mh::dispatcher m_Dispatcher{ false };
 			std::vector<std::thread> m_Threads;
 		};
@@ -33,15 +30,34 @@ namespace mh
 		if (threadCount < 1)
 			throw std::invalid_argument("threadCount must be >= 1");
 
-		for (size_t i = 0; i < threadCount; i++)
-			m_ThreadData->m_Threads.push_back(std::thread(&ThreadFunc, m_ThreadData));
+		try
+		{
+			for (size_t i = 0; i < threadCount; i++)
+				m_ThreadData->m_Threads.push_back(std::thread(&ThreadFunc, m_ThreadData));
+		}
+		catch (...)
+		{
+			// A thread failed to start: shut down the ones that did start, so
+			// their shared_ptr copies of m_ThreadData don't keep them (and the
+			// dispatcher) alive forever.
+			m_ThreadData->m_Dispatcher.close();
+			for (auto& thread : m_ThreadData->m_Threads)
+				thread.join();
+
+			throw;
+		}
 	}
 
 	MH_COMPILE_LIBRARY_INLINE thread_pool::~thread_pool()
 	{
-		m_ThreadData->m_IsShuttingDown = true;
+		// Closing the dispatcher wakes every worker parked in wait_tasks(). The
+		// workers drain the work that is already runnable (pending delay tasks
+		// complete exceptionally - see dispatcher::close()) and then exit, so
+		// the joins below are prompt: they only wait for tasks that are
+		// actually executing.
+		m_ThreadData->m_Dispatcher.close();
 		for (auto& thread : m_ThreadData->m_Threads)
-			thread.detach();
+			thread.join();
 	}
 
 	MH_COMPILE_LIBRARY_INLINE size_t thread_pool::thread_count() const
@@ -56,22 +72,18 @@ namespace mh
 
 	MH_COMPILE_LIBRARY_INLINE void thread_pool::ThreadFunc(std::shared_ptr<thread_data> data)
 	{
-		using namespace std::chrono_literals;
-
-		while (!data->m_IsShuttingDown)
+		// wait_tasks() parks this thread until there is work to run; it only
+		// returns false once the dispatcher is closed (~thread_pool) and
+		// everything already runnable has been drained.
+		while (data->m_Dispatcher.wait_tasks())
 		{
-			data->m_Dispatcher.wait_tasks_for(1s);
-
-			if (!data->m_IsShuttingDown)
+			try
 			{
-				try
-				{
-					data->m_Dispatcher.run_for(1s);
-				}
-				catch (...)
-				{
-					assert(!"Theoretically we should never get here?");
-				}
+				data->m_Dispatcher.run();
+			}
+			catch (...)
+			{
+				assert(!"Theoretically we should never get here?");
 			}
 		}
 	}

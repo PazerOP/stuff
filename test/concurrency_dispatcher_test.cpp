@@ -21,8 +21,9 @@ namespace
 	// The wait_tasks()/wait_tasks_while() family was removed from mh::dispatcher:
 	// the template overload never compiled (its function-pointer type was
 	// ill-formed) and the non-template overloads were declared but never defined,
-	// so every possible caller hit a compile or link error. If the API is ever
-	// reintroduced, it must come with an implementation and tests.
+	// so every possible caller hit a compile or link error. The untimed
+	// wait_tasks() has since been reintroduced - implemented and tested this
+	// time (see the close()/shutdown tests below); wait_tasks_while() stays gone.
 	template<typename T>
 	concept has_wait_tasks_while = requires(const T& d)
 	{
@@ -204,6 +205,102 @@ TEST_CASE("dispatcher - task_count and try_pop are safe with concurrent producer
 			ready++;
 	}
 	REQUIRE(ready == TOTAL);
+}
+
+TEST_CASE("dispatcher - close wakes parked waiters")
+{
+	// Threads parked in the wait_tasks family (with or without a deadline)
+	// must wake promptly when the dispatcher is closed, instead of sleeping
+	// out their windows - this is what makes thread_pool destruction prompt.
+	mh::dispatcher d(false);
+	REQUIRE_FALSE(d.is_closed());
+
+	std::atomic<bool> timedStarted = false, untimedStarted = false;
+	std::atomic<bool> timedResult = true, untimedResult = true;
+
+	std::thread timedWaiter([&d, &timedStarted, &timedResult]
+	{
+		timedStarted = true;
+		timedResult = d.wait_tasks_for(10s);
+	});
+	std::thread untimedWaiter([&d, &untimedStarted, &untimedResult]
+	{
+		untimedStarted = true;
+		untimedResult = d.wait_tasks();
+	});
+
+	while (!timedStarted || !untimedStarted)
+		std::this_thread::yield();
+
+	// Give both waiters time to actually park themselves (reliability of the
+	// measured scenario, not correctness - see the parked-waiter test above).
+	std::this_thread::sleep_for(100ms);
+
+	const auto start = std::chrono::steady_clock::now();
+	d.close();
+	timedWaiter.join();
+	untimedWaiter.join();
+	const auto elapsed = std::chrono::steady_clock::now() - start;
+
+	REQUIRE(d.is_closed());
+	REQUIRE_FALSE(timedResult);   // woken by close, not a task
+	REQUIRE_FALSE(untimedResult);
+	REQUIRE(elapsed < 5000ms);    // neither slept out its window (10s/forever)
+}
+
+TEST_CASE("dispatcher - close drains ready work and rejects new awaits")
+{
+	mh::dispatcher d(false);
+
+	// One task ready to run, one parked on a far-future delay
+	std::atomic<bool> readyRan = false;
+	mh::task<> ready = [](mh::dispatcher& disp, std::atomic<bool>& ran) -> mh::task<>
+	{
+		co_await disp.co_dispatch();
+		ran = true;
+	}(d, readyRan);
+
+	std::atomic<bool> delayedRan = false;
+	mh::task<> delayed = [](mh::dispatcher& disp, std::atomic<bool>& ran) -> mh::task<>
+	{
+		co_await disp.co_delay_for(10s);
+		ran = true;
+	}(d, delayedRan);
+
+	REQUIRE(d.task_count() == 2);
+	d.close();
+
+	// Both are now runnable: the queued task completes normally (work that
+	// was accepted is not dropped), the flushed delay completes by throwing
+	// (its deadline never arrived).
+	REQUIRE(d.wait_tasks());
+	REQUIRE(d.run() == 2);
+	REQUIRE(readyRan);
+	ready.wait();
+	REQUIRE(ready.get_exception() == nullptr);
+	REQUIRE_FALSE(delayedRan);
+	delayed.wait();
+	REQUIRE(delayed.get_exception() != nullptr);
+
+	// co_await after close() must not park a coroutine nothing will ever
+	// resume: it throws, and the exception surfaces through the task like
+	// any other.
+	mh::task<> late = [](mh::dispatcher& disp) -> mh::task<>
+	{
+		co_await disp.co_dispatch();
+	}(d);
+	late.wait();
+	REQUIRE(late.get_exception() != nullptr);
+
+	mh::task<> lateDelay = [](mh::dispatcher& disp) -> mh::task<>
+	{
+		co_await disp.co_delay_for(10s);
+	}(d);
+	lateDelay.wait();
+	REQUIRE(lateDelay.get_exception() != nullptr);
+
+	REQUIRE(d.task_count() == 0);
+	REQUIRE_FALSE(d.wait_tasks()); // closed with nothing left: no more waiting
 }
 
 TEST_CASE("dispatcher - registration slot is cleared on destruction")

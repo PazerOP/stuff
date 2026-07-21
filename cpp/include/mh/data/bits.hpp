@@ -109,10 +109,8 @@ namespace mh
 
 		template<typename TFunc> constexpr void debug([[maybe_unused]] const TFunc& f)
 		{
-#if (__cpp_lib_is_constant_evaluated >= 201811)
 			//if (!std::is_constant_evaluated())
 			//	f();
-#endif
 		}
 
 		template<unsigned shift_left, unsigned shift_right, typename T = void>
@@ -133,13 +131,11 @@ namespace mh
 
 			debug([&]{ std::cerr << "byte_write " << std::hex << unsigned(value) << " @ " << index << '\n'; });
 
-#if (__cpp_lib_is_constant_evaluated >= 201811)
+#if MH_BITS_ENABLE_SMALL_MEMCPY
 			if (!std::is_constant_evaluated())
 			{
-#if MH_BITS_ENABLE_SMALL_MEMCPY
 				memcpy(reinterpret_cast<std::byte*>(dst) + index, &value, 1);
 				return;
-#endif
 			}
 #endif
 
@@ -177,7 +173,7 @@ namespace mh
 			using namespace detail::bits_hpp;
 
 			uint_fast16_t retVal{};
-#if (__cpp_lib_is_constant_evaluated >= 201811)
+#if MH_BITS_ENABLE_UNALIGNED_INTEGERS || MH_BITS_ENABLE_SMALL_MEMCPY
 			if (!std::is_constant_evaluated())
 			{
 #if MH_BITS_ENABLE_UNALIGNED_INTEGERS
@@ -212,7 +208,7 @@ namespace mh
 
 			debug([&]{ std::cerr << "u16_write " << std::hex << value << " @ " << byte_index << '\n'; });
 
-#if (__cpp_lib_is_constant_evaluated >= 201811)
+#if MH_BITS_ENABLE_UNALIGNED_INTEGERS || MH_BITS_ENABLE_SMALL_MEMCPY
 			if (!std::is_constant_evaluated())
 			{
 #if MH_BITS_ENABLE_UNALIGNED_INTEGERS
@@ -320,7 +316,7 @@ namespace mh
 
 		if constexpr (byte_count > 0)
 		{
-#if MH_BITS_ENABLE_SMALL_MEMCPY && (__cpp_lib_is_constant_evaluated >= 201811)
+#if MH_BITS_ENABLE_SMALL_MEMCPY
 			if (!std::is_constant_evaluated())
 			{
 				std::memcpy(dst, src, byte_count);

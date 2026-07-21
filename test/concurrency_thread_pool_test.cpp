@@ -99,4 +99,73 @@ TEST_CASE("thread_pool - repeated construction and shutdown with work in flight"
 	REQUIRE(completed == POOLS * TASKS);
 }
 
+TEST_CASE("thread_pool - destruction joins workers and completes queued work")
+{
+	// The destructor used to detach() the pool threads, so queued work raced
+	// pool destruction and could be silently abandoned. Now the destructor
+	// closes the dispatcher and join()s: work that was already queued is
+	// guaranteed to have completed by the time the destructor returns.
+	std::atomic<bool> firstStarted = false;
+	std::atomic<bool> firstDone = false;
+	std::atomic<bool> secondDone = false;
+
+	mh::task<> first, second;
+	{
+		mh::thread_pool tp(1);
+
+		first = [](mh::thread_pool& pool, std::atomic<bool>& started, std::atomic<bool>& done) -> mh::task<>
+		{
+			co_await pool.co_add_task();
+			started = true;
+			std::this_thread::sleep_for(100ms); // keep the (only) worker busy
+			done = true;
+		}(tp, firstStarted, firstDone);
+
+		second = [](mh::thread_pool& pool, std::atomic<bool>& done) -> mh::task<>
+		{
+			co_await pool.co_add_task();
+			done = true;
+		}(tp, secondDone);
+
+		while (!firstStarted)
+			std::this_thread::yield();
+	} // destroyed with `first` mid-execution and `second` still queued
+
+	REQUIRE(firstDone);
+	REQUIRE(secondDone);
+	first.wait();
+	second.wait();
+	REQUIRE(first.get_exception() == nullptr);
+	REQUIRE(second.get_exception() == nullptr);
+}
+
+TEST_CASE("thread_pool - destruction with a pending delay is prompt and completes it exceptionally")
+{
+	// A delay task parked far in the future must not stall the destructor,
+	// but it must not be leaked either (a leaked frame means anyone waiting
+	// on the task blocks forever). Closing the dispatcher flushes it, a
+	// worker resumes it, and the co_await completes by throwing - the task
+	// reaches a terminal state and its waiters wake up.
+	std::atomic<bool> bodyCompleted = false;
+	mh::task<> delayed;
+
+	const auto start = std::chrono::steady_clock::now();
+	{
+		mh::thread_pool tp(2);
+
+		delayed = [](mh::thread_pool& pool, std::atomic<bool>& completed) -> mh::task<>
+		{
+			co_await pool.co_delay_for(10s);
+			completed = true;
+		}(tp, bodyCompleted);
+	}
+	const auto elapsed = std::chrono::steady_clock::now() - start;
+
+	REQUIRE(elapsed < 5s); // destruction must not wait out the 10s deadline
+	delayed.wait();        // terminal state reached - this must not hang
+	REQUIRE_FALSE(bodyCompleted);
+	REQUIRE(delayed.get_exception() != nullptr);
+	REQUIRE_THROWS_AS(std::rethrow_exception(delayed.get_exception()), std::runtime_error);
+}
+
 #endif
