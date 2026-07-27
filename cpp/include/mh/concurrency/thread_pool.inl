@@ -6,6 +6,7 @@
 
 #ifdef MH_COROUTINES_SUPPORTED
 
+#include <atomic>
 #include <utility>
 
 #include <atomic>

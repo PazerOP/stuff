@@ -1,4 +1,4 @@
-#define __STDC__WANT_LIB_EXT1__
+#define __STDC_WANT_LIB_EXT1__ 1
 
 #ifdef MH_COMPILE_LIBRARY
 #include "chrono_helpers.hpp"
@@ -15,11 +15,22 @@ namespace mh::chrono
 	{
 		return std::chrono::system_clock::to_time_t(t);
 	}
-	MH_COMPILE_LIBRARY_INLINE std::time_t to_time_t(std::tm t, [[maybe_unused]] time_zone zone)
+	MH_COMPILE_LIBRARY_INLINE std::time_t to_time_t(std::tm t, time_zone zone)
 	{
-		assert(zone == time_zone::local); // All others unsupported
+		std::time_t result;
+		if (zone == time_zone::utc)
+		{
+#ifdef _MSC_VER
+			result = _mkgmtime(&t);
+#else
+			result = timegm(&t);
+#endif
+		}
+		else
+		{
+			result = std::mktime(&t);
+		}
 
-		auto result = std::mktime(&t);
 		assert(result != -1);
 		return result;
 	}
@@ -32,11 +43,14 @@ namespace mh::chrono
 	{
 		if (zone == time_zone::local)
 		{
-#ifdef __STDC_LIB_EXT1__
-			if (std::tm retVal{}; localtime_s(&t, &retVal) == 0)
-				return retVal;
-#elif defined (_MSC_VER)
+#if defined(_MSC_VER)
 			if (std::tm retVal{}; localtime_s(&retVal, &t) == 0)
+				return retVal;
+#elif defined(__unix__) || defined(__APPLE__)
+			if (std::tm retVal{}; localtime_r(&t, &retVal))
+				return retVal;
+#elif defined(__STDC_LIB_EXT1__)
+			if (std::tm retVal{}; localtime_s(&t, &retVal) != nullptr)
 				return retVal;
 #else
 			if (std::tm* retVal = std::localtime(&t))
@@ -46,11 +60,14 @@ namespace mh::chrono
 		}
 		else if (zone == time_zone::utc)
 		{
-#ifdef __STDC_LIB_EXT1__
-			if (std::tm retVal{}; gmtime_s(&t, &retVal) == 0)
-				return retVal;
-#elif defined (_MSC_VER)
+#if defined(_MSC_VER)
 			if (std::tm retVal{}; gmtime_s(&retVal, &t) == 0)
+				return retVal;
+#elif defined(__unix__) || defined(__APPLE__)
+			if (std::tm retVal{}; gmtime_r(&t, &retVal))
+				return retVal;
+#elif defined(__STDC_LIB_EXT1__)
+			if (std::tm retVal{}; gmtime_s(&t, &retVal) != nullptr)
 				return retVal;
 #else
 			if (std::tm* retVal = std::gmtime(&t))

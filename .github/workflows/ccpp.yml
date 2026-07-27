@@ -15,10 +15,14 @@ jobs:
         MH_STUFF_COMPILE_LIBRARY: [true, false]
         compiler:
           # Modern compilers available on ubuntu-latest (Ubuntu 22.04/24.04)
+          # 'gcov' selects the matching gcov for coverage; coverage is GCC-only
+          # (clang would need its profile runtime + llvm-cov, which we don't install)
           - exe: g++-12
             deps: g++-12
+            gcov: gcov-12
           - exe: g++-13
             deps: g++-13
+            gcov: gcov-13
           - exe: clang++-14
             deps: clang-14 libc++-14-dev libc++abi-14-dev
           - exe: clang++-15
@@ -67,11 +71,15 @@ jobs:
         ctest --version
         ctest --output-on-failure
 
+    - name: Generate coverage report
+      if: matrix.compiler.gcov != ''
+      run: |
+        cd build
         gcovr --version
-        gcovr --root "../" --exclude ".*/catch.hpp" --exclude ".*/test_compile_file/.*" --exclude ".*/test/.*" --sort-percentage --html-details "results_${{ matrix.compiler.exe }}.html" .
+        gcovr --gcov-executable "${{ matrix.compiler.gcov }}" --root "../" --exclude ".*/catch.hpp" --exclude ".*/test_compile_file/.*" --exclude ".*/test/.*" --sort uncovered-percent --html-details "results_${{ matrix.compiler.exe }}.html" .
 
     - name: Save test results
-      if: ${{ matrix.MH_STUFF_COMPILE_LIBRARY }}
+      if: matrix.MH_STUFF_COMPILE_LIBRARY && matrix.compiler.gcov != ''
       uses: actions/upload-artifact@v4
       with:
         name: gcovr_results_${{ matrix.compiler.exe }}

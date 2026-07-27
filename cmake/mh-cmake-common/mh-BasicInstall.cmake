@@ -12,7 +12,7 @@ function(mh_basic_install)
 		# one value keywords
 		"PROJ_NAME;PROJ_VERSION"
 		# multi-value keywords
-		"PROJ_INCLUDE_DIRS"
+		"PROJ_INCLUDE_DIRS;FIND_DEPENDENCIES"
 	)
 
 	if (DEFINED arg_UNPARSED_ARGUMENTS)
@@ -37,14 +37,11 @@ function(mh_basic_install)
 
 	SET(NAMESPACE "mh")
 	set(FULL_PROJ_NAME "${arg_PROJ_NAME}")
-	string(REGEX REPLACE "${NAMESPACE}-(.+)" "\\1" STRIPPED_PROJ_NAME "${FULL_PROJ_NAME}")
-	message(WARNING "FULL_PROJ_NAME = ${FULL_PROJ_NAME}")
-	message(WARNING "STRIPPED_PROJ_NAME = ${STRIPPED_PROJ_NAME}")
-	# if (arg_PROJ_NAME MATCHES "${NAMESPACE}-(.+)")
-	# else()
-	# 	set(STRIPPED_PROJ_NAME "${FULL_PROJ_NAME}")
-	# endif()
 	add_library("${NAMESPACE}::${FULL_PROJ_NAME}" ALIAS "${FULL_PROJ_NAME}")
+
+	# Dependencies the installed package config must find_dependency() before
+	# importing the exported targets (e.g. link interface dependencies).
+	set(MH_BASIC_INSTALL_FIND_DEPENDENCIES "${arg_FIND_DEPENDENCIES}")
 
 	configure_package_config_file(
 		"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/mh-BasicInstall-config.cmake.in"
@@ -75,7 +72,8 @@ function(mh_basic_install)
 	)
 
 	if (DEFINED arg_PROJ_INCLUDE_DIRS)
-		foreach (INCLUDE_DIR_ITER "${arg_PROJ_INCLUDE_DIRS}")
+		# IN LISTS: quoting the list expanded it to a single "a;b" item
+		foreach (INCLUDE_DIR_ITER IN LISTS arg_PROJ_INCLUDE_DIRS)
 			install(DIRECTORY "${INCLUDE_DIR_ITER}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 		endforeach()
 	endif()

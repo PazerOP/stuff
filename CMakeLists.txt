@@ -72,7 +72,11 @@ if (MH_STUFF_COMPILE_LIBRARY)
 		BASE_NAME ${PROJECT_NAME}
 		EXPORT_MACRO_NAME MH_STUFF_API
 	)
-	target_precompile_headers(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_export.h")
+	# PRIVATE: a PUBLIC PCH exports INTERFACE_PRECOMPILE_HEADERS with an absolute
+	# build-tree path into the installed target (and the export header is never
+	# installed), breaking every consumer on a machine without this build tree.
+	# The headers all carry an #ifndef MH_STUFF_API fallback for consumers.
+	target_precompile_headers(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_export.h")
 
 else()
 	target_compile_definitions(${PROJECT_NAME} INTERFACE
@@ -81,6 +85,52 @@ else()
 	)
 endif()
 
+# Optional fmt support: the vcpkg manifest has always shipped fmt, but nothing
+# ever put its headers on the include path, so text/format.hpp's
+# __has_include(<fmt/format.h>) was false and the whole fmt-backed formatter
+# layer silently compiled as MH_FORMATTER_NONE (untested, unusable). Link it
+# when present AND actually linkable: a found fmt can still be ABI-incompatible
+# (e.g. a libstdc++-built libfmt while this target uses clang + libc++), so
+# probe a real compile+link of a compiled-fmt symbol before committing to it.
+# On probe failure we fall back to MH_FORMATTER_NONE - the status quo.
+find_package(fmt CONFIG QUIET)
+set(MH_STUFF_USE_FMT FALSE)
+if (fmt_FOUND)
+	include(CheckCXXSourceCompiles)
+	set(CMAKE_REQUIRED_LIBRARIES fmt::fmt)
+	if (MSVC)
+		set(CMAKE_REQUIRED_FLAGS "/std:c++20")
+	elseif (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+		set(CMAKE_REQUIRED_FLAGS "-std=c++20 -stdlib=libc++")
+	else()
+		set(CMAKE_REQUIRED_FLAGS "-std=c++20")
+	endif()
+	check_cxx_source_compiles("
+#include <fmt/format.h>
+int main() { return static_cast<int>(fmt::format(\"{}\", 42).size()) - 2; }
+" MH_STUFF_FMT_LINKS)
+	set(CMAKE_REQUIRED_LIBRARIES "")
+	set(CMAKE_REQUIRED_FLAGS "")
+
+	if (MH_STUFF_FMT_LINKS)
+		set(MH_STUFF_USE_FMT TRUE)
+	endif()
+endif()
+
+if (MH_STUFF_USE_FMT)
+	message(STATUS "fmt found (${fmt_VERSION}): mh::format will use fmtlib")
+	target_link_libraries(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} fmt::fmt)
+elseif (fmt_FOUND)
+	message(STATUS "fmt found (${fmt_VERSION}) but not linkable with this toolchain; mh::format falls back to MH_FORMATTER_NONE")
+	# fmt's headers can be visible to the compiler without any help from us
+	# (e.g. a distro libfmt-dev in /usr/include). text/format.hpp's
+	# __has_include probe would then select the fmtlib backend even though we
+	# are NOT linking libfmt, and every TU that instantiates a compiled-fmt
+	# symbol would fail to link. Export the fallback decision so the
+	# preprocessor agrees with the linker (format.hpp honors a pre-defined
+	# MH_FORMATTER).
+	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_FORMATTER=MH_FORMATTER_NONE")
+endif()
 target_include_directories(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 	"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cpp/include>"
 	"$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
@@ -109,10 +159,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	target_link_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -pthread)
 endif()
 
-# Define __unix__ for Unix-like systems (Linux, macOS, etc.)
-if (UNIX)
-	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "__unix__")
-endif()
+# NOTE: __unix__ is deliberately NOT defined here. It is a compiler-reserved
+# identifier that every Unix compiler predefines itself; force-defining it
+# PUBLIC/INTERFACE injected it into every consumer TU (and, being exported,
+# flipped platform detection of unrelated third-party headers on platforms
+# like macOS that do not predefine it).
 
 if (NOT MSVC)
 	include(CheckCXXCompilerFlag)
@@ -142,4 +193,19 @@ if (BUILD_TESTING)
 	add_subdirectory("test")
 endif()
 
+# The compiled library's exported link interface references CURL::libcurl
+# ($<LINK_ONLY:...>), so the installed package config must find_dependency(CURL)
+# or consumer find_package(mh-stuff) fails at generate time. Plain variable, not
+# a genexp: configure_package_config_file cannot evaluate generator expressions.
+if (MH_STUFF_COMPILE_LIBRARY)
+	set(MH_STUFF_INSTALL_DEPS CURL)
+endif()
+if (MH_STUFF_USE_FMT)
+	list(APPEND MH_STUFF_INSTALL_DEPS fmt)
+endif()
+
+mh_basic_install(
+	PROJ_INCLUDE_DIRS "cpp/include/"
+	FIND_DEPENDENCIES ${MH_STUFF_INSTALL_DEPS}
+)
 

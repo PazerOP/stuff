@@ -35,7 +35,10 @@ namespace mh
 		template<unsigned bits> using int_for_bits_t = std::make_signed_t<uint_for_bits_t<bits>>;
 
 		template<typename T>
-		constexpr T bits_to_mask(T bits) { return (T(1) << bits) - 1; }
+		constexpr T bits_to_mask(T bits)
+		{
+			return bits >= T(sizeof(T) * CHAR_BIT) ? T(~T(0)) : T((T(1) << bits) - 1);
+		}
 
 		constexpr unsigned HLF_MNT_BITS = 10;
 		constexpr unsigned HLF_EXP_BITS = 5;
@@ -157,8 +160,8 @@ namespace mh
 				{
 					if (old_exponent_actual >= new_exponent_t::inf_or_nan().actual_value())
 						return new_exponent_t::inf_or_nan();
-					//if (old_exponent_actual < MIN)
-					//	return
+					if (old_exponent_actual + native_exp_offset < 1)
+						return new_exponent_t(0); // underflow
 				}
 
 				const int new_exponent = old_exponent_actual + native_exp_offset;
@@ -208,14 +211,10 @@ namespace mh
 			MantissaBits <= detail::bit_float_hpp::FLT_MNT_BITS && ExponentBits <= detail::bit_float_hpp::FLT_EXP_BITS,
 			float, double>;
 
-		using native_bitfloat_t = bit_float<
-			MantissaBits <= detail::bit_float_hpp::FLT_MNT_BITS
-				? detail::bit_float_hpp::FLT_MNT_BITS
-				: detail::bit_float_hpp::DBL_MNT_BITS,
-			ExponentBits <= detail::bit_float_hpp::FLT_EXP_BITS
-				? detail::bit_float_hpp::FLT_EXP_BITS
-				: detail::bit_float_hpp::DBL_EXP_BITS,
-			true>;
+		using native_bitfloat_t = std::conditional_t<
+			MantissaBits <= detail::bit_float_hpp::FLT_MNT_BITS && ExponentBits <= detail::bit_float_hpp::FLT_EXP_BITS,
+			bit_float<detail::bit_float_hpp::FLT_MNT_BITS, detail::bit_float_hpp::FLT_EXP_BITS, true>,
+			bit_float<detail::bit_float_hpp::DBL_MNT_BITS, detail::bit_float_hpp::DBL_EXP_BITS, true>>;
 
 	private:
 		using bits_ut = std::underlying_type_t<bits_t>;
@@ -289,7 +288,46 @@ namespace mh
 				}
 
 				const auto old_exponent = bits_to_exponent(bits);
+
+				if (old_exponent.value == 0)
+				{
+					// zero or denormal
+					const auto old_mantissa = bits_to_mantissa(bits);
+					if constexpr (new_bit_float::ExponentBits > ExponentBits)
+					{
+						if (old_mantissa.value != 0)
+						{
+							// denormal: normalize into the wider exponent range
+							unsigned shift = 0;
+							auto m = old_mantissa.value;
+							while (!(m & (typename mantissa_t::value_t(1) << (MantissaBits - 1))))
+							{
+								m = typename mantissa_t::value_t(m << 1);
+								shift++;
+							}
+							m = typename mantissa_t::value_t(m << 1); // drop the implicit leading 1
+
+							const int actual = exponent_t::min().actual_value() - 1 - int(shift);
+							constexpr int new_offset = ((1 << new_bit_float::ExponentBits) / 2) - 1;
+							return new_bit_float::components_to_bits(
+								mantissa_t(m).template convert<new_bit_float::MantissaBits>(),
+								typename new_bit_float::exponent_t(
+									typename new_bit_float::exponent_t::value_t(actual + new_offset)),
+								sign);
+						}
+					}
+					// +-0 stays 0; denormals narrower than the target range flush to +-0
+					return new_bit_float::components_to_bits({}, {}, sign);
+				}
+
 				const auto new_exponent = old_exponent.template convert<new_bit_float::ExponentBits>();
+
+				if constexpr (new_bit_float::ExponentBits < ExponentBits)
+				{
+					// exponent underflow: flush to +-0 (no denormal generation)
+					if (new_exponent.value == 0)
+						return new_bit_float::components_to_bits({}, new_exponent, sign);
+				}
 
 				// Can we overflow to infinity from this conversion?
 				constexpr bool needsOverflowCheck = new_bit_float::ExponentBits < ExponentBits;
@@ -325,6 +363,15 @@ namespace mh
 			static_assert(std::numeric_limits<native_t>::is_iec559);
 			return native_bitfloat_t::template bits_to_bits<this_t>(
 				detail::bit_float_hpp::bit_cast<typename native_bitfloat_t::bits_t>(native));
+		}
+
+		// Hidden friend so ADL can find it: MantissaBits/ExponentBits/SignBit are
+		// non-deducible from bits_t, so a namespace-scope operator template can
+		// never be selected for this enum.
+		template<typename CharT, typename Traits>
+		friend std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, bits_t bits)
+		{
+			return os << bit_float::bits_to_native(bits);
 		}
 	};
 
@@ -399,11 +446,4 @@ template<typename CharT, typename Traits, unsigned Bits>
 std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, mh::mantissa_t<Bits> mantissa)
 {
 	return os << +mantissa.value;
-}
-
-template<typename CharT, typename Traits, unsigned MantissaBits, unsigned ExponentBits, bool SignBit>
-std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os,
-	typename mh::bit_float<MantissaBits, ExponentBits, SignBit>::bits_t bits)
-{
-	return os << mh::bit_float<MantissaBits, ExponentBits, SignBit>::bits_to_native(bits);
 }

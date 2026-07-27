@@ -30,7 +30,8 @@ MH_COMPILE_LIBRARY_INLINE mh::buffer::buffer(size_t initialSize)
 MH_COMPILE_LIBRARY_INLINE mh::buffer::buffer(const std::byte* ptr, size_t bytes) :
 	buffer(bytes)
 {
-	std::memcpy(data(), ptr, bytes);
+	if (bytes > 0)
+		std::memcpy(data(), ptr, bytes);
 }
 
 MH_COMPILE_LIBRARY_INLINE mh::buffer::~buffer() noexcept
@@ -40,6 +41,9 @@ MH_COMPILE_LIBRARY_INLINE mh::buffer::~buffer() noexcept
 
 MH_COMPILE_LIBRARY_INLINE void mh::buffer::resize(size_t newSize)
 {
+	if (newSize == 0)
+		return clear();
+
 	void* newPtr = std::realloc(m_Data, newSize);
 	if (!newPtr)
 		throw std::runtime_error("Failed to realloc");
@@ -64,6 +68,9 @@ MH_COMPILE_LIBRARY_INLINE std::strong_ordering mh::buffer::operator<=>(const mh:
 {
 	if (auto result = m_Size <=> other.m_Size; std::is_neq(result))
 		return result;
+
+	if (size() == 0)
+		return std::strong_ordering::equal;
 
 	const auto result = memcmp(data(), other.data(), size());
 	if (result < 0)

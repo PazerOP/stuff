@@ -3,6 +3,9 @@
 #include <mh/text/codecvt.hpp>
 #include "last_include.hpp"
 
+#include <cstdint>
+#include <stdexcept>
+
 using namespace std::string_view_literals;
 
 template<typename T>
@@ -131,3 +134,64 @@ TEST_CASE("change_encoding - char <--> char8_t", "[mh][text][codecvt][change_enc
 	}
 }
 #endif
+
+#if MH_HAS_UNICODE
+TEST_CASE("change_encoding - invalid scalar values are rejected", "[mh][text][codecvt][change_encoding]")
+{
+	// Scalar values above U+10FFFF cannot be encoded; they must raise a clear
+	// error instead of silently producing corrupt output
+	for (const char32_t cp : { char32_t(0x110000), char32_t(0xFFFFFFFF) })
+	{
+		const auto cpValue = static_cast<uint32_t>(cp);
+		CAPTURE(cpValue);
+
+		const std::u32string input(1, cp);
+		REQUIRE_THROWS_AS(mh::change_encoding<char16_t>(input), std::invalid_argument);
+#if MH_HAS_CHAR8
+		REQUIRE_THROWS_AS(mh::change_encoding<char8_t>(input), std::invalid_argument);
+#endif
+	}
+
+	// Lone surrogates are not valid scalar values; encoding them to UTF-16
+	// must not silently produce a corrupt (or underflowed) code unit sequence
+	for (const char32_t cp : { char32_t(0xD800), char32_t(0xDBFF), char32_t(0xDC00), char32_t(0xDFFF) })
+	{
+		const auto cpValue = static_cast<uint32_t>(cp);
+		CAPTURE(cpValue);
+
+		REQUIRE_THROWS_AS(mh::change_encoding<char16_t>(std::u32string(1, cp)), std::invalid_argument);
+	}
+}
+
+TEST_CASE("change_encoding - boundary code points round-trip", "[mh][text][codecvt][change_encoding]")
+{
+	// Valid code points at the boundaries of the encoding ranges - including
+	// supplementary-plane values whose low 16 bits happen to look like
+	// surrogates (e.g. U+1D800) - must encode and decode unchanged
+	constexpr char32_t BOUNDARY_CODE_POINTS[] = {
+		0x7F, 0x80, 0x7FF, 0x800, 0xD7FF, 0xE000, 0xFFFF,
+		0x10000, 0x1D800, 0x1DC00, 0x2D800, 0x10FFFF,
+	};
+
+	for (const char32_t cp : BOUNDARY_CODE_POINTS)
+	{
+		const auto cpValue = static_cast<uint32_t>(cp);
+		CAPTURE(cpValue);
+
+		const std::u32string original(1, cp);
+
+		const std::u16string asU16 = mh::change_encoding<char16_t>(original);
+		REQUIRE(mh::change_encoding<char32_t>(asU16) == original);
+
+#if MH_HAS_CHAR8
+		const std::u8string asU8 = mh::change_encoding<char8_t>(original);
+		REQUIRE(mh::change_encoding<char32_t>(asU8) == original);
+#endif
+	}
+
+	// single-unit vs surrogate-pair boundary
+	CHECK(mh::change_encoding<char16_t>(std::u32string(1, char32_t(0xFFFF))).size() == 1);
+	CHECK(mh::change_encoding<char16_t>(std::u32string(1, char32_t(0x10000))).size() == 2);
+	CHECK(mh::change_encoding<char16_t>(std::u32string(1, char32_t(0x10FFFF))).size() == 2);
+}
+#endif // MH_HAS_UNICODE

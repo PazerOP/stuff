@@ -57,17 +57,6 @@ namespace mh
 			using storage_type = std::reference_wrapper<std::remove_reference_t<T>>;
 		};
 
-		struct suspend_sometimes
-		{
-			constexpr suspend_sometimes(bool suspend) : m_Suspend(suspend) {}
-
-			[[nodiscard]] constexpr bool await_ready() const noexcept { return !m_Suspend; }
-			constexpr void await_suspend(coro::coroutine_handle<>) const noexcept {}
-			constexpr void await_resume() const noexcept {}
-
-			bool m_Suspend;
-		};
-
 		template<typename T>
 		class promise_base
 		{
@@ -97,23 +86,26 @@ namespace mh
 
 			bool is_ready() const noexcept
 			{
-				auto index = m_State.index();
-				return index == IDX_VALUE || index == IDX_EXCEPTION;
+				std::lock_guard lock(m_Mutex);
+				return is_ready_unlocked();
 			}
 
 			bool valid() const noexcept
 			{
-				return m_State.index() != IDX_INVALID;
+				std::lock_guard lock(m_Mutex);
+				return valid_unlocked();
 			}
 
 			std::exception_ptr get_exception() const noexcept
 			{
+				std::lock_guard lock(m_Mutex);
 				auto result = std::get_if<IDX_EXCEPTION>(&m_State);
 				return result ? *result : nullptr;
 			}
 
 			task_state get_task_state() const
 			{
+				std::lock_guard lock(m_Mutex);
 				const auto state = m_State.index();
 				switch (state)
 				{
@@ -136,8 +128,8 @@ namespace mh
 				// Not just until the value is ready - the worker thread might still be
 				// executing between set_state() and final_suspend()
 				std::unique_lock lock(m_Mutex);
-				m_ValueReadyCV.wait(lock, [&] { return is_ready() && m_FinalSuspendHasRun; });
-				assert(is_ready());
+				m_ValueReadyCV.wait(lock, [&] { return is_ready_unlocked() && m_FinalSuspendHasRun; });
+				assert(is_ready_unlocked());
 			}
 			template<typename Rep, typename Period>
 			std::future_status wait_for(const std::chrono::duration<Rep, Period>& timeout_duration) const
@@ -146,13 +138,13 @@ namespace mh
 					throw std::future_error(std::future_errc::no_state);
 
 				std::unique_lock lock(m_Mutex);
-				if (is_ready() && m_FinalSuspendHasRun)
+				if (is_ready_unlocked() && m_FinalSuspendHasRun)
 					return std::future_status::ready;
 
-				if (!m_ValueReadyCV.wait_for(lock, timeout_duration, [&] { return is_ready() && m_FinalSuspendHasRun; }))
+				if (!m_ValueReadyCV.wait_for(lock, timeout_duration, [&] { return is_ready_unlocked() && m_FinalSuspendHasRun; }))
 					return std::future_status::timeout;
 
-				assert(is_ready());
+				assert(is_ready_unlocked());
 				return std::future_status::ready;
 			}
 			template<typename Clock, typename Period>
@@ -162,13 +154,13 @@ namespace mh
 					throw std::future_error(std::future_errc::no_state);
 
 				std::unique_lock lock(m_Mutex);
-				if (is_ready() && m_FinalSuspendHasRun)
+				if (is_ready_unlocked() && m_FinalSuspendHasRun)
 					return std::future_status::ready;
 
-				if (!m_ValueReadyCV.wait_until(lock, timeout_time, [&] { return is_ready() && m_FinalSuspendHasRun; }))
+				if (!m_ValueReadyCV.wait_until(lock, timeout_time, [&] { return is_ready_unlocked() && m_FinalSuspendHasRun; }))
 					return std::future_status::timeout;
 
-				assert(is_ready());
+				assert(is_ready_unlocked());
 				return std::future_status::ready;
 			}
 
@@ -204,18 +196,33 @@ namespace mh
 			}
 
 			constexpr coro::suspend_never initial_suspend() const noexcept { return {}; }
-			suspend_sometimes final_suspend() const noexcept
+
+			struct final_suspend_awaiter
 			{
-				std::lock_guard lock(m_Mutex);
-				m_FinalSuspendHasRun = true;
+				const promise_base<T>* m_Promise;
 
-				// Notify anyone waiting for the coroutine to fully complete
-				m_ValueReadyCV.notify_all();
+				bool await_ready() const noexcept { return false; }
+				void await_suspend(coro::coroutine_handle<> handle) const noexcept
+				{
+					// The coroutine is fully suspended by the time await_suspend runs, so it is
+					// now safe for whichever side sees (refcount == 0 && flag set) to destroy it.
+					// If m_RefCount == 0, we are in charge of our own destiny (all referencing tasks
+					// have gone out of scope, so just delete ourselves now that we're done).
+					bool destroy;
+					{
+						std::lock_guard lock(m_Promise->m_Mutex);
+						m_Promise->m_FinalSuspendHasRun = true;
+						m_Promise->m_ValueReadyCV.notify_all();
+						destroy = (m_Promise->m_RefCount == 0);
+					}
 
-				// If m_RefCount == 0, we are in charge of our own destiny (all referencing tasks have gone out of
-				// scope, so just delete ourselves when we're done)
-				return m_RefCount != 0;
-			}
+					if (destroy)
+						handle.destroy();
+				}
+				void await_resume() const noexcept {}
+			};
+
+			final_suspend_awaiter final_suspend() const noexcept { return { this }; }
 
 			bool await_ready() const { return is_ready(); }
 			bool await_suspend(coro::coroutine_handle<> parent)
@@ -227,7 +234,7 @@ namespace mh
 				else
 				{
 					std::lock_guard lock(m_Mutex);
-					if (is_ready())
+					if (is_ready_unlocked())
 					{
 						return false;
 					}
@@ -247,7 +254,7 @@ namespace mh
 				{
 					std::lock_guard lock(m_Mutex);
 
-					if (is_ready())
+					if (is_ready_unlocked())
 						throw std::future_error(std::future_errc::promise_already_satisfied);
 
 					waiters = std::move(std::get<IDX_WAITERS>(m_State));
@@ -266,8 +273,8 @@ namespace mh
 				}
 			}
 
-			const storage_type* try_get_value() const { return std::get_if<IDX_VALUE>(&m_State); }
-			storage_type* try_get_value() { return std::get_if<IDX_VALUE>(&m_State); }
+			const storage_type* try_get_value() const { std::lock_guard lock(m_Mutex); return std::get_if<IDX_VALUE>(&m_State); }
+			storage_type* try_get_value() { std::lock_guard lock(m_Mutex); return std::get_if<IDX_VALUE>(&m_State); }
 
 			void add_ref()
 			{
@@ -289,11 +296,11 @@ namespace mh
 			int32_t get_ref_count() const noexcept { return m_RefCount; }
 
 			template<typename TFreeFunc>
-			void release_promise_ref(TFreeFunc&& freeFunc)
+			void release_promise_ref(bool isCoroutine, TFreeFunc&& freeFunc)
 			{
 				std::unique_lock scopeLock(m_Mutex);
 
-				if (remove_ref() && final_suspend_has_run())
+				if (remove_ref() && (!isCoroutine || final_suspend_has_run()))
 				{
 					scopeLock.unlock();
 					freeFunc();
@@ -306,6 +313,19 @@ namespace mh
 			std::variant<std::vector<coro::coroutine_handle<>>, std::monostate, storage_type, std::exception_ptr> m_State;
 			std::atomic_int32_t m_RefCount = REFCOUNT_UNSET;
 			mutable bool m_FinalSuspendHasRun = false;
+
+		private:
+			// Callers must hold m_Mutex (m_State's discriminator is written under it in set_state).
+			bool is_ready_unlocked() const noexcept
+			{
+				auto index = m_State.index();
+				return index == IDX_VALUE || index == IDX_EXCEPTION;
+			}
+
+			bool valid_unlocked() const noexcept
+			{
+				return m_State.index() != IDX_INVALID;
+			}
 		};
 	}
 
@@ -405,6 +425,9 @@ namespace mh
 			}
 			task_base& operator=(const task_base& other) noexcept
 			{
+				if (this == std::addressof(other))
+					return *this;
+
 				release();
 
 				m_IsCoroutine = other.m_IsCoroutine;
@@ -430,7 +453,9 @@ namespace mh
 			}
 			task_base& operator=(task_base&& other) noexcept
 			{
-				assert(std::addressof(other) != this);
+				if (this == std::addressof(other))
+					return *this;
+
 				release();
 
 				m_IsCoroutine = other.m_IsCoroutine;
@@ -529,7 +554,7 @@ namespace mh
 				{
 					if (m_HandleOpt)
 					{
-						m_HandleOpt.promise().release_promise_ref([&]
+						m_HandleOpt.promise().release_promise_ref(true, [&]
 							{
 								m_HandleOpt.destroy();
 							});
@@ -539,7 +564,7 @@ namespace mh
 				}
 				else if (m_PromiseOpt)
 				{
-					m_PromiseOpt->release_promise_ref([&]
+					m_PromiseOpt->release_promise_ref(false, [&]
 						{
 							delete m_PromiseOpt;
 						});
@@ -565,7 +590,6 @@ namespace mh
 
 	public:
 		using super::super;
-		~task() {}
 
 		const T& get() const { return this->get_promise().get_value(); }
 		T& get() { return this->get_promise().get_value(); }
@@ -585,7 +609,6 @@ namespace mh
 
 	public:
 		using super::super;
-		~task() {}
 	};
 
 	template<typename T>

@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <spawn.h>
+#include <vector>
 
 #include <mh/error/not_implemented_error.hpp>
 #include <mh/io/fd_source.hpp>

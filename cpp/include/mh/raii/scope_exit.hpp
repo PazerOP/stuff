@@ -49,11 +49,13 @@ namespace mh
 		};
 		struct scope_traits_fail final
 		{
-			bool operator()() const { return std::uncaught_exceptions() > 0; }
+			int m_UncaughtExceptions = std::uncaught_exceptions();
+			bool operator()() const { return std::uncaught_exceptions() > m_UncaughtExceptions; }
 		};
 		struct scope_traits_success final
 		{
-			bool operator()() const { return std::uncaught_exceptions() <= 0; }
+			int m_UncaughtExceptions = std::uncaught_exceptions();
+			bool operator()() const { return std::uncaught_exceptions() <= m_UncaughtExceptions; }
 		};
 
 		// https://en.cppreference.com/w/cpp/experimental/scope_exit
@@ -67,16 +69,16 @@ namespace mh
 			explicit scope_exit_base(Fn&& fn, bool enabled = true)
 				noexcept(std::is_nothrow_constructible_v<EF, Fn> || std::is_nothrow_constructible_v<EF, Fn&>)
 				requires ConstructibleForwardFunc<EF, Fn, self_type> :
-				m_Func(std::forward<Fn>(fn)),
-				m_Active(enabled)
+				m_Active(enabled),
+				m_Func(std::forward<Fn>(fn))
 			{
 			}
 			template<typename Fn>
 			explicit scope_exit_base(Fn&& fn, bool enabled = true)
-				noexcept(std::is_nothrow_move_constructible_v<EF> || std::is_nothrow_copy_constructible_v<EF>)
+				noexcept(std::is_nothrow_constructible_v<EF, Fn&>)
 				requires ConstructibleCopyFunc<EF, Fn, self_type> :
-				m_Func(fn),
-				m_Active(enabled)
+				m_Active(enabled),
+				m_Func(fn)
 			{
 			}
 
@@ -92,7 +94,7 @@ namespace mh
 				noexcept(std::is_nothrow_move_constructible_v<EF> || std::is_nothrow_copy_constructible_v<EF>)
 				requires MoveCopyFunc<EF> :
 				m_Active(other.m_Active),
-				m_Func(std::forward<EF>(other.m_Func))
+				m_Func(other.m_Func)
 			{
 				other.release();
 			}

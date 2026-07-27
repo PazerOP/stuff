@@ -2,6 +2,11 @@
 #include <catch2/catch_all.hpp>
 #include "last_include.hpp"
 
+#include <bit>
+#include <cmath>
+#include <cstdint>
+#include <sstream>
+
 using half_float = mh::half_float;
 using native_float = mh::native_float;
 using gl_float14 = mh::bit_float<9, 5, false>;
@@ -180,4 +185,151 @@ TEST_CASE("bit_float - roundtrip inf/nan")
 	// TODO
 	//const auto halfbits_inf = half_float::native_to_bits(inf);
 	//const auto halfbits_nan = half_float::native_to_bits(nan);
+}
+
+TEST_CASE("bit_float - narrowing exponent underflow flushes to zero", "[bit_float]")
+{
+	// Values below half's normal/denormal range must encode as +-0. They must
+	// NEVER wrap around to an in-range or all-ones (infinity/NaN) exponent.
+	// 2e-5f in particular used to come back as +infinity.
+	for (const float value : { 2e-5f, 1e-8f, 1e-10f, 1e-20f, 1e-30f,
+		5.9604645e-8f /* == half's smallest denormal; flush-to-zero semantics */ })
+	{
+		CAPTURE(value);
+		REQUIRE(uint16_t(half_float::native_to_bits(value)) == 0x0000);
+		REQUIRE(uint16_t(half_float::native_to_bits(-value)) == 0x8000); // sign preserved
+	}
+
+	// float denormals are far below half's entire range: also +-0
+	REQUIRE(uint16_t(half_float::native_to_bits(1e-40f)) == 0x0000);
+	REQUIRE(uint16_t(half_float::native_to_bits(-1e-40f)) == 0x8000);
+}
+
+TEST_CASE("bit_float - half denormals decode to their actual values", "[bit_float]")
+{
+	// A half denormal encodes mantissa * 2^-24; the float result is a normal
+	// float and must be produced exactly (not a raw-shifted float denormal).
+	REQUIRE(half_float::bits_to_native(half_float::bits_t(0x0001)) == std::ldexp(1.0f, -24)); // 5.9604645e-8
+	REQUIRE(half_float::bits_to_native(half_float::bits_t(0x03FF)) == std::ldexp(1023.0f, -24)); // largest denormal
+	REQUIRE(half_float::bits_to_native(half_float::bits_t(0x0155)) == std::ldexp(float(0x155), -24));
+	REQUIRE(half_float::bits_to_native(half_float::bits_t(0x8001)) == -std::ldexp(1.0f, -24)); // negative denormal
+	REQUIRE(half_float::bits_to_native(half_float::bits_t(0x83FF)) == -std::ldexp(1023.0f, -24));
+}
+
+namespace
+{
+	// Reference IEEE 754 binary16 -> float decode
+	float reference_half_decode(uint16_t h)
+	{
+		const uint32_t sign = (h >> 15) & 1;
+		const uint32_t exponent = (h >> 10) & 0x1F;
+		const uint32_t mantissa = h & 0x3FF;
+
+		float value;
+		if (exponent == 0)
+			value = std::ldexp(float(mantissa), -24); // zero or denormal
+		else if (exponent == 31)
+			value = mantissa ? std::numeric_limits<float>::quiet_NaN() : std::numeric_limits<float>::infinity();
+		else
+			value = std::ldexp(1.0f + mantissa / 1024.0f, int(exponent) - 15);
+
+		return sign ? -value : value;
+	}
+}
+
+TEST_CASE("bit_float - exhaustive half->float->half sweep", "[bit_float]")
+{
+	// All 65536 half patterns: bits_to_native must match the reference decode
+	// bit-for-bit (NaN compares by NaN-ness), and every value that is exactly
+	// representable in half (normals, zeros, infinities) must round-trip back
+	// to the identical bit pattern. Runs in milliseconds.
+	int decode_mismatches = 0;
+	int roundtrip_mismatches = 0;
+	uint32_t first_decode_mismatch = ~0u;
+	uint32_t first_roundtrip_mismatch = ~0u;
+
+	for (uint32_t i = 0; i <= 0xFFFF; i++)
+	{
+		const uint16_t pattern = uint16_t(i);
+		const float decoded = half_float::bits_to_native(half_float::bits_t(pattern));
+		const float expected = reference_half_decode(pattern);
+
+		const bool decode_ok = std::isnan(expected)
+			? std::isnan(decoded)
+			: std::bit_cast<uint32_t>(decoded) == std::bit_cast<uint32_t>(expected);
+		if (!decode_ok)
+		{
+			decode_mismatches++;
+			first_decode_mismatch = std::min(first_decode_mismatch, i);
+		}
+
+		const uint32_t exponent = (pattern >> 10) & 0x1F;
+		if (exponent != 31 && (exponent != 0 || (pattern & 0x3FF) == 0)) // normals and +-0
+		{
+			const auto reencoded = uint16_t(half_float::native_to_bits(decoded));
+			if (reencoded != pattern)
+			{
+				roundtrip_mismatches++;
+				first_roundtrip_mismatch = std::min(first_roundtrip_mismatch, i);
+			}
+		}
+	}
+
+	CAPTURE(first_decode_mismatch, first_roundtrip_mismatch);
+	REQUIRE(decode_mismatches == 0);
+	REQUIRE(roundtrip_mismatches == 0);
+}
+
+TEST_CASE("bit_float - mixed float/double-sized mantissa and exponent widths", "[bit_float]")
+{
+	// Formats whose mantissa fits float's but whose exponent does not (and vice
+	// versa) must go through a native-layout intermediate that matches an actual
+	// native type; conversions through a 23+11-bit hybrid silently produce garbage.
+	{
+		using wide_exponent = mh::bit_float<10, 11, true>;
+		static_assert(std::is_same_v<wide_exponent::native_t, double>);
+		REQUIRE(wide_exponent::bits_to_native(wide_exponent::native_to_bits(1.0)) == 1.0);
+		REQUIRE(wide_exponent::bits_to_native(wide_exponent::native_to_bits(2.5)) == 2.5);
+		REQUIRE(wide_exponent::bits_to_native(wide_exponent::native_to_bits(-0.375)) == -0.375);
+	}
+
+	{
+		using wide_mantissa = mh::bit_float<30, 8, true>;
+		static_assert(std::is_same_v<wide_mantissa::native_t, double>);
+		REQUIRE(wide_mantissa::bits_to_native(wide_mantissa::native_to_bits(1.0)) == 1.0);
+		REQUIRE(wide_mantissa::bits_to_native(wide_mantissa::native_to_bits(2.5)) == 2.5);
+	}
+}
+
+TEST_CASE("bit_float - mantissa_t supports every width up to 52", "[bit_float]")
+{
+	// Width 32 needs a mask computed without shifting a 32-bit type by 32.
+	STATIC_REQUIRE(mh::mantissa_t<32>::MASK == 0xFFFFFFFFu);
+	STATIC_REQUIRE(std::is_same_v<mh::mantissa_t<32>::value_t, uint32_t>);
+	STATIC_REQUIRE(mh::mantissa_t<32>(mh::mantissa_t<32>::MASK).value == 0xFFFFFFFFu);
+
+	// Neighboring widths keep their masks
+	STATIC_REQUIRE(mh::mantissa_t<31>::MASK == 0x7FFFFFFFu);
+	STATIC_REQUIRE(mh::mantissa_t<33>::MASK == 0x1FFFFFFFFull);
+	STATIC_REQUIRE(mh::mantissa_t<10>::MASK == 0x3FFu);
+	STATIC_REQUIRE(mh::mantissa_t<52>::MASK == 0xFFFFFFFFFFFFFull);
+}
+
+TEST_CASE("bit_float - bits_t stream insertion", "[bit_float]")
+{
+	// bits_t values must be printable (as their decoded native value); the
+	// operator has to be discoverable via ADL since the enclosing bit_float's
+	// template arguments are not deducible from the enum type alone.
+	{
+		std::ostringstream ss;
+		ss << half_float::bits_t(0x3C00); // 1.0 in binary16
+		REQUIRE(ss.str() == "1");
+	}
+
+	{
+		// A second instantiation coexists in the same translation unit
+		std::ostringstream ss;
+		ss << native_float::bits_t(0x40200000); // 2.5f
+		REQUIRE(ss.str() == "2.5");
+	}
 }

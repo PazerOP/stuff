@@ -102,7 +102,14 @@ namespace mh
 
 			constexpr bool done() const { return m_Handle.done(); }
 
-			self_type& operator++() { m_Handle.resume(); return *this; }
+			self_type& operator++()
+			{
+				m_Handle.resume();
+				if (m_Handle.done())
+					m_Handle.promise().rethrow_if_exception();
+
+				return *this;
+			}
 
 			auto operator*() const -> decltype(auto) { return m_Handle.promise().value(); }
 
