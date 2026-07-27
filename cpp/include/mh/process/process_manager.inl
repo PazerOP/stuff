@@ -154,31 +154,52 @@ namespace mh
 			for (auto it = waiting_processes_.begin(); it != waiting_processes_.end();)
 			{
 				int pid = it->first;
+				auto &info = it->second;
 
 				int status;
 				pid_t result = waitpid(pid, &status, WNOHANG);
 
-				if (result == 0)
+				if (result > 0)
+				{
+					// Process completed
+					int exit_code;
+					if (WIFEXITED(status))
+					{
+						exit_code = WEXITSTATUS(status);
+					}
+					else if (WIFSIGNALED(status))
+					{
+						exit_code = -WTERMSIG(status);
+					}
+					else
+					{
+						exit_code = -1;
+					}
+
+					// Store exit status and save handle to resume later
+					exit_statuses_[pid] = exit_code;
+					to_resume.push_back(info.handle);
+
+					// Remove from waiting list
+					it = waiting_processes_.erase(it);
+				}
+				else if (result == -1)
+				{
+					// Error occurred
+					exit_statuses_[pid] = -1;
+					to_resume.push_back(info.handle);
+					it = waiting_processes_.erase(it);
+				}
+				else
 				{
 					// Process still running
 					++it;
-					continue;
 				}
-
-				int exit_code = -1;
-				if (result > 0)
-				{
-					if (WIFEXITED(status))
-						exit_code = WEXITSTATUS(status);
-					else if (WIFSIGNALED(status))
-						exit_code = -WTERMSIG(status);
-				}
-
-				// Store exit status; remove from waiting list before resuming
-				exit_statuses_[pid] = exit_code;
-				to_resume.push_back(it->second.handle);
-				it = waiting_processes_.erase(it);
 			}
+		}
+
+		// Resume coroutines outside the lock (handled below)
+		{
 		}
 
 		// Resume outside the lock: await_resume() re-enters get_exit_status() and

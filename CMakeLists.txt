@@ -35,10 +35,6 @@ add_library(${PROJECT_NAME} ${MH_INTERFACE_OR_EMPTY}
 )
 add_library(mh::stuff ALIAS ${PROJECT_NAME})
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mh-cmake-common")
-include(mh-BasicInstall)
-include(mh-CheckCoroutineSupport)
-
 if (MH_STUFF_COMPILE_LIBRARY)
 	find_package(CURL REQUIRED)
 
@@ -89,9 +85,6 @@ else()
 	)
 endif()
 
-mh_check_cxx_coroutine_support(SUPPORTS_COROUTINES COROUTINES_FLAGS)
-target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} ${COROUTINES_FLAGS})
-
 # Optional fmt support: the vcpkg manifest has always shipped fmt, but nothing
 # ever put its headers on the include path, so text/format.hpp's
 # __has_include(<fmt/format.h>) was false and the whole fmt-backed formatter
@@ -138,7 +131,6 @@ elseif (fmt_FOUND)
 	# MH_FORMATTER).
 	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_FORMATTER=MH_FORMATTER_NONE")
 endif()
-
 target_include_directories(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 	"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cpp/include>"
 	"$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
@@ -163,6 +155,7 @@ endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -pthread)
+	target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -Wno-missing-field-initializers)
 	target_link_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -pthread)
 endif()
 
@@ -187,6 +180,8 @@ message(STATUS "Forcing MH_BROKEN_UNICODE=1 to work around compiler Unicode issu
 if (NOT DEFINED BUILD_TESTING)
 	if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 		set(BUILD_TESTING ON)
+		# Define MH_STUFF_STANDALONE_BUILD when building as main project
+		target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_STUFF_STANDALONE_BUILD")
 	else()
 		set(BUILD_TESTING OFF)
 	endif()
@@ -214,36 +209,3 @@ mh_basic_install(
 	FIND_DEPENDENCIES ${MH_STUFF_INSTALL_DEPS}
 )
 
-###########################################
-# "install" is intended for vcpkg support #
-###########################################
-# include(CMakePackageConfigHelpers)
-# configure_package_config_file(
-# 	cmake/config.cmake.in
-# 	"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-# 	INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )
-
-# include(GNUInstallDirs)
-
-# write_basic_package_version_file(
-# 	"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
-# 	VERSION ${PROJECT_VERSION}
-# 	COMPATIBILITY SameMajorVersion
-# )
-
-# install(
-# 	FILES
-# 		"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-# 		"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
-# 	DESTINATION
-# 		"${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )
-
-# install(TARGETS stuff EXPORT ${PROJECT_NAME}_targets)
-# install(DIRECTORY cpp/include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
-# install(
-# 	EXPORT ${PROJECT_NAME}_targets
-# 	NAMESPACE mh::
-# 	DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )

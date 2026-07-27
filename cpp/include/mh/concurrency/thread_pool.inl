@@ -9,6 +9,8 @@
 #include <atomic>
 #include <utility>
 
+#include <atomic>
+
 namespace mh
 {
 	namespace detail::thread_pool_hpp

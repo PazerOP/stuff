@@ -16,10 +16,10 @@ namespace mh::io
 {
     // Forward declaration
     class sink;
-    
+
     // Shared pointer type for sinks
     using sink_ptr = std::shared_ptr<sink>;
-    
+
     // Interface for data sinks (writing data to files, pipes, etc.)
     class sink
     {
@@ -40,8 +40,14 @@ namespace mh::io
 
         // Static factory methods for creating platform-specific sinks
         MH_STUFF_API static sink_ptr create_file(const std::filesystem::path& filepath, bool append = false);
+
+        // Static singleton instance for standard input
+        MH_STUFF_API static sink_ptr stdin_sink();
     };
 }
 
-#endif // __unix__
+#ifndef MH_COMPILE_LIBRARY
+#include "sink.inl"
+#endif
 
+#endif // __unix__

@@ -1,9 +1,0 @@
-{
-	"name": "mh-stuff",
-	"version-date": "2021-10-19",
-	"dependencies": [
-		"mh-cmake-common",
-		"curl",
-		"fmt"
-	]
-}

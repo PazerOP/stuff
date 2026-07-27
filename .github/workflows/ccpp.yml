@@ -6,15 +6,11 @@ defaults:
   run:
     shell: bash
 
-env:
-  # Use a recent stable vcpkg baseline from official Microsoft repo
-  VCPKG_COMMIT: de46587b4beaa638743916fe5674825cecfb48b3
-
 jobs:
   build-linux:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         MH_STUFF_COMPILE_LIBRARY: [true, false]
         compiler:
@@ -35,14 +31,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-
     - name: Install compilers and tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.compiler.deps }} ninja-build
+        sudo apt-get install -y ${{ matrix.compiler.deps }} ninja-build libcurl4-openssl-dev
         pip3 install gcovr
 
         echo "Ensuring programs work..."
@@ -65,7 +57,6 @@ jobs:
         cmake --version
 
         cmake -G Ninja \
-          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
           -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
           ../
 
@@ -141,15 +132,54 @@ jobs:
   #       port-name: mh-stuff
   #       workflow-pat: ${{ secrets.WORKFLOW_PAT }}
 
+  sanitizers:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        sanitizer:
+          - name: asan
+            flags: -fsanitize=address -fno-omit-frame-pointer
+          - name: tsan
+            flags: -fsanitize=thread
+          - name: ubsan
+            flags: -fsanitize=undefined -fno-omit-frame-pointer
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-15 libc++-15-dev libc++abi-15-dev ninja-build libcurl4-openssl-dev
+
+    - name: Build with ${{ matrix.sanitizer.name }}
+      env:
+        CXX: clang++-15
+        CXXFLAGS: ${{ matrix.sanitizer.flags }} -g -O1
+      run: |
+        mkdir build
+        cd build
+        cmake -G Ninja -DMH_STUFF_COMPILE_LIBRARY=ON ../
+        cmake --build .
+
+    - name: Run tests with ${{ matrix.sanitizer.name }}
+      env:
+        ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+        TSAN_OPTIONS: abort_on_error=1
+        UBSAN_OPTIONS: print_stacktrace=1:abort_on_error=1
+      run: |
+        cd build
+        ctest --output-on-failure
+
   all-checks-passed:
     if: always()
-    needs: [build-linux]
+    needs: [build-linux, sanitizers]
     runs-on: ubuntu-latest
     steps:
     - name: Verify all checks passed
-      run: |
-        if [[ "${{ needs.build-linux.result }}" != "success" ]]; then
-          echo "build-linux failed: ${{ needs.build-linux.result }}"
-          exit 1
-        fi
-        echo "All checks passed!"
+      if: ${{ !(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+      run: echo "All checks passed!"
+    - name: Fail if any check failed
+      if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+      run: exit 1

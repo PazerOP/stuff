@@ -5,6 +5,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include "last_include.hpp"
 
 // Helper to convert std::byte to unsigned for CAPTURE (Catch2 v3.4.0 lacks StringMaker<std::byte> implementation)
 template<typename T>
@@ -24,7 +25,7 @@ static void test_bit_functions(const TSrc* src, const TDst expected)
 	memcpy(&srcVal, src, srcValSize);
 	CAPTURE(srcVal);
 
-	CAPTURE(capture_value(*src), expected, bits_to_copy, src_offset, typeid(TSrc).name(), typeid(TDst).name());
+	CAPTURE(*src, expected, bits_to_copy, src_offset, typeid(TSrc).name(), typeid(TDst).name());
 
 	const auto read = +mh::bit_read<TDst, bits_to_copy, src_offset>(src);
 
