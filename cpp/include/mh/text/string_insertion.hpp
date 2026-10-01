@@ -3,6 +3,7 @@
 #include <ostream>
 #include <streambuf>
 #include <string>
+#include <utility>
 
 namespace mh
 {
@@ -20,6 +21,7 @@ namespace mh
 			ostream_type(this),
 			m_String(string)
 		{
+			ostream_type::exceptions(std::ios::badbit | std::ios::failbit);
 		}
 
 	protected:
@@ -40,6 +42,11 @@ namespace mh
 	private:
 		std::basic_string<CharT, Traits, Alloc>& m_String;
 	};
+
+#ifdef MH_COMPILE_LIBRARY
+	extern template class basic_strwrapperstream<char>;
+	extern template class basic_strwrapperstream<wchar_t>;
+#endif
 
 	using strwrapperstream = basic_strwrapperstream<>;
 
@@ -65,18 +72,21 @@ namespace mh
 	}
 }
 
-template<typename T, typename CharT = char, typename Traits = std::char_traits<CharT>, typename Alloc = std::allocator<CharT>>
-inline auto operator<<(std::basic_string<CharT, Traits, Alloc>& str, const T& value) ->
-	decltype(std::declval<std::basic_ostream<CharT, Traits>>() << value, str)
+namespace std
 {
-	mh::detail::string_insertion_hpp::insertion_op_impl<T, CharT, Traits, Alloc>(str, value);
-	return str;
-}
+	template<typename T, typename CharT = char, typename Traits = std::char_traits<CharT>, typename Alloc = std::allocator<CharT>>
+	inline auto operator<<(std::basic_string<CharT, Traits, Alloc>& str, const T& value)
+		-> decltype(std::declval<std::basic_ostream<CharT, Traits>>() << value, str)
+	{
+		mh::detail::string_insertion_hpp::insertion_op_impl<T, CharT, Traits, Alloc>(str, value);
+		return str;
+	}
 
-template<typename T, typename CharT = char, typename Traits = std::char_traits<CharT>, typename Alloc = std::allocator<CharT>>
-inline auto operator<<(std::basic_string<CharT, Traits, Alloc>&& str, const T& value) ->
-	decltype(std::declval<std::basic_ostream<CharT, Traits>>() << value, str)
-{
-	mh::detail::string_insertion_hpp::insertion_op_impl<T, CharT, Traits, Alloc>(str, value);
-	return std::move(str);
+	template<typename T, typename CharT = char, typename Traits = std::char_traits<CharT>, typename Alloc = std::allocator<CharT>>
+	inline auto operator<<(std::basic_string<CharT, Traits, Alloc>&& str, const T& value)
+		-> decltype(std::declval<std::basic_ostream<CharT, Traits>>() << value, str)
+	{
+		mh::detail::string_insertion_hpp::insertion_op_impl<T, CharT, Traits, Alloc>(str, value);
+		return str;
+	}
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <initializer_list>
+#include <locale>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -170,28 +171,29 @@ namespace mh
 	}
 }
 
-#if __has_include(<cppcoro/generator.hpp>)
-#include <cppcoro/generator.hpp>
+#if __has_include(<mh/coroutine/generator.hpp>)
+#include <mh/coroutine/generator.hpp>
+#ifdef MH_COROUTINES_SUPPORTED
 namespace mh
 {
 	template<typename CharT, typename Traits>
-	[[nodiscard]] cppcoro::generator<std::basic_string_view<CharT, Traits>> split_string(
-		const std::basic_string_view<CharT, Traits>& string, const std::basic_string_view<CharT, Traits>& splitChars)
+	[[nodiscard]] mh::generator<std::basic_string_view<CharT, Traits>> split_string(
+		std::basic_string_view<CharT, Traits> string, std::basic_string_view<CharT, Traits> splitChars)
 	{
 		size_t lastEnd = 0;
 		while (lastEnd != string.npos)
 		{
 			const size_t found = string.find_first_of(splitChars, lastEnd);
 			co_yield string.substr(lastEnd, found - lastEnd);
-			lastEnd = found;
+			lastEnd = (found == string.npos) ? string.npos : found + 1;
 		}
 	}
 
 	template<typename TStr1, typename TStr2>
 	[[nodiscard]] auto split_string(const TStr1& string, const TStr2& splitChars)
 	{
-		using sv = std::basic_string_view<typename TStr1::value_type, typename TStr1::traits_type>;
-		return split_string(sv(string), sv(splitChars));
+		return split_string(std::basic_string_view(string), std::basic_string_view(splitChars));
 	}
 }
+#endif
 #endif

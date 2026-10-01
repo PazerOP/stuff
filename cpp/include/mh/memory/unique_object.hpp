@@ -1,14 +1,23 @@
 #pragma once
 
+#if __has_include(<version>)
+#include <version>
+#endif
+
 #if __cpp_impl_three_way_comparison >= 201907
 #include <compare>
 #endif
+
+#if __has_include(<concepts>)
+#include <concepts>
+#endif
+
 #include <ostream>
 #include <utility>
 
 namespace mh
 {
-#ifdef __cpp_concepts
+#if (__cpp_concepts >= 201907) && __has_include(<concepts>)
 	template<typename Traits, typename Object>
 	concept UniqueObjectTraits = requires(Traits t, Object o)
 	{
@@ -19,14 +28,22 @@ namespace mh
 #endif
 
 	template<typename T, typename Traits>
-#ifdef __cpp_concepts
+#if (__cpp_concepts >= 201907) && __has_include(<concepts>)
 	requires UniqueObjectTraits<Traits, T>
 #endif
 	class unique_object
 	{
 		using this_type = unique_object<T, Traits>;
 	public:
-		unique_object() : m_Object{}, m_Traits{} {}
+		unique_object() : m_Object(invalid_value()), m_Traits{} {}
+
+		static constexpr T invalid_value()
+		{
+			if constexpr (requires { { Traits::invalid() }; })
+				return Traits::invalid();
+			else
+				return T{};
+		}
 
 		explicit unique_object(const T& value, const Traits& traits) :
 			m_Object(value), m_Traits(traits) {}
@@ -34,7 +51,7 @@ namespace mh
 			m_Object(value), m_Traits(std::move(traits)) {}
 		explicit unique_object(T&& value, const Traits& traits) :
 			m_Object(std::move(value)), m_Traits(traits) {}
-		explicit unique_object(T&& value, Traits&& traits) :
+		explicit unique_object(T&& value, Traits&& traits = {}) :
 			m_Object(std::move(value)), m_Traits(std::move(traits)) {}
 
 		unique_object(const this_type& other) = delete;
@@ -65,7 +82,7 @@ namespace mh
 
 		T release() { return m_Traits.release_obj(m_Object); }
 
-		void reset() { m_Traits.delete_obj(m_Object); }
+		void reset() { m_Traits.delete_obj(m_Object); m_Object = invalid_value(); }
 		void reset(T obj) { *this = this_type(std::move(obj)); }
 
 		T& reset_and_get_ref()

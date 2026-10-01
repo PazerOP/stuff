@@ -16,10 +16,15 @@
 #endif
 #endif
 
+#include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <numeric>
 #include <type_traits>
+
+#undef min
+#undef max
 
 namespace mh
 {
@@ -40,25 +45,45 @@ namespace mh
 #endif
 			else
 			{
-				if (in >= 0)
-					return in + 0.5f;
+				// Round half away from zero - match std::round exactly
+				if (in != in)
+					return in; // NaN
+
+				if (in >= T(std::numeric_limits<intmax_t>::max()) || in <= T(std::numeric_limits<intmax_t>::min()))
+					return in; // no fractional part representable at this magnitude
+
+				const T truncated = T(intmax_t(in));
+				const T frac = in - truncated;
+				if (frac >= T(0.5))
+					return truncated + T(1);
+				else if (frac <= T(-0.5))
+					return truncated - T(1);
 				else
-					return in - 0.5f;
+					return truncated;
 			}
 		}
 
 		template<typename TIn, typename TOut>
-		constexpr TOut clamp(TIn in, TOut out_min, TOut out_max)
+		constexpr auto clamp(TIn in, TOut out_min, TOut out_max)
 		{
-			if (in <= static_cast<TIn>(out_min))
-				return out_min;
-			if (in >= static_cast<TIn>(out_max))
-				return out_max;
-
 			if constexpr (std::is_floating_point_v<TIn> && std::is_integral_v<TOut>)
-				in = round(in);
-
-			return static_cast<TOut>(in);
+			{
+				// For floating-point input and integral bounds, promote result to float
+				using result_t = float;
+				if (in <= static_cast<TIn>(out_min))
+					return static_cast<result_t>(out_min);
+				if (in >= static_cast<TIn>(out_max))
+					return static_cast<result_t>(out_max);
+				return static_cast<result_t>(in);
+			}
+			else
+			{
+				if (in <= static_cast<TIn>(out_min))
+					return out_min;
+				if (in >= static_cast<TIn>(out_max))
+					return out_max;
+				return static_cast<TOut>(in);
+			}
 		}
 
 		template<typename T>
@@ -67,7 +92,8 @@ namespace mh
 			if (a == 0)
 				return false;
 
-			return T(T(a * b) / a) != b;
+			using TU = std::make_unsigned_t<decltype(a * b)>; // promoted operand type, made unsigned
+			return T(T(TU(a) * TU(b)) / a) != b;
 		}
 
 		template<typename T>
@@ -115,7 +141,7 @@ namespace mh
 	}
 
 	template<typename TIn, typename TOut>
-	constexpr TOut lerp_clamped(TIn in_01, TOut out_min, TOut out_max)
+	constexpr auto lerp_clamped(TIn in_01, TOut out_min, TOut out_max)
 	{
 		using ct = std::common_type_t<TIn, TOut>;
 
@@ -125,7 +151,7 @@ namespace mh
 	}
 
 	template<typename TIn, typename TOut>
-	constexpr TOut lerp_slow_clamped(TIn in_01, TOut out_min, TOut out_max)
+	constexpr auto lerp_slow_clamped(TIn in_01, TOut out_min, TOut out_max)
 	{
 		using ct = std::common_type_t<TIn, TOut>;
 
@@ -135,15 +161,16 @@ namespace mh
 	}
 
 	template<typename TIn, typename TOut = float>
-	constexpr TIn remap_to_01(TIn in, TIn in_min, TIn in_max)
+	constexpr TOut remap_to_01(TIn in, TIn in_min, TIn in_max)
 	{
-		static_assert(std::is_floating_point_v<TIn>);
-		return TOut(TOut(in) - TOut(in_min)) / TOut(TOut(in_max) - TOut(in_min));
+		static_assert(std::is_floating_point_v<TOut>);
+		return TOut(in - in_min) / TOut(in_max - in_min);
 	}
 
 	template<typename TIn, typename TOut>
 	constexpr TOut remap(TIn in, TIn in_min, TIn in_max, TOut out_min, TOut out_max)
 	{
+		assert(in_min != in_max);
 		return lerp(remap_to_01(in, in_min, in_max), out_min, out_max);
 	}
 
@@ -200,7 +227,7 @@ namespace mh
 			{
 				// Calculate the fractional part
 				constexpr TCommon fracMultiplier = (num % den);
-				constexpr auto half_den = (den / 2) - 1;
+				constexpr auto half_den = (den - 1) / 2;
 
 				constexpr bool has_more_native_bits = has_larger_version_v<TCommon>;
 
@@ -219,7 +246,7 @@ namespace mh
 					using frac_t = std::conditional_t<has_more_native_bits, larger_version_t<TCommon>, TCommon>;
 					static_assert(std::numeric_limits<TCommon>::max() <= std::numeric_limits<frac_t>::max());
 					static_assert(!will_overflow_mul<frac_t>(src_urange, fracMultiplier));
-					constexpr frac_t frac_max = src_urange * fracMultiplier;
+					constexpr frac_t frac_max = frac_t(src_urange) * frac_t(fracMultiplier);
 
 					const frac_t frac = frac_t(valueOffset) * frac_t(fracMultiplier);
 
@@ -241,7 +268,7 @@ namespace mh
 						const auto remainder = frac % den;
 						result += frac / den;
 
-						constexpr auto half_den_mod = (den / 2) + (den % 2);
+						constexpr auto half_den_mod = den / 2;
 						if (remainder > half_den_mod)
 							result += 1;
 					}

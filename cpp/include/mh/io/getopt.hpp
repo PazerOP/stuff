@@ -1,12 +1,19 @@
 #pragma once
 
+#if __has_include(<getopt.h>) || __has_include(<unistd.h>)
+#if __has_include(<getopt.h>)
+#include <getopt.h>
+#elif __has_include(<unistd.h>)
+#include <unistd.h>
+#endif
+
 #include <iomanip>
 #include <ostream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 
-#include <getopt.h>
 
 #if __has_include(<mh/data/variable_pusher.hpp>)
 #include <mh/data/variable_pusher.hpp>
@@ -33,7 +40,7 @@ namespace mh::detail::getopt_hpp
 	private:
 		T& m_Variable;
 		T m_OldValue;
-	}
+	};
 }
 #endif
 
@@ -106,7 +113,14 @@ namespace mh
 		const option* longopt_begin, const option* longopt_end,
 		const TFunc& func)
 	{
+#ifdef __GLIBC__
+		// glibc requires optind = 0 (not 1) to fully reinitialize getopt's internal
+		// scan state. A previous scan that encountered non-option arguments leaves
+		// permutation bookkeeping behind that corrupts a rescan started with optind = 1.
+		const detail::getopt_hpp::variable_pusher<int> optind_pusher(optind, 0);
+#else
 		const detail::getopt_hpp::variable_pusher<int> optind_pusher(optind, 1);
+#endif
 
 		const bool using_longopts = longopt_begin || longopt_end;
 		if (using_longopts)
@@ -146,7 +160,8 @@ namespace mh
 			parsed_option parsed{};
 			parsed.arg_value = argv[optind];
 			parsed.is_non_option = true;
-			func(parsed);
+			if (!func(parsed))
+				return false;
 			optind++;
 		}
 
@@ -226,6 +241,12 @@ inline constexpr std::strong_ordering operator<=>(const option& lhs, const optio
 
 	return std::strong_ordering::equal;
 }
+// In C++20, operator== is NOT synthesized from a non-defaulted operator<=>
+// (only <, >, <=, >= are rewritten), so it must be provided explicitly.
+inline constexpr bool operator==(const option& lhs, const option& rhs)
+{
+	return (lhs <=> rhs) == 0;
+}
 #else
 inline constexpr bool operator==(const option& lhs, const option& rhs)
 {
@@ -276,3 +297,5 @@ std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>&
 
 	return os << "\n}";
 }
+
+#endif

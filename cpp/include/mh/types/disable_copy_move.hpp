@@ -12,7 +12,9 @@ namespace mh
 	struct disable_move
 	{
 		constexpr disable_move() = default;
+		constexpr disable_move(const disable_move&) = default;
 		disable_move(disable_move&&) = delete;
+		disable_move& operator=(const disable_move&) = default;
 		disable_move& operator=(disable_move&&) = delete;
 	};
 

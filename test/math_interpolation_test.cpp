@@ -1,5 +1,6 @@
 #include "mh/math/interpolation.hpp"
-#include "catch2/repo/single_include/catch2/catch.hpp"
+#include <catch2/catch_all.hpp>
+#include <iomanip>
 
 TEST_CASE("lerp", "[math][interpolation]")
 {
@@ -8,27 +9,25 @@ TEST_CASE("lerp", "[math][interpolation]")
 	REQUIRE(mh::lerp(0.0f, 1, 1) == 1);
 	REQUIRE(mh::lerp(1.0f, 1, 1) == 1);
 	REQUIRE(mh::lerp(0.5f, 1, 1) == 1);
-	REQUIRE(mh::lerp(0.5f, -49, 1) == Approx(-24));
+	REQUIRE(mh::lerp(0.5f, -49, 1) == Catch::Approx(-24));
 
-	REQUIRE(mh::lerp(0.5f, -100000, -10000) == Approx(-55000));
+	REQUIRE(mh::lerp(0.5f, -100000, -10000) == Catch::Approx(-55000));
 
 	// Test upper bound
-	REQUIRE(mh::lerp(1.1, 0, 10) == Approx(11));
-	REQUIRE(mh::lerp_clamped(1.1, 0, 10) == Approx(10));
+	REQUIRE(mh::lerp(1.1, 0, 10) == Catch::Approx(11));
+	REQUIRE(mh::lerp_clamped(1.1, 0, 10) == Catch::Approx(10));
 
 	// Test lower bound
-	REQUIRE(mh::lerp(-1.1, 0, 10) == Approx(-11));
-	REQUIRE(mh::lerp_clamped(-1.1, 0, 10) == Approx(0));
+	REQUIRE(mh::lerp(-1.1, 0, 10) == Catch::Approx(-11));
+	REQUIRE(mh::lerp_clamped(-1.1, 0, 10) == Catch::Approx(0));
 }
 
 TEST_CASE("lerp_slow", "[math][interpolation]")
 {
-	REQUIRE(mh::lerp_slow(0.5f, std::numeric_limits<float>::lowest(),
-		std::numeric_limits<float>::max()) == Approx(0));
-	REQUIRE(mh::lerp_slow(0.5f, std::numeric_limits<double>::lowest(),
-		std::numeric_limits<double>::max()) == Approx(0));
-	//REQUIRE(mh::lerp_slow(0.5f, std::numeric_limits<long double>::lowest(),
-	//	std::numeric_limits<long double>::max()) == Approx(0));
+	REQUIRE(mh::lerp_slow(0.5f, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max()) == Catch::Approx(0));
+	REQUIRE(mh::lerp_slow(0.5f, std::numeric_limits<double>::lowest(), std::numeric_limits<double>::max()) == Catch::Approx(0));
+	// REQUIRE(mh::lerp_slow(0.5f, std::numeric_limits<long double>::lowest(),
+	//	std::numeric_limits<long double>::max()) == Catch::Approx(0));
 
 	for (int i = 0; i < 1000; i++)
 	{
@@ -37,14 +36,97 @@ TEST_CASE("lerp_slow", "[math][interpolation]")
 		const auto max = i;
 		CAPTURE(t, min, max);
 
-		REQUIRE(mh::lerp(t, min, max) ==
-			Approx(mh::lerp_slow(t, min, max)).epsilon(0.0005));
-		REQUIRE(mh::lerp_clamped(t, min, max) == Approx(mh::lerp_slow_clamped(t, min, max)));
+		REQUIRE(mh::lerp(t, min, max) == Catch::Approx(mh::lerp_slow(t, min, max)).epsilon(0.0005));
+		REQUIRE(mh::lerp_clamped(t, min, max) == Catch::Approx(mh::lerp_slow_clamped(t, min, max)));
 	}
 }
 
+TEST_CASE("round function comparison", "[math_interpolation]")
+{
+	// Test the custom round function vs std::round
+	std::vector<float> test_values = {-31.5f, -31.4f, -31.6f, -32.5f, -32.4f, -32.6f, 31.5f, 31.4f, 31.6f, 32.5f, 32.4f, 32.6f, -0.5f, -0.4f, -0.6f, 0.5f, 0.4f, 0.6f, -1.5f, -1.4f, -1.6f, 1.5f, 1.4f, 1.6f, -2.5f, -2.4f, -2.6f, 2.5f, 2.4f, 2.6f};
 
-template<typename TFrom, typename TTo>
+	for (float val : test_values)
+	{
+		CAPTURE(val);
+		float std_result = std::round(val);
+		float custom_result = mh::detail::interpolation_hpp::round(val);
+
+		INFO("std::round(" << val << ") = " << std_result);
+		INFO("custom round(" << val << ") = " << custom_result);
+
+		CHECK(std_result == custom_result);
+	}
+}
+
+TEST_CASE("interpolation edge cases", "[math][interpolation]")
+{
+	// Test specific failing case
+	float t = 0.35f;
+	int min = -105;
+	int max = 105;
+
+	CAPTURE(t, min, max);
+
+	// Calculate intermediate values
+	float lerp_raw = min + (max - min) * t;
+	float lerp_slow_raw = (min * (1 - t)) + (max * t);
+
+	INFO("lerp raw calculation: " << std::fixed << std::setprecision(20) << lerp_raw);
+	INFO("lerp_slow raw calculation: " << std::fixed << std::setprecision(20) << lerp_slow_raw);
+	INFO("difference: " << std::fixed << std::setprecision(20) << (lerp_raw - lerp_slow_raw));
+
+	// Show bit representations
+	union
+	{
+		float f;
+		uint32_t i;
+	} lerp_bits = {lerp_raw};
+	union
+	{
+		float f;
+		uint32_t i;
+	} lerp_slow_bits = {lerp_slow_raw};
+	INFO("lerp_raw bits: 0x" << std::hex << lerp_bits.i);
+	INFO("lerp_slow_raw bits: 0x" << std::hex << lerp_slow_bits.i);
+
+	// Show intermediate calculations
+	float max_minus_min = max - min;
+	float t_times_range = max_minus_min * t;
+	float one_minus_t = 1.0f - t;
+	float min_times_omt = min * one_minus_t;
+	float max_times_t = max * t;
+
+	INFO("max - min = " << std::fixed << std::setprecision(20) << max_minus_min);
+	INFO("(max - min) * t = " << std::fixed << std::setprecision(20) << t_times_range);
+	INFO("1 - t = " << std::fixed << std::setprecision(20) << one_minus_t);
+	INFO("min * (1 - t) = " << std::fixed << std::setprecision(20) << min_times_omt);
+	INFO("max * t = " << std::fixed << std::setprecision(20) << max_times_t);
+	INFO("sum = " << std::fixed << std::setprecision(20) << (min_times_omt + max_times_t));
+
+	// Test rounding behavior
+	float std_round_lerp = std::round(lerp_raw);
+	float std_round_lerp_slow = std::round(lerp_slow_raw);
+	float custom_round_lerp = mh::detail::interpolation_hpp::round(lerp_raw);
+	float custom_round_lerp_slow = mh::detail::interpolation_hpp::round(lerp_slow_raw);
+
+	INFO("std::round(lerp_raw): " << std_round_lerp);
+	INFO("std::round(lerp_slow_raw): " << std_round_lerp_slow);
+	INFO("custom_round(lerp_raw): " << custom_round_lerp);
+	INFO("custom_round(lerp_slow_raw): " << custom_round_lerp_slow);
+
+	// Test final results
+	int lerp_clamped_result = mh::lerp_clamped(t, min, max);
+	int lerp_slow_clamped_result = mh::lerp_slow_clamped(t, min, max);
+
+	INFO("lerp_clamped result: " << lerp_clamped_result);
+	INFO("lerp_slow_clamped result: " << lerp_slow_clamped_result);
+
+	// They should be equal
+	REQUIRE(lerp_clamped_result == lerp_slow_clamped_result);
+}
+
+template <typename TFrom, typename TTo>
 static void TestRemapStatic()
 {
 	using nl_from = std::numeric_limits<TFrom>;
@@ -69,11 +151,11 @@ static void TestRemapStatic()
 
 	REQUIRE(+mh::remap_static<TFrom, TTo>(min_from) == +min_to);
 	REQUIRE(+mh::remap_static<TFrom, TTo>(max_from) == +max_to);
-	//REQUIRE(+mh::remap_static<TTo, TFrom>(min_to) == +min_from);
-	//REQUIRE(+mh::remap_static<TTo, TFrom>(max_to) == +max_from);
+	// REQUIRE(+mh::remap_static<TTo, TFrom>(min_to) == +min_from);
+	// REQUIRE(+mh::remap_static<TTo, TFrom>(max_to) == +max_from);
 }
 
-template<typename TSrc>
+template <typename TSrc>
 static void TestRemapStatic1()
 {
 	TestRemapStatic<TSrc, uint8_t>();
@@ -87,15 +169,16 @@ static void TestRemapStatic1()
 	TestRemapStatic<TSrc, int64_t>();
 }
 
-template<typename TLargeInt>
+template <typename TLargeInt>
 static void TestLargeIntRemap()
 {
 	constexpr TLargeInt MAX = std::numeric_limits<TLargeInt>::max();
 	CAPTURE(MAX);
-	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX-1>(MAX) == MAX-1);
-	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX-1>(MAX-1) == MAX-2);
-	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX-1>(MAX-2) == MAX-3);
+	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX - 1>(MAX) == MAX - 1);
+	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX - 1>(MAX - 1) == MAX - 2);
+	REQUIRE(+mh::remap_static<TLargeInt, TLargeInt, 0, MAX, 0, MAX - 1>(MAX - 2) == MAX - 3);
 }
+
 
 TEST_CASE("remap_static", "[math][interpolation]")
 {
@@ -163,11 +246,11 @@ TEST_CASE("remap_static", "[math][interpolation]")
 	REQUIRE(+mh::remap_static<int64_t, uint8_t>(-36170086419038337) == 127);
 	REQUIRE(+mh::remap_static<int64_t, uint8_t>(-36170086419038336) == 127);
 	REQUIRE(+mh::remap_static<int64_t, uint8_t>(-1) == 127);
-	REQUIRE(+mh::remap_static<int64_t, uint8_t>(0) == 127);
+	REQUIRE(+mh::remap_static<int64_t, uint8_t>(0) == 128);
 	REQUIRE(+mh::remap_static<int64_t, uint8_t>(1) == 128);
 
 	REQUIRE(+mh::remap_static<int16_t, uint8_t>(-1) == 127);
-	REQUIRE(+mh::remap_static<int16_t, uint8_t>(0) == 127);
+	REQUIRE(+mh::remap_static<int16_t, uint8_t>(0) == 128);
 	REQUIRE(+mh::remap_static<int16_t, uint8_t>(1) == 128);
 
 	REQUIRE(+mh::remap_static<uint8_t, uint8_t, 0, 255, 0, 31>(46) == 6);
@@ -198,4 +281,73 @@ TEST_CASE("remap_static", "[math][interpolation]")
 	TestLargeIntRemap<uint32_t>();
 	TestLargeIntRemap<uint64_t>();
 	TestLargeIntRemap<uintmax_t>();
+}
+
+TEST_CASE("remap_static - uint16 full range", "[math][interpolation]")
+{
+	// The fractional multiplier here is 65534 with a source range of 65535;
+	// 65535 * 65534 overflows a (promoted) signed int, so the overflow
+	// pre-checks and frac_max must be computed in a sufficiently wide unsigned
+	// type or the whole expression fails to compile during constant evaluation.
+	// Expected values are round-to-nearest of value * 65534 / 65535 (the
+	// denominator is odd, so no ties are possible).
+	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(0)) == 0);
+	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(1)) == 1);
+	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(12345)) == 12345);
+	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(32768)) == 32767);
+	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(65534)) == 65533);
+	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(65535)) == 65534);
+}
+
+TEST_CASE("remap - basic runtime remapping", "[math][interpolation]")
+{
+	// mh::remap must be usable by any TU that just includes interpolation.hpp
+	// (the header has to pull in <cassert> for its own assert() use).
+	REQUIRE(mh::remap(5, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.5f));
+	REQUIRE(mh::remap(0, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.0f));
+	REQUIRE(mh::remap(10, 0, 10, 0.0f, 1.0f) == Catch::Approx(1.0f));
+	REQUIRE(mh::remap(2.5f, 0.0f, 10.0f, 100.0f, 200.0f) == Catch::Approx(125.0f));
+
+	REQUIRE(mh::remap_clamped(15, 0, 10, 0.0f, 1.0f) == Catch::Approx(1.0f));
+	REQUIRE(mh::remap_clamped(-5, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.0f));
+}
+
+TEST_CASE("round function constant evaluation", "[math_interpolation]")
+{
+	using mh::detail::interpolation_hpp::round;
+
+	// The constant-evaluation fallback must actually be usable in constant
+	// expressions and must round half away from zero, matching std::round.
+	STATIC_REQUIRE(round(0.0f) == 0.0f);
+	STATIC_REQUIRE(round(0.4f) == 0.0f);
+	STATIC_REQUIRE(round(0.5f) == 1.0f);
+	STATIC_REQUIRE(round(0.6f) == 1.0f);
+	STATIC_REQUIRE(round(-0.4f) == 0.0f);
+	STATIC_REQUIRE(round(-0.5f) == -1.0f); // half away from zero, NOT -0
+	STATIC_REQUIRE(round(-0.6f) == -1.0f);
+	STATIC_REQUIRE(round(1.5f) == 2.0f);
+	STATIC_REQUIRE(round(-1.5f) == -2.0f);
+	STATIC_REQUIRE(round(2.5f) == 3.0f);
+	STATIC_REQUIRE(round(-2.5f) == -3.0f);
+	STATIC_REQUIRE(round(31.4f) == 31.0f);
+	STATIC_REQUIRE(round(-31.5f) == -32.0f);
+	STATIC_REQUIRE(round(32.6f) == 33.0f);
+
+	// Values with no representable fractional part pass through unchanged
+	STATIC_REQUIRE(round(16777216.0f) == 16777216.0f); // 2^24
+	STATIC_REQUIRE(round(9.3e18f) == 9.3e18f); // beyond intmax_t
+	STATIC_REQUIRE(round(-9.3e18f) == -9.3e18f);
+	STATIC_REQUIRE(round(4503599627370496.0) == 4503599627370496.0); // 2^52
+	STATIC_REQUIRE(round(std::numeric_limits<float>::infinity()) == std::numeric_limits<float>::infinity());
+	STATIC_REQUIRE(round(-std::numeric_limits<float>::infinity()) == -std::numeric_limits<float>::infinity());
+
+	// NaN must survive constant evaluation (no conversion to integer) and stay NaN
+	{
+		constexpr float nan_result = round(std::numeric_limits<float>::quiet_NaN());
+		STATIC_REQUIRE(nan_result != nan_result);
+	}
+
+	// double flavor
+	STATIC_REQUIRE(round(-0.5) == -1.0);
+	STATIC_REQUIRE(round(2.5) == 3.0);
 }

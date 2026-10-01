@@ -1,114 +1,76 @@
 #pragma once
 
-#include <chrono>
-#include <condition_variable>
-#include <exception>
-#include <functional>
-#include <future>
-#include <mutex>
-#include <queue>
-#include <stdexcept>
-#include <thread>
-#include <vector>
+#include <mh/coroutine/task.hpp>
+
+#ifdef MH_COROUTINES_SUPPORTED
+
+#ifndef MH_STUFF_API
+#define MH_STUFF_API
+#endif
+
+#include "dispatcher.hpp"
+
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <utility>
 
 namespace mh
 {
-	template<typename T>
+	namespace detail::thread_pool_hpp
+	{
+		struct thread_data;
+
+		struct dispatcher_task_wrapper
+		{
+			explicit dispatcher_task_wrapper(mh::dispatcher::dispatch_task_t dispatchTask);
+			explicit dispatcher_task_wrapper(std::nullptr_t) noexcept;
+
+			MH_STUFF_API bool await_ready() const;
+			MH_STUFF_API void await_resume() const;
+			MH_STUFF_API bool await_suspend(coro::coroutine_handle<> parent);
+
+		private:
+			std::optional<mh::dispatcher::dispatch_task_t> m_DispatchTask;
+		};
+	}
+
 	class thread_pool final
 	{
+		using thread_data = detail::thread_pool_hpp::thread_data;
+
 	public:
-		using function_type = std::function<T()>;
-		using future_type = std::shared_future<T>;
+		using clock_t = mh::dispatcher::clock_t;
 
-		thread_pool(size_t threadCount = std::thread::hardware_concurrency())
+		MH_STUFF_API thread_pool();
+		MH_STUFF_API thread_pool(size_t threadCount);
+		MH_STUFF_API ~thread_pool();
+
+		MH_STUFF_API detail::thread_pool_hpp::dispatcher_task_wrapper co_add_task();
+
+		MH_STUFF_API mh::dispatcher::delay_task_t co_delay_until(clock_t::time_point timePoint);
+		MH_STUFF_API mh::dispatcher::delay_task_t co_delay_for(clock_t::duration duration);
+
+		template<typename TFunc, typename... TArgs>
+		mh::task<std::invoke_result_t<TFunc, TArgs...>> add_task(TFunc func, TArgs... args)
 		{
-			if (threadCount < 1)
-				throw std::invalid_argument("threadCount must be >= 1");
+			co_await co_add_task();
 
-			for (size_t i = 0; i < threadCount; i++)
-				m_Threads.push_back(std::thread(&ThreadFunc, m_ThreadData));
-		}
-		~thread_pool()
-		{
-			m_ThreadData->m_IsShuttingDown = true;
-			for (auto& thread : m_Threads)
-				thread.detach();
-		}
-
-		future_type add_task(function_type func)
-		{
-			std::lock_guard lock(m_ThreadData->m_TasksMutex);
-
-			Task& task = m_ThreadData->m_Tasks.emplace();
-			task.m_Function = std::move(func);
-
-			m_ThreadData->m_TasksCV.notify_one();
-
-			return task.m_Promise.get_future();
+			co_return func(std::move(args)...);
 		}
 
-		size_t thread_count() const { return m_Threads.size(); }
-		size_t task_count() const { return m_ThreadData->m_Tasks.size(); }
+		MH_STUFF_API size_t thread_count() const;
+		MH_STUFF_API size_t task_count() const;
 
 	private:
-		struct Task
-		{
-			function_type m_Function;
-			std::promise<T> m_Promise;
-		};
+		std::shared_ptr<thread_data> m_ThreadData;
 
-		struct ThreadData
-		{
-			bool m_IsShuttingDown = false;
-
-			std::queue<Task> m_Tasks;
-			mutable std::mutex m_TasksMutex;
-			std::condition_variable m_TasksCV;
-		};
-		std::shared_ptr<ThreadData> m_ThreadData = std::make_shared<ThreadData>();
-		std::vector<std::thread> m_Threads;
-
-		static void ThreadFunc(std::shared_ptr<ThreadData> data)
-		{
-			using namespace std::chrono_literals;
-
-			while (!data->m_IsShuttingDown)
-			{
-				{
-					std::unique_lock lock(data->m_TasksMutex);
-					data->m_TasksCV.wait_for(lock, 1s);
-				}
-
-				while (!data->m_Tasks.empty() && !data->m_IsShuttingDown)
-				{
-					Task task;
-					{
-						std::lock_guard lock(data->m_TasksMutex);
-						if (data->m_Tasks.empty())
-							break;
-
-						task = std::move(data->m_Tasks.front());
-						data->m_Tasks.pop();
-					}
-
-					try
-					{
-						if constexpr (std::is_same_v<T, void>)
-						{
-							task.m_Function();
-							task.m_Promise.set_value();
-						}
-						else
-						{
-							task.m_Promise.set_value(task.m_Function());
-						}
-					}
-					catch (const std::exception& e)
-					{
-						task.m_Promise.set_exception(std::current_exception());
-					}
-				}
-			}
-		}
+		static void ThreadFunc(std::shared_ptr<thread_data> data);
 	};
 }
+
+#ifndef MH_COMPILE_LIBRARY
+#include "thread_pool.inl"
+#endif
+
+#endif
