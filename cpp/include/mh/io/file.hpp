@@ -28,8 +28,13 @@ namespace mh
 		const auto length = file.tellg();
 		file.seekg(0, std::ios::beg);
 
+		// read() may legitimately extract fewer characters than the external BYTE
+		// length (CRLF translation on Windows, multi-byte encodings for wide
+		// streams). Hitting EOF early sets failbit, which must not throw here.
+		file.exceptions(std::ios::badbit);
 		std::basic_string<TChar, Traits, Alloc> retVal(length, '\0');
 		file.read(retVal.data(), length);
+		retVal.resize(static_cast<size_t>(file.gcount()));
 
 		return retVal;
 	}

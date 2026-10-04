@@ -6,8 +6,6 @@
 #include <string>
 #include <cstring>
 
-#include <iostream>
-
 namespace mh
 {
 	namespace detail::memstream_hpp
@@ -33,12 +31,12 @@ namespace mh
 
 			assert(buf);
 
-			this->setp(buf + existingSize, buf + size - existingSize);
+			this->setp(buf, buf + existingSize, buf + size);
 			this->setg(buf, buf, buf + existingSize);
 		}
 
-		sv_type view() const { return sv_type(gcur(), gend() - gcur()); }
-		sv_type view_full() const { return sv_type(gbeg(), gend() - gbeg()); }
+		sv_type view() const { return sv_type(gcur(), gend_live() - gcur()); }
+		sv_type view_full() const { return sv_type(gbeg(), gend_live() - gbeg()); }
 
 	protected:
 		base_streambuf_type* setbuf(CharT* s, std::streamsize n) override
@@ -119,9 +117,9 @@ namespace mh
 				pos_type result{};
 
 				if (which & std::ios::in)
-					result = seekpos((gend() - gbeg()) - off, std::ios::in);
+					result = seekpos((gend() - gbeg()) + off, std::ios::in);
 				if (which & std::ios::out)
-					result = seekpos((pend() - pbeg()) - off, std::ios::out);
+					result = seekpos((pend() - pbeg()) + off, std::ios::out);
 
 				return result;
 			}
@@ -134,19 +132,11 @@ namespace mh
 
 		std::streamsize xsputn(const CharT* s, std::streamsize count) override
 		{
-			std::cerr << __func__ << "(): count = " << +count << ", s = " << sv_type(s, count) << std::endl;
-			count = detail::memstream_hpp::min<std::streamsize>(count, remaining_p());
+			count = detail::memstream_hpp::min<std::streamsize>(count,
+				detail::memstream_hpp::max<std::streamsize>(0, remaining_p()));
 			auto ptr = pcur();
 			for (std::streamsize i = 0; i < count; i++)
-			{
-				if (s[i] == Traits::eof())
-				{
-					count = i;
-					break;
-				}
-
 				ptr[i] = s[i];
-			}
 
 			this->pbump(count);
 
@@ -154,9 +144,17 @@ namespace mh
 			return count;
 		}
 
+		int_type underflow() override
+		{
+			update_get_area_size();
+			if (gcur() == gend())
+				return Traits::eof();
+
+			return Traits::to_int_type(*gcur());
+		}
+
 		int_type overflow(int_type ch = Traits::eof()) override
 		{
-			std::cerr << __func__ << "(): ch = " << +ch << std::endl;
 			if (ch != Traits::eof())
 			{
 				if (pcur() == pend())
@@ -164,7 +162,6 @@ namespace mh
 
 				*pcur() = static_cast<CharT>(ch);
 				this->pbump(1);
-				*pcur() = 0;
 				update_get_area_size();
 			}
 
@@ -178,6 +175,7 @@ namespace mh
 		CharT* gbeg() const { return this->eback(); }
 		CharT* gcur() const { return this->gptr(); }
 		CharT* gend() const { return this->egptr(); }
+		CharT* gend_live() const { return detail::memstream_hpp::max(pcur(), gend()); }
 
 		off_type length_p() const { return pend() - pbeg(); }
 		off_type length_g() const { return gend() - gbeg(); }
@@ -186,7 +184,6 @@ namespace mh
 
 		void update_get_area_size()
 		{
-			std::cerr << __func__ << "()" << std::endl;
 			this->setg(gbeg(), gcur(), detail::memstream_hpp::max(pcur(), gend()));
 		}
 	};
@@ -201,7 +198,6 @@ namespace mh
 		using off_type = typename streambuf_type::off_type;
 
 	public:
-		basic_memstream() : iostream_type(this) {}
 		template<size_t size> basic_memstream(CharT (&buf)[size]) : basic_memstream(buf, size) {}
 		basic_memstream(CharT* buf, size_t size) :
 			streambuf_type(buf, size),

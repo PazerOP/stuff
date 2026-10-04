@@ -40,6 +40,14 @@ namespace mh
 		constexpr value_type operator->() const { return get(); }
 
 	private:
+		template<typename U> friend constexpr bool operator==(const checked_ptr<U>&, const checked_ptr<U>&);
+		template<typename U> friend constexpr bool operator==(const U*, const checked_ptr<U>&);
+		template<typename U> friend constexpr bool operator==(const checked_ptr<U>&, const U*);
+#if __has_include(<compare>) && (__cpp_impl_three_way_comparison >= 201907)
+		template<typename U> friend constexpr std::strong_ordering operator<=>(const checked_ptr<U>&, const checked_ptr<U>&);
+		template<typename U> friend constexpr std::strong_ordering operator<=>(const U*, const checked_ptr<U>&);
+		template<typename U> friend constexpr std::strong_ordering operator<=>(const checked_ptr<U>&, const U*);
+#endif
 		value_type m_Ptr = nullptr;
 
 #ifdef _DEBUG

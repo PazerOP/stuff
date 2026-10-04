@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <iterator>
 #include <utility>
 
 namespace mh
@@ -47,6 +48,6 @@ namespace mh
 	template<typename Container, typename Compare>
 	inline void sort(Container& container, Compare&& compare)
 	{
-		return std::sort(std::begin(container), std::end(container), std::move(compare));
+		return std::sort(std::begin(container), std::end(container), std::forward<Compare>(compare));
 	}
 }

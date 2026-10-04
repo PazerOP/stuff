@@ -12,6 +12,8 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <cstring>
+#include <stdexcept>
+#include <vector>
 
 namespace mh
 {
@@ -23,23 +25,37 @@ namespace mh
 
 	MH_COMPILE_LIBRARY_INLINE bool process_manager::register_process(int pid, std::coroutine_handle<> handle)
 	{
-		std::lock_guard<std::mutex> lock(mutex_);
-		waiting_processes_[pid] = {handle, -1};
-
-		// Install signal handler and start monitoring if this is the first process
-		if (waiting_processes_.size() == 1)
 		{
-			if (!signal_handler_installed_)
+			std::lock_guard<std::mutex> lock(mutex_);
+			waiting_processes_[pid] = {handle, -1};
+
+			// Install signal handler and start monitoring if this is the first process
+			if (waiting_processes_.size() == 1)
 			{
-				install_signal_handler();
-			}
-			if (!monitoring_started_)
-			{
-				start_monitoring_task();
-				monitoring_started_ = true;
+				if (!signal_handler_installed_)
+				{
+					install_signal_handler();
+					if (!signal_handler_installed_)
+					{
+						// Without the self-pipe + SIGCHLD handler the caller would
+						// suspend forever; fail loudly instead of returning success.
+						waiting_processes_.erase(pid);
+						throw std::runtime_error("process_manager: failed to install SIGCHLD handler");
+					}
+				}
+				if (!monitoring_started_)
+				{
+					start_monitoring_task();
+					monitoring_started_ = true;
+				}
 			}
 		}
 
+		// Close the fork() -> sigaction() race: if the child already exited before
+		// the handler was installed (or before this registration), its SIGCHLD was
+		// dropped and nothing would ever wake the monitor. Force one scan now
+		// (async-signal-safe and idempotent - it just writes a byte to the self-pipe).
+		signal_handler(SIGCHLD);
 		return true;
 	}
 
@@ -91,88 +107,86 @@ namespace mh
 		write(signal_pipe_[1], &byte, 1);
 	}
 
-	MH_COMPILE_LIBRARY_INLINE void process_manager::start_monitoring_task()
+	MH_COMPILE_LIBRARY_INLINE task<void> process_manager::monitor_task(process_manager* self)
 	{
-		// Start a long-running task that monitors for SIGCHLD
-		auto monitor = [this]() -> task<void>
+		// NOTE: requires a dispatcher registered on (and run by) the thread that
+		// registered the first process - dispatcher::get() throws otherwise, and the
+		// exception is captured by this detached task.
+		while (true)
 		{
-			while (true)
+			// Wait for SIGCHLD notification
+			co_await dispatcher::get().co_wait_fd_read(signal_pipe_[0]);
+
+			// Drain the pipe
+			char buffer[256];
+			(void)read(signal_pipe_[0], buffer, sizeof(buffer));
+
+			// Check all waiting processes
+			self->check_processes();
+
+			// Keep monitoring as long as there are processes
 			{
-				// Wait for SIGCHLD notification
-				co_await dispatcher::get().co_wait_fd_read(signal_pipe_[0]);
-
-				// Drain the pipe
-				char buffer[256];
-				read(signal_pipe_[0], buffer, sizeof(buffer));
-
-				// Check all waiting processes
-				check_processes();
-
-				// Keep monitoring as long as there are processes
+				std::lock_guard<std::mutex> lock(self->mutex_);
+				if (self->waiting_processes_.empty())
 				{
-					std::lock_guard<std::mutex> lock(mutex_);
-					if (waiting_processes_.empty())
-					{
-						monitoring_started_ = false;
-						co_return; // No more processes to monitor
-					}
+					self->monitoring_started_ = false;
+					co_return; // No more processes to monitor
 				}
 			}
-		};
+		}
+	}
 
-		// Start the monitoring task (detached)
-		(void)monitor();
+	MH_COMPILE_LIBRARY_INLINE void process_manager::start_monitoring_task()
+	{
+		// Start the monitoring task (detached). monitor_task copies its parameter
+		// into the coroutine frame; a capturing lambda coroutine would leave its
+		// captures in a closure object that is destroyed when this function returns.
+		(void)monitor_task(this);
 	}
 
 	MH_COMPILE_LIBRARY_INLINE void process_manager::check_processes()
 	{
-		std::lock_guard<std::mutex> lock(mutex_);
+		std::vector<std::coroutine_handle<>> to_resume;
 
-		for (auto it = waiting_processes_.begin(); it != waiting_processes_.end();)
 		{
-			int pid = it->first;
-			auto &info = it->second;
+			std::lock_guard<std::mutex> lock(mutex_);
 
-			int status;
-			pid_t result = waitpid(pid, &status, WNOHANG);
-
-			if (result > 0)
+			for (auto it = waiting_processes_.begin(); it != waiting_processes_.end();)
 			{
-				// Process completed
-				int exit_code;
-				if (WIFEXITED(status))
+				int pid = it->first;
+
+				int status;
+				pid_t result = waitpid(pid, &status, WNOHANG);
+
+				if (result == 0)
 				{
-					exit_code = WEXITSTATUS(status);
-				}
-				else if (WIFSIGNALED(status))
-				{
-					exit_code = -WTERMSIG(status);
-				}
-				else
-				{
-					exit_code = -1;
+					// Process still running
+					++it;
+					continue;
 				}
 
-				// Store exit status and resume coroutine
+				int exit_code = -1;
+				if (result > 0)
+				{
+					if (WIFEXITED(status))
+						exit_code = WEXITSTATUS(status);
+					else if (WIFSIGNALED(status))
+						exit_code = -WTERMSIG(status);
+				}
+
+				// Store exit status; remove from waiting list before resuming
 				exit_statuses_[pid] = exit_code;
-				info.handle.resume();
-
-				// Remove from waiting list
+				to_resume.push_back(it->second.handle);
 				it = waiting_processes_.erase(it);
-			}
-			else if (result == -1)
-			{
-				// Error occurred
-				exit_statuses_[pid] = -1;
-				info.handle.resume();
-				it = waiting_processes_.erase(it);
-			}
-			else
-			{
-				// Process still running
-				++it;
 			}
 		}
+
+		// Resume outside the lock: await_resume() re-enters get_exit_status() and
+		// unregister_process(), which lock this same (non-recursive) mutex. Resuming
+		// under the lock deadlocked on the first completed child, and the resumed
+		// coroutine's unregister_process() also invalidated the loop iterator.
+		for (auto& handle : to_resume)
+			handle.resume();
 	}
 
 	// Static member definitions - guard with MH_COMPILE_LIBRARY_INLINE to prevent multiple definitions

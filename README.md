@@ -3,6 +3,8 @@ Sometimes I find myself rewriting different versions of the same logic in lots o
 
 This "library" can operate in either header-only or static/shared library mode. In header-only mode, it should be sufficient to just copy individual `.h` and `.inl` files that you want to use, without using the CMake script.
 
+[fmt](https://github.com/fmtlib/fmt) is an optional dependency: if CMake finds a usable (ABI-compatible) fmt package, `mh::format` and friends are backed by fmtlib; otherwise they fall back to a minimal built-in implementation. The compiled-library mode requires libcurl (for `mh::http`).
+
 Efforts have been made to reduce interdependencies between headers in the codebase, although some fairly strong interdependencies do exist for the sake of reducing code duplication (coroutine code, especially).
 
 This library experiences a lot of API churn. No API stability is guaranteed, and none should be expected. I regularly make significant structural changes to support applications I develop with this code. To save yourself from having a bad time, only look at this library as something to base your own code off of, or expect to make modifications yourself.

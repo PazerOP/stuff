@@ -178,14 +178,14 @@ namespace mh
 {
 	template<typename CharT, typename Traits>
 	[[nodiscard]] mh::generator<std::basic_string_view<CharT, Traits>> split_string(
-		const std::basic_string_view<CharT, Traits>& string, const std::basic_string_view<CharT, Traits>& splitChars)
+		std::basic_string_view<CharT, Traits> string, std::basic_string_view<CharT, Traits> splitChars)
 	{
 		size_t lastEnd = 0;
 		while (lastEnd != string.npos)
 		{
 			const size_t found = string.find_first_of(splitChars, lastEnd);
 			co_yield string.substr(lastEnd, found - lastEnd);
-			lastEnd = found;
+			lastEnd = (found == string.npos) ? string.npos : found + 1;
 		}
 	}
 

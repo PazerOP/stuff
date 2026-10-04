@@ -4,6 +4,7 @@
 
 #ifdef MH_COROUTINES_SUPPORTED
 
+#include <type_traits>
 #include <utility>
 
 namespace mh
@@ -58,9 +59,15 @@ namespace mh
 			return mh::task<T>(this->get_promise_for_copy());
 		}
 
-		void set_value(T value)
+		template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>
+		void set_value(U value)
 		{
 			this->get_promise().template set_state<detail::promise<T>::IDX_VALUE>(std::move(value));
+		}
+		template<typename U = T, typename = std::enable_if_t<std::is_void_v<U>>>
+		void set_value()
+		{
+			this->get_promise().template set_state<detail::promise<T>::IDX_VALUE>(std::monostate{});
 		}
 		void set_exception(std::exception_ptr p)
 		{

@@ -8,6 +8,9 @@
 #define MH_COMPILE_LIBRARY_INLINE inline
 #endif
 
+#include <cassert>
+#include <thread>
+
 #if __has_include (<mh/concurrency/main_thread.hpp>)
 #include <mh/concurrency/main_thread.hpp>
 namespace mh::detail::coroutine::thread_hpp
@@ -20,16 +23,13 @@ namespace mh::detail::coroutine::thread_hpp
 #else
 namespace mh::detail::coroutine::thread_hpp
 {
-	$MH_COMPILE_LIBRARY_INLINE static std::thread::id s_MainThreadID = std::this_thread::get_id();
-	$MH_COMPILE_LIBRARY_INLINE bool is_main_thread()
+	MH_COMPILE_LIBRARY_INLINE std::thread::id s_MainThreadID = std::this_thread::get_id();
+	MH_COMPILE_LIBRARY_INLINE bool is_main_thread()
 	{
 		return std::this_thread::get_id() == s_MainThreadID;
 	}
 }
 #endif
-
-#include <cassert>
-#include <thread>
 
 namespace mh::detail::coroutine::thread_hpp
 {

@@ -30,11 +30,19 @@ namespace mh
 		promise_type promise;
 		auto future = promise.get_future();
 
-		std::thread t([](promise_type promise, TFunc&& func, TArgs&&... args)
+		std::thread t([](promise_type promise, std::decay_t<TFunc> func, std::decay_t<TArgs>... args)
 			{
 				try
 				{
-					promise.set_value(func(std::forward<TArgs>(args)...));
+					if constexpr (std::is_void_v<ret_type>)
+					{
+						func(std::move(args)...);
+						promise.set_value();
+					}
+					else
+					{
+						promise.set_value(func(std::move(args)...));
+					}
 				}
 				catch (...)
 				{

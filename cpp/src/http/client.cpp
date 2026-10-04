@@ -24,6 +24,14 @@ namespace mh::http
 
 		curl_handle make_curl_handle()
 		{
+			// curl_easy_init()'s implicit global init is not thread-safe before curl
+			// 7.84; do it exactly once ourselves (thread-safe magic static).
+			static const CURLcode global_init = curl_global_init(CURL_GLOBAL_DEFAULT);
+			if (global_init != CURLE_OK)
+			{
+				throw std::runtime_error("curl_global_init failed");
+			}
+
 			CURL* curl = curl_easy_init();
 			if (!curl)
 			{
@@ -95,11 +103,17 @@ namespace mh::http
 		return resp;
 	}
 
-	task<response> get(const std::string& url)
+	// url is taken by value: reference coroutine parameters are stored in the frame
+	// as references, and this coroutine evaluates url on another thread after the
+	// caller's full-expression (and any temporary argument) is long gone.
+	task<response> get(std::string url)
 	{
-		// Switch to background thread for blocking curl operation
-		co_await co_create_background_thread();
-		
+		// Always hop off the calling thread for the blocking curl operation.
+		// co_create_background_thread() only moves off the MAIN thread, which made
+		// this eagerly-started coroutine fully synchronous (up to CURLOPT_TIMEOUT)
+		// when called from any worker thread.
+		co_await co_create_thread();
+
 		auto curl = make_curl_handle();
 		response resp;
 		long response_code = 0;

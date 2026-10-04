@@ -4,7 +4,23 @@
 #define MH_FORMATTER_FMTLIB 1
 #define MH_FORMATTER_STL 2
 
-#if __has_include(<fmt/format.h>)
+// The build system may pre-define MH_FORMATTER to force a backend (the mh-stuff
+// CMake target does this with MH_FORMATTER_NONE when fmt's headers are visible
+// but the compiled fmt library is not linkable with the chosen toolchain, e.g.
+// a libstdc++-built distro libfmt while building with clang + libc++).
+// __has_include only proves the headers are reachable, not that libfmt's
+// compiled symbols will resolve at link time, so an explicit decision wins.
+#ifndef MH_FORMATTER
+	#if __has_include(<fmt/format.h>)
+		#define MH_FORMATTER MH_FORMATTER_FMTLIB
+	#elif __has_include(<format>) && 0 // std::format honestly kind of awful
+		#define MH_FORMATTER MH_FORMATTER_STL
+	#else
+		#define MH_FORMATTER MH_FORMATTER_NONE
+	#endif
+#endif
+
+#if MH_FORMATTER == MH_FORMATTER_FMTLIB
 
 #include <fmt/format.h>
 
@@ -14,25 +30,21 @@
 #if __has_include(<fmt/ostream.h>)
 	#include <fmt/ostream.h>
 #endif
-#define MH_FORMATTER MH_FORMATTER_FMTLIB
 namespace mh::detail::format_hpp
 {
 #define MH_FMT_STRING(...) FMT_STRING(__VA_ARGS__)
 	namespace fmtns = ::fmt;
 }
 
-#elif __has_include(<format>) && 0 // std::format honestly kind of awful
+#elif MH_FORMATTER == MH_FORMATTER_STL
 
 #include <format>
-#define MH_FORMATTER MH_FORMATTER_STL
 namespace mh::detail::format_hpp
 {
 #define MH_FMT_STRING(...) __VA_ARGS__
 	namespace fmtns = ::std;
 }
 
-#else
-#define MH_FORMATTER MH_FORMATTER_NONE
 #endif
 
 #if MH_FORMATTER != MH_FORMATTER_NONE
@@ -135,9 +147,9 @@ namespace mh
 	template<typename TOutputIt, typename TFmtStr, typename... TArgs,
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
 		inline auto format_to(TOutputIt&& outputIt, const TFmtStr& fmtStr, const TArgs&... args) ->
-		decltype(detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), fmtStr, args...))
+		decltype(detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), detail::format_hpp::fmtns::runtime(fmtStr), args...))
 	{
-		return detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), fmtStr, args...);
+		return detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), detail::format_hpp::fmtns::runtime(fmtStr), args...);
 	}
 
 	template<typename TContainer, typename TFmtStr, typename... TArgs,
@@ -151,7 +163,7 @@ namespace mh
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
 		inline auto format_to_n(TOutputIt&& outputIt, size_t n, const TFmtStr& fmtStr, const TArgs&... args)
 	{
-		return detail::format_hpp::fmtns::format_to_n(std::forward<TOutputIt>(outputIt), n, fmtStr, args...);
+		return detail::format_hpp::fmtns::format_to_n(std::forward<TOutputIt>(outputIt), n, detail::format_hpp::fmtns::runtime(fmtStr), args...);
 	}
 
 	template<typename TFmtStr, typename... TArgs>
@@ -161,7 +173,7 @@ namespace mh
 	}
 	catch (const format_error& e)
 	{
-		return ::mh::format(MH_FMT_STRING("FORMATTING ERROR: Unable to construct string with fmtstr {}: {}"), std::quoted(fmtStr), e.what());
+		return ::mh::format("FORMATTING ERROR: Unable to construct string with fmtstr \"{}\": {}", fmtStr, e.what());
 	}
 
 	template<typename TFmtStr, typename TFmtArgs>
@@ -174,16 +186,18 @@ namespace mh
 		using char_type_t = std::decay_t<decltype(fmtStr[0])>;
 		if constexpr (std::is_same_v<char_type_t, char>)
 		{
-			return ::mh::format(MH_FMT_STRING("FORMATTING ERROR: Unable to construct string with fmtstr {}: {}"), std::quoted(fmtStr), e.what());
+			return ::mh::format("FORMATTING ERROR: Unable to construct string with fmtstr \"{}\": {}", fmtStr, e.what());
 		}
 		else if constexpr (std::is_same_v<char_type_t, wchar_t>)
 		{
 			// Can't print error message from exception because fmt does not handle conversion from char -> wchar_t on its own unfortunately
-			return ::mh::format(MH_FMT_STRING(L"FORMATTING ERROR: Unable to construct string with fmtstr {}"), std::quoted(fmtStr));
+			return ::mh::format(L"FORMATTING ERROR: Unable to construct string with fmtstr \"{}\"", fmtStr);
 		}
 		else
 		{
 			// Other character types are a compile error for now
+			static_assert(std::is_same_v<char_type_t, char> || std::is_same_v<char_type_t, wchar_t>,
+				"try_vformat only supports char and wchar_t format strings");
 		}
 	}
 
@@ -193,7 +207,7 @@ namespace mh
 		std::basic_string<TChar, TTraits, TAlloc> str;
 
 		auto inserter = std::back_inserter(str);
-		(format_to(inserter, MH_FMT_STRING("{}"), args), ...);
+		(format_to(inserter, "{}", args), ...);
 
 		return str;
 	}

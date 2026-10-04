@@ -52,7 +52,7 @@ struct mh::formatter<T, CharT, std::enable_if_t<std::is_same_v<T, std::error_cod
 	}
 
 	template<typename FormatContext>
-	auto format(const T& ec, FormatContext& ctx)
+	auto format(const T& ec, FormatContext& ctx) const
 	{
 		auto it = ctx.out();
 

@@ -43,7 +43,8 @@ namespace mh
 
 				value_type& value = m_SharedData->m_Value;
 
-				bool changed = false;
+				bool changed = !m_SharedData->m_HasValue;
+				m_SharedData->m_HasValue = true;
 				if (value.m_Status != status)
 				{
 					changed = true;
@@ -55,9 +56,6 @@ namespace mh
 					changed = true;
 					value.m_Message = msg;
 				}
-
-				if (changed)
-					m_SharedData->m_HasValue = true;
 
 				return changed;
 			}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <type_traits>
 
 #ifndef MH_STUFF_API
 #define MH_STUFF_API

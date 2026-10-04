@@ -46,8 +46,14 @@ namespace mh
 			assert(m_Length <= max_size());
 			const size_t maxWriteCount = (max_size() + 1) - m_Length; // max_size() + 1 because max_size() does not include null term
 
-			// vsnprintf writes at must maxWriteCount - 1 chars, always adds null terminator
-			const size_t writeCount = std::vsnprintf(m_String.data() + m_Length, maxWriteCount, fmtStr, args);
+			// vsnprintf writes at most maxWriteCount - 1 chars, always adds null terminator
+			const int writeResult = std::vsnprintf(m_String.data() + m_Length, maxWriteCount, fmtStr, args);
+			if (writeResult < 0)
+			{
+				m_String[m_Length] = value_type(0); // encoding error: leave length unchanged
+				return m_Length;
+			}
+			const size_t writeCount = size_t(writeResult);
 
 			assert(maxWriteCount >= 1);
 			m_Length += std::min(maxWriteCount - 1, writeCount);
@@ -106,6 +112,7 @@ namespace mh
 
 		constexpr this_type& operator=(const view_type& rhs)
 		{
+			clear();
 			puts(rhs);
 			return *this;
 		}
@@ -150,6 +157,7 @@ namespace mh
 
 		constexpr this_type& operator=(const view_type& rhs)
 		{
+			base_type::clear();
 			base_type::puts(rhs);
 			return *this;
 		}
@@ -178,6 +186,7 @@ namespace mh
 
 		constexpr this_type& operator=(const view_type& rhs)
 		{
+			base_type::clear();
 			base_type::puts(rhs);
 			return *this;
 		}

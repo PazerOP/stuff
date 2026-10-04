@@ -262,7 +262,7 @@ struct mh::formatter<::mh::enum_fmt_t<T>, CharT>
 	}
 
 	template<typename FormatContext>
-	auto format(const ::mh::enum_fmt_t<T>& rc, FormatContext& ctx)
+	auto format(const ::mh::enum_fmt_t<T>& rc, FormatContext& ctx) const // fmt >= 10 requires a const format()
 	{
 		const auto valueName = ::mh::enum_type<T>::try_find_name(rc.m_Value);
 

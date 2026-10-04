@@ -18,18 +18,17 @@ namespace mh
 			catch (const std::exception& e)
 			{
 				if constexpr (bottomUp)
-					for_each_nested_exception_impl(e, std::forward<TFunc>(func), ++depth);
+					for_each_nested_exception_impl<bottomUp>(e, std::forward<TFunc>(func), depth + 1);
 
-				const size_t depthCopy = depth;
-				func(e, depthCopy);
+				func(e, depth);
 
 				if constexpr (!bottomUp)
-					for_each_nested_exception_impl(e, std::forward<TFunc>(func), ++depth);
+					for_each_nested_exception_impl<bottomUp>(e, std::forward<TFunc>(func), depth + 1);
 			}
 			catch (...)
 			{
-				// Exception does not inherit from std::exception
-				for_each_nested_exception_impl(e, std::forward<TFunc>(func), ++depth);
+				// Exception does not inherit from std::exception; it cannot be
+				// inspected for further nesting, so stop here.
 			}
 		}
 	}

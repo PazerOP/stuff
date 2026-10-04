@@ -5,6 +5,10 @@
 #include <stdexcept>
 #include <thread>
 
+#ifndef MH_STUFF_API
+#define MH_STUFF_API
+#endif
+
 namespace mh
 {
 	class thread_sentinel_exception : public std::runtime_error

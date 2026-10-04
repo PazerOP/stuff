@@ -28,6 +28,8 @@ namespace mh
 			{
 			}
 
+		protected:
+			// Unsynchronized: thread-safe wrappers/re-exports live in cached_variable.
 			duration_type time_since_update() const
 			{
 				return clock_type::now() - (m_NextUpdate - m_UpdateInterval);
@@ -73,6 +75,8 @@ namespace mh
 		using cached_variable_base = detail::cached_variable_hpp::cached_variable_base<T, TUpdateFunc, TClock>;
 	public:
 		using cached_variable_base::cached_variable_base;
+		using cached_variable_base::time_since_update;
+		using cached_variable_base::time_until_update;
 
 		T& get_no_update() { return cached_variable_base::m_Value; }
 		const T& get_no_update() const { return cached_variable_base::m_Value; }
@@ -93,6 +97,17 @@ namespace mh
 		using cached_variable_base = detail::cached_variable_hpp::cached_variable_base<T, TUpdateFunc, TClock>;
 	public:
 		using cached_variable_base::cached_variable_base;
+
+		typename cached_variable_base::duration_type time_since_update() const
+		{
+			std::lock_guard lock(m_Mutex);
+			return cached_variable_base::time_since_update();
+		}
+		typename cached_variable_base::duration_type time_until_update() const
+		{
+			std::lock_guard lock(m_Mutex);
+			return cached_variable_base::time_until_update();
+		}
 
 		T get_no_update() const
 		{
