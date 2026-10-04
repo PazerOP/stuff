@@ -1,31 +1,49 @@
 #pragma once
 
-#if (__cpp_lib_three_way_comparison >= 201907) && (__cpp_impl_three_way_comparison >= 201907)
+#if __has_include(<version>)
+#include <version>
+#endif
+
+#if __cpp_impl_three_way_comparison >= 201907
 #include <compare>
 #endif
+
+#if __has_include(<concepts>)
+#include <concepts>
+#endif
+
+#include <ostream>
 #include <utility>
 
 namespace mh
 {
-#ifdef __cpp_concepts
+#if (__cpp_concepts >= 201907) && __has_include(<concepts>)
 	template<typename Traits, typename Object>
 	concept UniqueObjectTraits = requires(Traits t, Object o)
 	{
 		{ t.delete_obj(o) };
-		{ t.release_obj(o) } -> Object;
-		{ t.is_obj_valid(o) } -> bool;
+		{ t.release_obj(o) } -> std::same_as<Object>;
+		{ t.is_obj_valid(o) } -> std::same_as<bool>;
 	};
 #endif
 
 	template<typename T, typename Traits>
-#ifdef __cpp_concepts
+#if (__cpp_concepts >= 201907) && __has_include(<concepts>)
 	requires UniqueObjectTraits<Traits, T>
 #endif
 	class unique_object
 	{
 		using this_type = unique_object<T, Traits>;
 	public:
-		unique_object() : m_Object{}, m_Traits{} {}
+		unique_object() : m_Object(invalid_value()), m_Traits{} {}
+
+		static constexpr T invalid_value()
+		{
+			if constexpr (requires { { Traits::invalid() }; })
+				return Traits::invalid();
+			else
+				return T{};
+		}
 
 		explicit unique_object(const T& value, const Traits& traits) :
 			m_Object(value), m_Traits(traits) {}
@@ -33,7 +51,7 @@ namespace mh
 			m_Object(value), m_Traits(std::move(traits)) {}
 		explicit unique_object(T&& value, const Traits& traits) :
 			m_Object(std::move(value)), m_Traits(traits) {}
-		explicit unique_object(T&& value, Traits&& traits) :
+		explicit unique_object(T&& value, Traits&& traits = {}) :
 			m_Object(std::move(value)), m_Traits(std::move(traits)) {}
 
 		unique_object(const this_type& other) = delete;
@@ -56,14 +74,17 @@ namespace mh
 
 		~unique_object() { m_Traits.delete_obj(m_Object); }
 
-#if (__cpp_lib_three_way_comparison >= 201907) && (__cpp_impl_three_way_comparison >= 201907)
+#if __cpp_impl_three_way_comparison >= 201907
 		auto operator<=>(const unique_object& other) const = default;
 		auto operator<=>(const T& other) const { return m_Object <=> other; }
+		bool operator==(const T& other) const { return m_Object == other; }
 #endif
 
 		T release() { return m_Traits.release_obj(m_Object); }
 
-		void reset() { m_Traits.delete_obj(m_Object); }
+		void reset() { m_Traits.delete_obj(m_Object); m_Object = invalid_value(); }
+		void reset(T obj) { *this = this_type(std::move(obj)); }
+
 		T& reset_and_get_ref()
 		{
 			reset();
@@ -85,7 +106,16 @@ namespace mh
 	};
 }
 
-#if (__cpp_lib_three_way_comparison >= 201907) && (__cpp_impl_three_way_comparison >= 201907)
+template<typename CharT, typename StreamTraits, typename T, typename ObjTraits>
+std::basic_ostream<CharT, StreamTraits>& operator<<(std::basic_ostream<CharT, StreamTraits>& os, const mh::unique_object<T, ObjTraits>& rhs)
+{
+	if (rhs)
+		return os << rhs.value();
+	else
+		return os << "(empty)";
+}
+
+#if __cpp_impl_three_way_comparison >= 201907
 template<typename T, typename Traits> auto operator<=>(const T& lhs, const mh::unique_object<T, Traits>& rhs)
 {
 	return lhs <=> rhs.value();

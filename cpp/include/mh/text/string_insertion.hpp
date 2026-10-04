@@ -3,22 +3,25 @@
 #include <ostream>
 #include <streambuf>
 #include <string>
+#include <utility>
 
 namespace mh
 {
 	template<typename CharT = char, typename Traits = std::char_traits<CharT>, typename Alloc = std::allocator<CharT>>
 	class basic_strwrapperstream final : std::basic_streambuf<CharT, Traits>, public std::basic_ostream<CharT, Traits>
 	{
+	public:
+		using char_type = CharT;
 		using ostream_type = std::basic_ostream<CharT, Traits>;
 		using string_type = std::basic_string<CharT, Traits, Alloc>;
 		using streambuf_type = std::basic_streambuf<CharT, Traits>;
 		using int_type = typename streambuf_type::int_type;
 
-	public:
 		basic_strwrapperstream(std::basic_string<CharT, Traits, Alloc>& string) :
 			ostream_type(this),
 			m_String(string)
 		{
+			ostream_type::exceptions(std::ios::badbit | std::ios::failbit);
 		}
 
 	protected:
@@ -40,21 +43,50 @@ namespace mh
 		std::basic_string<CharT, Traits, Alloc>& m_String;
 	};
 
+#ifdef MH_COMPILE_LIBRARY
+	extern template class basic_strwrapperstream<char>;
+	extern template class basic_strwrapperstream<wchar_t>;
+#endif
+
 	using strwrapperstream = basic_strwrapperstream<>;
+
+	namespace detail::string_insertion_hpp
+	{
+		template<typename T>
+		struct make_dependent
+		{
+			using type = T;
+		};
+
+		// Force dependent typename for T, so we can use stream insertion operators declared after ourselves
+		template<typename T, typename CharT, typename Traits, typename Alloc>
+		inline void insertion_op_impl(std::basic_string<CharT, Traits, Alloc>& str, const typename make_dependent<T>::type& value)
+		{
+			mh::basic_strwrapperstream<CharT, Traits, Alloc> stream(str);
+
+			if constexpr (std::is_same_v<bool, std::decay_t<T>>)
+				stream << std::boolalpha;
+
+			stream << value;
+		}
+	}
 }
 
-template<typename T, typename CharT = char, typename Traits = std::char_traits<CharT>, typename Alloc = std::allocator<CharT>>
-inline std::string& operator<<(std::basic_string<CharT, Traits, Alloc>& str, const T& value)
+namespace std
 {
-	mh::basic_strwrapperstream<CharT, Traits, Alloc> stream(str);
-	stream << value;
-	return str;
-}
+	template<typename T, typename CharT = char, typename Traits = std::char_traits<CharT>, typename Alloc = std::allocator<CharT>>
+	inline auto operator<<(std::basic_string<CharT, Traits, Alloc>& str, const T& value)
+		-> decltype(std::declval<std::basic_ostream<CharT, Traits>>() << value, str)
+	{
+		mh::detail::string_insertion_hpp::insertion_op_impl<T, CharT, Traits, Alloc>(str, value);
+		return str;
+	}
 
-template<typename T, typename CharT = char, typename Traits = std::char_traits<CharT>, typename Alloc = std::allocator<CharT>>
-inline std::string operator<<(std::basic_string<CharT, Traits, Alloc>&& str, const T& value)
-{
-	mh::basic_strwrapperstream<CharT, Traits, Alloc> stream(str);
-	stream << value;
-	return std::move(str);
+	template<typename T, typename CharT = char, typename Traits = std::char_traits<CharT>, typename Alloc = std::allocator<CharT>>
+	inline auto operator<<(std::basic_string<CharT, Traits, Alloc>&& str, const T& value)
+		-> decltype(std::declval<std::basic_ostream<CharT, Traits>>() << value, str)
+	{
+		mh::detail::string_insertion_hpp::insertion_op_impl<T, CharT, Traits, Alloc>(str, value);
+		return str;
+	}
 }

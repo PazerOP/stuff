@@ -1,92 +1,49 @@
 #pragma once
 
-#if (__cpp_lib_three_way_comparison >= 201907) && (__cpp_impl_three_way_comparison >= 201907)
+#if __has_include(<version>)
+#include <version>
+#endif
+
+#if ((__cpp_lib_three_way_comparison >= 201907) || defined(_MSC_VER)) && (__cpp_impl_three_way_comparison >= 201907)
 #include <compare>
 #endif
 #include <cstddef>
-#include <cstdlib>
-#include <cstring>
-#include <memory>
-#include <stdexcept>
+
+#ifndef MH_STUFF_API
+#define MH_STUFF_API
+#endif
 
 namespace mh
 {
 	class buffer final
 	{
 	public:
-		buffer() = default;
-		buffer(buffer&& other) :
-			m_Data(std::move(other.m_Data)),
-			m_Size(other.m_Size)
-		{
-			other.m_Size = 0;
-		}
-		explicit buffer(const buffer& other) :
-			buffer(other.data(), other.size())
-		{
-		}
-		explicit buffer(size_t initialSize)
-		{
-			resize(initialSize);
-		}
-		buffer(const std::byte* ptr, size_t bytes) :
-			buffer(bytes)
-		{
-			std::memcpy(data(), ptr, bytes);
-		}
+		MH_STUFF_API buffer() noexcept;
+		MH_STUFF_API buffer(buffer&& other) noexcept;
+		MH_STUFF_API explicit buffer(const buffer& other);
+		MH_STUFF_API explicit buffer(size_t initialSize);
+		MH_STUFF_API buffer(const std::byte* ptr, size_t bytes);
+		MH_STUFF_API ~buffer() noexcept;
 
-		void resize(size_t newSize)
-		{
-			const auto newPtr = std::realloc(m_Data.get(), newSize);
-			if (!newPtr)
-				throw std::runtime_error("Failed to realloc");
+		MH_STUFF_API void resize(size_t newSize);
+		MH_STUFF_API bool reserve(size_t minSize);
 
-			m_Data.release();
-			m_Data.reset(static_cast<std::byte*>(newPtr));
-			m_Size = newSize;
-		}
-
-		bool reserve(size_t minSize)
-		{
-			if (size() < minSize)
-			{
-				resize(minSize + minSize / 2);
-				return true;
-			}
-
-			return false;
-		}
-
-#if (__cpp_lib_three_way_comparison >= 201907) && (__cpp_impl_three_way_comparison >= 201907)
-		std::strong_ordering operator<=>(const buffer& other) const
-		{
-			if (auto result = m_Size <=> other.m_Size; std::is_neq(result))
-				return result;
-
-			const auto result = memcmp(data(), other.data(), size());
-			if (result < 0)
-				return std::strong_ordering::less;
-			else if (result > 0)
-				return std::strong_ordering::greater;
-			else
-				return std::strong_ordering::equal;
-		}
+#if ((__cpp_lib_three_way_comparison >= 201907) || defined(_MSC_VER)) && (__cpp_impl_three_way_comparison >= 201907)
+		MH_STUFF_API std::strong_ordering operator<=>(const mh::buffer& other) const;
 #endif
 
-		void clear()
-		{
-			m_Data.reset();
-			m_Size = 0;
-		}
+		MH_STUFF_API void clear() noexcept;
 		size_t size() const { return m_Size; }
 
-		std::byte* data() { return m_Data.get(); }
-		const std::byte* data() const { return m_Data.get(); }
+		std::byte* data() { return m_Data; }
+		const std::byte* data() const { return m_Data; }
 
 	private:
-		struct free_deleter final { void operator()(std::byte* p) { free(p); } };
-
-		std::unique_ptr<std::byte, free_deleter> m_Data;
+		std::byte* m_Data = nullptr;
 		size_t m_Size = 0;
 	};
 }
+
+#ifndef MH_COMPILE_LIBRARY
+#include "buffer.inl"
+#endif
