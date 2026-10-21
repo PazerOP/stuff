@@ -396,7 +396,10 @@ TEST_CASE("bit_read_dynamic reads every width and offset from a buffer of exactl
 			for (size_t i = 0; i < bits; i++)
 				expected |= uint64_t((pattern[(offset + i) / 8] >> ((offset + i) % 8)) & 1) << i;
 
-			if (mh::bit_read_dynamic<uint64_t>(static_cast<const unsigned char*>(buf.get()), bits, offset) != expected)
+			const unsigned char* exact = buf.get();
+			if (mh::bit_read_dynamic<uint64_t>(exact, bits, offset) != expected ||
+				mh::bit_read_dynamic<uint64_t>(exact, bits, offset, span) != expected ||
+				mh::bit_read_dynamic<uint64_t>(static_cast<const unsigned char*>(pattern), bits, offset, sizeof(pattern)) != expected)
 			{
 				UNSCOPED_INFO("bits=" << bits << " offset=" << offset);
 				failures++;

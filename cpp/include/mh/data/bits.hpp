@@ -640,4 +640,26 @@ namespace mh
 			return retVal;
 		}
 	}
+
+	// bit_read_dynamic for a source of src_size_bytes bytes. Where several bytes after the read position exist, a read is
+	// one unconditional load. A stream of mixed widths does not branch on the width.
+	template<typename TOut, typename TIn>
+	TOut bit_read_dynamic(const TIn* src, size_t bits_to_read, size_t src_offset, size_t src_size_bytes)
+	{
+		static_assert(std::is_integral_v<TOut> && sizeof(TOut) <= sizeof(std::uint64_t));
+		static_assert(std::endian::native == std::endian::little, "mh::bit_read_dynamic needs a little-endian target");
+		if (bits_to_read > sizeof(TOut) * detail::bits_hpp::BITS_PER_BYTE)
+			throw std::invalid_argument("mh::bit_read_dynamic: bits_to_read is wider than TOut");
+
+		const std::byte* p = reinterpret_cast<const std::byte*>(src) + src_offset / 8;
+		const size_t so = src_offset % 8;
+		if (src_offset / 8 + 9 <= src_size_bytes)
+		{
+			std::uint64_t v = detail::bits_hpp::load_le<std::uint64_t>(p) >> so;
+			v |= (detail::bits_hpp::load_le<std::uint8_t>(p + 8) << 1) << (63 - so);
+			const std::uint64_t mask = bits_to_read >= 64 ? ~std::uint64_t(0) : (std::uint64_t(1) << bits_to_read) - 1;
+			return TOut(v & mask);
+		}
+		return TOut(detail::bits_hpp::window_read(reinterpret_cast<const std::byte*>(src), bits_to_read, src_offset));
+	}
 }
