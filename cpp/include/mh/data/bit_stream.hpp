@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <bit>
 #include <cstddef>
 #include <cstdint>
@@ -127,6 +128,57 @@ namespace mh
 			return std::bit_cast<T>(U(read<sizeof(T) * 8>()));
 		}
 
+		// Reads count fields of N bits into out. One bounds check covers the whole run, so the loop has no branch for each field.
+		// A run that does not fit fails, reads nothing, and fills out with zero.
+		template<unsigned N, class T> void read_n(T* out, std::size_t count) noexcept
+		{
+			static_assert(N >= 1 && N <= 64 && sizeof(T) * 8 >= N);
+			using namespace detail::bit_stream_hpp;
+			if (count > (m_EndBit - m_Pos) / N) [[unlikely]]
+			{
+				m_Failed = true;
+				m_Pos = m_EndBit;
+				for (std::size_t i = 0; i < count; i++)
+					out[i] = T{};
+				return;
+			}
+
+			// The fields that start below m_WordEndBit take the word path with no check. The rest take read<N>().
+			std::size_t pos = m_Pos;
+			const std::size_t fast = pos < m_WordEndBit ? std::min(count, (m_WordEndBit - pos + N - 1) / N) : 0;
+			std::size_t i = 0;
+			if constexpr (N % 8 == 0)
+			{
+				// A byte-aligned run of whole bytes is a plain array copy, which the compiler can vectorize.
+				if ((pos & 7) == 0)
+				{
+					const std::byte* p = m_Data + (pos >> 3);
+					for (; i < fast; i++, p += N / 8)
+					{
+						uint_for<N> v{};
+						std::memcpy(&v, p, N / 8);
+						out[i] = T(v);
+					}
+					pos += fast * N;
+				}
+			}
+			for (; i < fast; i++, pos += N)
+			{
+				const std::byte* p = m_Data + (pos >> 3);
+				const unsigned off = unsigned(pos & 7);
+				std::uint64_t v = load64(p) >> off;
+				if constexpr (N > 57)
+				{
+					if (off + N > 64)
+						v |= std::uint64_t(std::to_integer<std::uint8_t>(p[8])) << (64 - off);
+				}
+				out[i] = T(v & low_mask(N));
+			}
+			m_Pos = pos;
+			for (; i < count; i++)
+				out[i] = T(read<N>());
+		}
+
 	private:
 		// The last bytes of the buffer, and every bad request. Loads stay inside the buffer.
 		// Inline, so that the read loop holds no call and the position can stay in a register.
@@ -223,6 +275,36 @@ namespace mh
 			static_assert(std::is_trivially_copyable_v<T> && sizeof(T) <= 8);
 			using U = detail::bit_stream_hpp::bits_of<T>;
 			put(std::uint64_t(std::bit_cast<U>(value)), sizeof(T) * 8);
+		}
+
+		// Writes the low N bits of count integers. One capacity check covers the whole run. A run that does not fit fails and writes nothing.
+		template<unsigned N, class T> void write_n(const T* in, std::size_t count) noexcept
+		{
+			static_assert(N >= 1 && N <= 64 && std::is_integral_v<T>);
+			using namespace detail::bit_stream_hpp;
+			if (count > (size_bits() - position()) / N) [[unlikely]]
+			{
+				m_Failed = true;
+				return;
+			}
+			if constexpr (N % 8 == 0)
+			{
+				// At a byte boundary, a run of whole bytes is a plain array copy.
+				flush();
+				if (m_AccBits == 0)
+				{
+					std::byte* o = m_Out;
+					for (std::size_t i = 0; i < count; i++, o += N / 8)
+					{
+						const uint_for<N> v = uint_for<N>(in[i]);
+						std::memcpy(o, &v, N / 8);
+					}
+					m_Out = o;
+					return;
+				}
+			}
+			for (std::size_t i = 0; i < count; i++)
+				write<N>(std::uint64_t(in[i]));
 		}
 
 		// Writes the bits still in the register. The cursor does not move.

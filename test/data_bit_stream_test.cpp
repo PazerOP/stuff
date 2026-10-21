@@ -230,6 +230,64 @@ TEST_CASE("no access leaves the buffer, and a field past the end fails")
 	}
 }
 
+TEST_CASE("read_n and write_n match single fields at every offset")
+{
+	auto check = [&]<unsigned N>()
+	{
+		for (unsigned prefix = 0; prefix < 8; prefix++)
+		{
+			std::mt19937_64 rng(N * 100 + prefix);
+			std::vector<std::uint64_t> values(200);
+			for (auto& v : values)
+				v = rng() & mask(N);
+
+			std::vector<std::byte> a(N * 200 / 8 + 8), b(a.size());
+			{
+				mh::bit_writer wa(a.data(), a.size());
+				mh::bit_writer wb(b.data(), b.size());
+				wa.write(1, prefix ? prefix : 1);
+				wb.write(1, prefix ? prefix : 1);
+				wa.write_n<N>(values.data(), values.size());
+				for (auto v : values)
+					wb.write<N>(v);
+				REQUIRE_FALSE(wa.failed());
+			}
+			REQUIRE(a == b);
+
+			mh::bit_reader r(a.data(), a.size());
+			r.skip(prefix ? prefix : 1);
+			std::vector<std::uint64_t> got(values.size());
+			r.read_n<N>(got.data(), got.size());
+			REQUIRE_FALSE(r.failed());
+			REQUIRE(got == values);
+		}
+	};
+	check.template operator()<1>();
+	check.template operator()<8>();
+	check.template operator()<13>();
+	check.template operator()<16>();
+	check.template operator()<24>();
+	check.template operator()<32>();
+	check.template operator()<58>();
+	check.template operator()<64>();
+}
+
+TEST_CASE("read_n and write_n fail as a whole when the run does not fit")
+{
+	std::vector<std::byte> buf(10);
+	std::vector<std::uint64_t> v(11, 0xAB);
+	{
+		mh::bit_writer w(buf.data(), buf.size());
+		w.write_n<8>(v.data(), v.size());
+		CHECK(w.failed());
+		CHECK(w.position() == 0);
+	}
+	mh::bit_reader r(buf.data(), buf.size());
+	r.read_n<8>(v.data(), v.size());
+	CHECK(r.failed());
+	CHECK(v == std::vector<std::uint64_t>(11, 0));
+}
+
 TEST_CASE("bad widths and seeks fail")
 {
 	std::vector<std::byte> buf(16);
