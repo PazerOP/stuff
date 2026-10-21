@@ -27,7 +27,15 @@ namespace mh
 			std::memcpy(&v, p, sizeof(v));
 			return v;
 		}
+#if defined(__GNUC__)
+		// A store through std::byte may alias any object, so the compiler would reload the writer's members after every word.
+		typedef std::uint64_t unaligned_u64 __attribute__((aligned(1)));
+		inline void store64(std::byte* p, std::uint64_t v) noexcept { *reinterpret_cast<unaligned_u64*>(p) = v; }
+#define MH_BIT_STREAM_ALWAYS_INLINE inline __attribute__((always_inline))
+#else
 		inline void store64(std::byte* p, std::uint64_t v) noexcept { std::memcpy(p, &v, sizeof(v)); }
+#define MH_BIT_STREAM_ALWAYS_INLINE inline
+#endif
 
 		constexpr std::uint64_t low_mask(unsigned bits) noexcept { return ~std::uint64_t(0) >> (64 - bits); }
 
@@ -121,7 +129,8 @@ namespace mh
 
 	private:
 		// The last bytes of the buffer, and every bad request. Loads stay inside the buffer.
-		std::uint64_t read_tail(unsigned bits) noexcept
+		// Inline, so that the read loop holds no call and the position can stay in a register.
+		MH_BIT_STREAM_ALWAYS_INLINE std::uint64_t read_tail(unsigned bits) noexcept
 		{
 			if (bits - 1u >= 64u || m_Pos + bits > m_EndBit)
 			{
@@ -278,7 +287,9 @@ namespace mh
 		std::byte* m_Data = nullptr;
 		std::byte* m_Out = nullptr;
 		std::byte* m_End = nullptr;
-		std::uint64_t m_Acc = 0;
+		// unsigned long long, not uint64_t, so that the word store cannot alias it. The type is 64 bits wide on every target that this code builds for.
+		unsigned long long m_Acc = 0;
+		static_assert(sizeof(unsigned long long) * 8 == 64);
 		unsigned m_AccBits = 0;
 		bool m_Failed = false;
 	};
