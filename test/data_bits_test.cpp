@@ -2,6 +2,7 @@
 #include <catch2/catch_all.hpp>
 #include <cstddef>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -374,4 +375,33 @@ TEST_CASE("bit_copy_dynamic clear modes and bit_read_dynamic")
 
 	CHECK(mh::bit_read_dynamic<uint16_t>(src, 12, 4) == 0x7FC);
 	CHECK_THROWS_AS(mh::bit_read_dynamic<uint8_t>(src, 9, 0), std::invalid_argument);
+}
+
+TEST_CASE("bit_read_dynamic reads every width and offset from a buffer of exactly the bytes it needs")
+{
+	unsigned char pattern[16];
+	fill_src_pattern(pattern, sizeof(pattern));
+
+	size_t failures = 0;
+	for (size_t bits = 0; bits <= 64; bits++)
+	{
+		for (size_t offset = 0; offset < 8; offset++)
+		{
+			const size_t span = (offset + bits + 7) / 8;
+			// A heap block of exactly span bytes, so a sanitizer build reports any read past it.
+			std::unique_ptr<unsigned char[]> buf(new unsigned char[span ? span : 1]);
+			memcpy(buf.get(), pattern, span);
+
+			uint64_t expected = 0;
+			for (size_t i = 0; i < bits; i++)
+				expected |= uint64_t((pattern[(offset + i) / 8] >> ((offset + i) % 8)) & 1) << i;
+
+			if (mh::bit_read_dynamic<uint64_t>(static_cast<const unsigned char*>(buf.get()), bits, offset) != expected)
+			{
+				UNSCOPED_INFO("bits=" << bits << " offset=" << offset);
+				failures++;
+			}
+		}
+	}
+	REQUIRE(failures == 0);
 }

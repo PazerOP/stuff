@@ -331,31 +331,65 @@ namespace mh
 			}
 		}
 
-		// A full word is one load. A shorter span is a byte loop, because the bytes after it may not exist.
+		template<typename T> MH_BITS_ALWAYS_INLINE std::uint64_t load_le(const std::byte* p) noexcept
+		{
+			T v;
+			std::memcpy(&v, p, sizeof(T));
+			return v;
+		}
+		template<typename T> MH_BITS_ALWAYS_INLINE void store_le(std::byte* p, std::uint64_t v) noexcept
+		{
+			const T t = T(v);
+			std::memcpy(p, &t, sizeof(T));
+		}
+
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
-// GCC inlines these into callers with a short array and warns on the 8-byte branch, which the n == 8 test keeps from running there.
+// GCC inlines these into callers with a short array and warns on a branch that the test on n keeps from running there.
 #pragma GCC diagnostic ignored "-Warray-bounds"
 #pragma GCC diagnostic ignored "-Wstringop-overread"
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
 #endif
 		MH_BITS_ALWAYS_INLINE std::uint64_t load_upto8(const std::byte* p, size_t n) noexcept
 		{
-			std::uint64_t v = 0;
 			if (n == 8)
-				std::memcpy(&v, p, 8);
-			else
-				for (size_t i = 0; i < n; i++)
-					v |= std::uint64_t(std::to_integer<std::uint8_t>(p[i])) << (8 * i);
-			return v;
+				return load_le<std::uint64_t>(p);
+			if (n >= 4)
+				return load_le<std::uint32_t>(p) | (load_le<std::uint32_t>(p + n - 4) << (8 * (n - 4)));
+			if (n >= 2)
+				return load_le<std::uint16_t>(p) | (load_le<std::uint16_t>(p + n - 2) << (8 * (n - 2)));
+			return load_le<std::uint8_t>(p);
 		}
 		MH_BITS_ALWAYS_INLINE void store_upto8(std::byte* p, std::uint64_t v, size_t n) noexcept
 		{
 			if (n == 8)
-				std::memcpy(p, &v, 8);
+				return store_le<std::uint64_t>(p, v);
+			if (n >= 4)
+			{
+				store_le<std::uint32_t>(p + n - 4, v >> (8 * (n - 4)));
+				return store_le<std::uint32_t>(p, v);
+			}
+			if (n >= 2)
+			{
+				store_le<std::uint16_t>(p + n - 2, v >> (8 * (n - 2)));
+				return store_le<std::uint16_t>(p, v);
+			}
+			store_le<std::uint8_t>(p, v);
+		}
+
+		MH_BITS_ALWAYS_INLINE std::uint64_t window_read(const std::byte* src, size_t bits, size_t src_bit) noexcept
+		{
+			if (bits == 0)
+				return 0;
+			const std::byte* p = src + src_bit / 8;
+			const size_t so = src_bit % 8;
+			const size_t span = (so + bits + 7) / 8;
+			std::uint64_t v;
+			if (span <= 8)
+				v = load_upto8(p, span) >> so;
 			else
-				for (size_t i = 0; i < n; i++)
-					p[i] = std::byte(std::uint8_t(v >> (8 * i)));
+				v = (load_le<std::uint64_t>(p) >> so) | (load_le<std::uint8_t>(p + 8) << (64 - so));
+			return bits == 64 ? v : v & ((std::uint64_t(1) << bits) - 1);
 		}
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
@@ -594,8 +628,16 @@ namespace mh
 	{
 		if (bits_to_read > sizeof(TOut) * detail::bits_hpp::BITS_PER_BYTE)
 			throw std::invalid_argument("mh::bit_read_dynamic: bits_to_read is wider than TOut");
-		TOut retVal{};
-		bit_copy_dynamic(&retVal, src, bits_to_read, src_offset, 0, bit_clear_mode::contents_zero);
-		return retVal;
+		static_assert(std::endian::native == std::endian::little, "mh::bit_read_dynamic needs a little-endian target");
+		if constexpr (sizeof(TOut) <= sizeof(std::uint64_t) && std::is_integral_v<TOut>)
+		{
+			return TOut(detail::bits_hpp::window_read(reinterpret_cast<const std::byte*>(src), bits_to_read, src_offset));
+		}
+		else
+		{
+			TOut retVal{};
+			bit_copy_dynamic(&retVal, src, bits_to_read, src_offset, 0, bit_clear_mode::contents_zero);
+			return retVal;
+		}
 	}
 }
