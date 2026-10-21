@@ -312,7 +312,7 @@ struct mh::formatter<::mh::enum_fmt_t<T>, CharT>
 
 		if constexpr (std::is_same_v<CharT, char>)
 		{
-			return mh::format_to(ctx.out(), fmtStr,
+			return mh::format_to(ctx.out(), mh::runtime(fmtStr),
 				::mh::enum_type<T>::type_name(), ::mh::enum_type<T>::type_name_full(),
 				valueName, +std::underlying_type_t<T>(rc.m_Value));
 		}
@@ -338,7 +338,7 @@ struct mh::formatter<::mh::enum_fmt_t<T>, CharT>
 				return converted;
 			};
 
-			return mh::format_to(ctx.out(), fmtStr,
+			return mh::format_to(ctx.out(), mh::runtime(fmtStr),
 				convert_string(::mh::enum_type<T>::type_name()), convert_string(::mh::enum_type<T>::type_name_full()),
 				convert_string(valueName), +std::underlying_type_t<T>(rc.m_Value));
 		}

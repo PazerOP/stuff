@@ -34,6 +34,15 @@ namespace mh::detail::format_hpp
 {
 #define MH_FMT_STRING(...) FMT_STRING(__VA_ARGS__)
 	namespace fmtns = ::fmt;
+
+	// Typed format string aliases (fmt >= 8): their consteval converting
+	// constructor checks literal format strings against the argument types at
+	// compile time. fmt::wformat_string comes from fmt/xchar.h, included
+	// above whenever it is available.
+	template<typename... TArgs>
+	using format_string_t = fmtns::format_string<TArgs...>;
+	template<typename... TArgs>
+	using wformat_string_t = fmtns::wformat_string<TArgs...>;
 }
 
 #elif MH_FORMATTER == MH_FORMATTER_STL
@@ -43,6 +52,15 @@ namespace mh::detail::format_hpp
 {
 #define MH_FMT_STRING(...) __VA_ARGS__
 	namespace fmtns = ::std;
+
+	// std::format is natively compile-time checked via std::format_string
+	// (P2508, shipped as a C++20 DR by every <format> implementation this
+	// backend could select). NOTE: this also fixes a latent bug - the old
+	// code called fmtns::runtime(), which does not exist in std.
+	template<typename... TArgs>
+	using format_string_t = std::format_string<TArgs...>;
+	template<typename... TArgs>
+	using wformat_string_t = std::wformat_string<TArgs...>;
 }
 
 #endif
@@ -117,6 +135,22 @@ namespace mh
 	{
 		return detail::format_hpp::fmtns::arg(argName, argValue);
 	}
+
+	// Explicit opt-out of compile-time format string checking:
+	// mh::format(mh::runtime(fmtStr), args...) defers checking fmtStr against
+	// the arguments to runtime. Narrow and wide strings are both handled.
+	using detail::format_hpp::fmtns::runtime;
+#elif MH_FORMATTER == MH_FORMATTER_STL
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 202311L
+	// Explicit opt-out of compile-time format string checking:
+	// mh::format(mh::runtime(fmtStr), args...) defers checking fmtStr against
+	// the arguments to runtime (std::runtime_format, C++26).
+	inline auto runtime(std::string_view fmtStr) { return std::runtime_format(fmtStr); }
+	inline auto runtime(std::wstring_view fmtStr) { return std::runtime_format(fmtStr); }
+#endif
+	// Pre-C++26 STLs have no runtime_format escape hatch (and this backend's
+	// old fmtns::runtime() call never compiled anyway); vformat remains the
+	// untyped path.
 #endif
 
 	using format_args = detail::format_hpp::fmtns::format_args;
@@ -129,12 +163,25 @@ namespace mh
 		return detail::format_hpp::fmtns::make_format_args(args...);
 	}
 
-	template<typename TFmtStr, typename... TArgs,
+	// format/format_to/format_to_container/format_to_n check literal format
+	// strings against the argument types at compile time. A format string only
+	// known at runtime must be explicitly wrapped: mh::format(mh::runtime(str),
+	// args...) - or use vformat/try_format/try_vformat, which are runtime-
+	// checked by design.
+	template<typename... TArgs,
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
-		inline auto format(const TFmtStr& fmtStr, TArgs&&... args) ->
-		decltype(detail::format_hpp::fmtns::format(detail::format_hpp::fmtns::runtime(fmtStr), std::forward<TArgs>(args)...))
+		inline auto format(detail::format_hpp::format_string_t<TArgs...> fmtStr, TArgs&&... args) ->
+		decltype(detail::format_hpp::fmtns::format(std::move(fmtStr), std::forward<TArgs>(args)...))
 	{
-		return detail::format_hpp::fmtns::format(detail::format_hpp::fmtns::runtime(fmtStr), std::forward<TArgs>(args)...);
+		return detail::format_hpp::fmtns::format(std::move(fmtStr), std::forward<TArgs>(args)...);
+	}
+
+	template<typename... TArgs,
+		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
+		inline auto format(detail::format_hpp::wformat_string_t<TArgs...> fmtStr, TArgs&&... args) ->
+		decltype(detail::format_hpp::fmtns::format(std::move(fmtStr), std::forward<TArgs>(args)...))
+	{
+		return detail::format_hpp::fmtns::format(std::move(fmtStr), std::forward<TArgs>(args)...);
 	}
 
 	template<typename TFmtStr, typename TFmtArgs>
@@ -144,32 +191,62 @@ namespace mh
 		return detail::format_hpp::fmtns::vformat(fmtStr, args);
 	}
 
-	template<typename TOutputIt, typename TFmtStr, typename... TArgs,
+	template<typename TOutputIt, typename... TArgs,
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
-		inline auto format_to(TOutputIt&& outputIt, const TFmtStr& fmtStr, const TArgs&... args) ->
-		decltype(detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), detail::format_hpp::fmtns::runtime(fmtStr), args...))
+		inline auto format_to(TOutputIt&& outputIt, detail::format_hpp::format_string_t<TArgs...> fmtStr, TArgs&&... args) ->
+		decltype(detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), std::move(fmtStr), std::forward<TArgs>(args)...))
 	{
-		return detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), detail::format_hpp::fmtns::runtime(fmtStr), args...);
+		return detail::format_hpp::fmtns::format_to(std::forward<TOutputIt>(outputIt), std::move(fmtStr), std::forward<TArgs>(args)...);
 	}
 
-	template<typename TContainer, typename TFmtStr, typename... TArgs,
+	// The wide overloads of format_to/format_to_n delegate through the untyped
+	// vformat* layer because the shape of the backend's typed wide overloads
+	// varies across supported backend versions; the compile-time check already
+	// happened while constructing the wformat_string_t parameter.
+	template<typename TOutputIt, typename... TArgs,
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
-		inline auto format_to_container(TContainer& container, const TFmtStr& fmtStr, const TArgs&... args)
+		inline auto format_to(TOutputIt&& outputIt, detail::format_hpp::wformat_string_t<TArgs...> fmtStr, TArgs&&... args) ->
+		decltype(detail::format_hpp::fmtns::vformat_to(std::forward<TOutputIt>(outputIt),
+			detail::format_hpp::fmtns::wstring_view(fmtStr), detail::format_hpp::fmtns::make_wformat_args(args...)))
 	{
-		return ::mh::format_to(std::back_inserter(container), fmtStr, args...);
+		return detail::format_hpp::fmtns::vformat_to(std::forward<TOutputIt>(outputIt),
+			detail::format_hpp::fmtns::wstring_view(fmtStr), detail::format_hpp::fmtns::make_wformat_args(args...));
 	}
 
-	template<typename TOutputIt, typename TFmtStr, typename... TArgs,
+	template<typename TContainer, typename... TArgs,
 		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
-		inline auto format_to_n(TOutputIt&& outputIt, size_t n, const TFmtStr& fmtStr, const TArgs&... args)
+		inline auto format_to_container(TContainer& container, detail::format_hpp::format_string_t<TArgs...> fmtStr, TArgs&&... args)
 	{
-		return detail::format_hpp::fmtns::format_to_n(std::forward<TOutputIt>(outputIt), n, detail::format_hpp::fmtns::runtime(fmtStr), args...);
+		return ::mh::format_to(std::back_inserter(container), std::move(fmtStr), std::forward<TArgs>(args)...);
+	}
+
+	template<typename TContainer, typename... TArgs,
+		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
+		inline auto format_to_container(TContainer& container, detail::format_hpp::wformat_string_t<TArgs...> fmtStr, TArgs&&... args)
+	{
+		return ::mh::format_to(std::back_inserter(container), std::move(fmtStr), std::forward<TArgs>(args)...);
+	}
+
+	template<typename TOutputIt, typename... TArgs,
+		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
+		inline auto format_to_n(TOutputIt&& outputIt, size_t n, detail::format_hpp::format_string_t<TArgs...> fmtStr, TArgs&&... args)
+	{
+		return detail::format_hpp::fmtns::format_to_n(std::forward<TOutputIt>(outputIt), n, std::move(fmtStr), std::forward<TArgs>(args)...);
+	}
+
+	template<typename TOutputIt, typename... TArgs,
+		typename = std::enable_if_t<detail::format_hpp::check_type<TArgs...>()>>
+		inline auto format_to_n(TOutputIt&& outputIt, size_t n, detail::format_hpp::wformat_string_t<TArgs...> fmtStr, TArgs&&... args)
+	{
+		return detail::format_hpp::fmtns::vformat_to_n(std::forward<TOutputIt>(outputIt), n,
+			detail::format_hpp::fmtns::wstring_view(fmtStr), detail::format_hpp::fmtns::make_wformat_args(args...));
 	}
 
 	template<typename TFmtStr, typename... TArgs>
-	inline auto try_format(const TFmtStr& fmtStr, const TArgs&... args) -> decltype(format(fmtStr, args...)) try
+	inline auto try_format(const TFmtStr& fmtStr, const TArgs&... args) ->
+		decltype(::mh::format(::mh::runtime(fmtStr), args...)) try
 	{
-		return ::mh::format(fmtStr, args...);
+		return ::mh::format(::mh::runtime(fmtStr), args...);
 	}
 	catch (const format_error& e)
 	{
