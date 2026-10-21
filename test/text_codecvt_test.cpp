@@ -1,6 +1,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <mh/text/codecvt.hpp>
+#include "last_include.hpp"
 
 #include <cstdint>
 #include <stdexcept>

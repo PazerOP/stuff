@@ -39,6 +39,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mh-cmake-common
 include(mh-BasicInstall)
 include(mh-CheckCoroutineSupport)
 
+
 if (MH_STUFF_COMPILE_LIBRARY)
 	find_package(CURL REQUIRED)
 
@@ -139,6 +140,7 @@ elseif (fmt_FOUND)
 	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_FORMATTER=MH_FORMATTER_NONE")
 endif()
 
+
 target_include_directories(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 	"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cpp/include>"
 	"$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
@@ -172,6 +174,7 @@ endif()
 # flipped platform detection of unrelated third-party headers on platforms
 # like macOS that do not predefine it).
 
+
 if (NOT MSVC)
 	include(CheckCXXCompilerFlag)
 	check_cxx_compiler_flag(-fconcepts FCONCEPTS_FLAG)
@@ -187,6 +190,8 @@ message(STATUS "Forcing MH_BROKEN_UNICODE=1 to work around compiler Unicode issu
 if (NOT DEFINED BUILD_TESTING)
 	if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 		set(BUILD_TESTING ON)
+		# Define MH_STUFF_STANDALONE_BUILD when building as main project
+		target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_STUFF_STANDALONE_BUILD")
 	else()
 		set(BUILD_TESTING OFF)
 	endif()
@@ -214,36 +219,4 @@ mh_basic_install(
 	FIND_DEPENDENCIES ${MH_STUFF_INSTALL_DEPS}
 )
 
-###########################################
-# "install" is intended for vcpkg support #
-###########################################
-# include(CMakePackageConfigHelpers)
-# configure_package_config_file(
-# 	cmake/config.cmake.in
-# 	"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-# 	INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )
 
-# include(GNUInstallDirs)
-
-# write_basic_package_version_file(
-# 	"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
-# 	VERSION ${PROJECT_VERSION}
-# 	COMPATIBILITY SameMajorVersion
-# )
-
-# install(
-# 	FILES
-# 		"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-# 		"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
-# 	DESTINATION
-# 		"${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )
-
-# install(TARGETS stuff EXPORT ${PROJECT_NAME}_targets)
-# install(DIRECTORY cpp/include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
-# install(
-# 	EXPORT ${PROJECT_NAME}_targets
-# 	NAMESPACE mh::
-# 	DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )
