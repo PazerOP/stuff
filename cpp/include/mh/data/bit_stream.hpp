@@ -10,6 +10,12 @@
 namespace mh
 {
 	// A little-endian, LSB-first bit stream over memory that the caller owns.
+	//
+	// Errors are sticky, as in a zstd or Iris bit stream. An access that would
+	// leave the buffer reads zero or writes nothing, and sets failed(). No
+	// access touches memory outside the buffer. The read and write paths make no
+	// call and cannot throw, so a compiler can keep the position in a register
+	// across a loop.
 	namespace detail::bit_stream_hpp
 	{
 		template<unsigned N> using uint_for = std::conditional_t<(N <= 8), std::uint8_t,
@@ -30,7 +36,6 @@ namespace mh
 		static_assert(std::endian::native == std::endian::little, "mh::bit_reader and mh::bit_writer assume a little-endian target");
 	}
 
-	// Every read is bounds checked and throws std::out_of_range past the end. No access leaves [data, data + size).
 	class bit_reader
 	{
 	public:
@@ -46,16 +51,27 @@ namespace mh
 		std::size_t size_bits() const noexcept { return m_EndBit; }
 		std::size_t remaining_bits() const noexcept { return m_EndBit - m_Pos; }
 
-		void seek(std::size_t bit)
+		bool failed() const noexcept { return m_Failed; }
+		void throw_if_failed() const
 		{
-			if (bit > m_EndBit)
-				throw std::out_of_range("mh::bit_reader::seek: position is past the end");
+			if (m_Failed)
+				throw std::out_of_range("mh::bit_reader: an access went past the end of the buffer");
+		}
+
+		// A position past the end fails and moves to the end.
+		void seek(std::size_t bit) noexcept
+		{
+			if (bit > m_EndBit) [[unlikely]]
+			{
+				m_Failed = true;
+				bit = m_EndBit;
+			}
 			m_Pos = bit;
 		}
-		void skip(std::size_t bits) { seek(m_Pos + bits); }
+		void skip(std::size_t bits) noexcept { seek(m_Pos + bits); }
 
 		// Reads N bits, with N known at compile time.
-		template<unsigned N> detail::bit_stream_hpp::uint_for<N> read()
+		template<unsigned N> detail::bit_stream_hpp::uint_for<N> read() noexcept
 		{
 			static_assert(N >= 1 && N <= 64);
 			using namespace detail::bit_stream_hpp;
@@ -76,12 +92,11 @@ namespace mh
 			return uint_for<N>(read_tail(N));
 		}
 
-		std::uint64_t read(unsigned bits)
+		// Any other count fails and reads zero.
+		std::uint64_t read(unsigned bits) noexcept
 		{
 			using namespace detail::bit_stream_hpp;
-			if (bits - 1u >= 64u)
-				throw std::invalid_argument("mh::bit_reader::read: bits must be in [1, 64]");
-			if (m_Pos < m_WordEndBit) [[likely]]
+			if (m_Pos < m_WordEndBit && bits - 1u < 64u) [[likely]]
 			{
 				const std::byte* p = m_Data + (m_Pos >> 3);
 				const unsigned off = unsigned(m_Pos & 7);
@@ -94,10 +109,10 @@ namespace mh
 			return read_tail(bits);
 		}
 
-		bool read_bit() { return read<1>() != 0; }
+		bool read_bit() noexcept { return read<1>() != 0; }
 
 		// Reads all the bits of an integral, enum or floating point T.
-		template<class T> T read_as()
+		template<class T> T read_as() noexcept
 		{
 			static_assert(std::is_trivially_copyable_v<T> && sizeof(T) <= 8);
 			using U = detail::bit_stream_hpp::bits_of<T>;
@@ -105,11 +120,15 @@ namespace mh
 		}
 
 	private:
-		// The last few bytes: an exact bounds check, then byte loads that stay inside the buffer.
-		std::uint64_t read_tail(unsigned bits)
+		// The last bytes of the buffer, and every bad request. Loads stay inside the buffer.
+		std::uint64_t read_tail(unsigned bits) noexcept
 		{
-			if (m_Pos + bits > m_EndBit)
-				throw std::out_of_range("mh::bit_reader::read: read past the end");
+			if (bits - 1u >= 64u || m_Pos + bits > m_EndBit)
+			{
+				m_Failed = true;
+				m_Pos = m_EndBit;
+				return 0;
+			}
 			const std::byte* p = m_Data + (m_Pos >> 3);
 			const unsigned off = unsigned(m_Pos & 7);
 			const unsigned n = (off + bits + 7) / 8;
@@ -127,6 +146,7 @@ namespace mh
 		std::size_t m_EndBit = 0;
 		std::size_t m_WordEndBit = 0;
 		std::size_t m_Pos = 0;
+		bool m_Failed = false;
 	};
 
 	// The bits collect in a 64-bit register, and a whole word goes to memory every few bits. Call flush() before the bytes are read. flush() writes the last
@@ -139,29 +159,35 @@ namespace mh
 			m_Data(static_cast<std::byte*>(data)), m_Out(m_Data), m_End(m_Data + size_bytes)
 		{
 		}
-		~bit_writer() noexcept
-		{
-			if (m_AccBits)
-				flush_bytes();
-		}
+		~bit_writer() noexcept { flush(); }
 		bit_writer(const bit_writer&) = delete;
 		bit_writer& operator=(const bit_writer&) = delete;
 
 		std::size_t position() const noexcept { return std::size_t(m_Out - m_Data) * 8 + m_AccBits; }
 		std::size_t size_bits() const noexcept { return std::size_t(m_End - m_Data) * 8; }
 
-		// Moves the cursor. The bits before it in its byte are kept.
-		void seek(std::size_t bit)
+		bool failed() const noexcept { return m_Failed; }
+		void throw_if_failed() const
 		{
-			if (bit > size_bits())
-				throw std::out_of_range("mh::bit_writer::seek: position is past the end");
+			if (m_Failed)
+				throw std::out_of_range("mh::bit_writer: a write went past the end of the buffer");
+		}
+
+		// Moves the cursor. The bits before it in its byte are kept. A position past the end fails and moves to the end.
+		void seek(std::size_t bit) noexcept
+		{
+			if (bit > size_bits()) [[unlikely]]
+			{
+				m_Failed = true;
+				bit = size_bits();
+			}
 			flush();
 			m_Out = m_Data + bit / 8;
 			m_AccBits = unsigned(bit % 8);
 			m_Acc = m_AccBits ? (std::to_integer<std::uint64_t>(*m_Out) & detail::bit_stream_hpp::low_mask(m_AccBits)) : 0;
 		}
 
-		template<unsigned N> void write(std::uint64_t value)
+		template<unsigned N> void write(std::uint64_t value) noexcept
 		{
 			static_assert(N >= 1 && N <= 64);
 			if constexpr (N == 64)
@@ -170,16 +196,20 @@ namespace mh
 				put(value & detail::bit_stream_hpp::low_mask(N), N);
 		}
 
-		void write(std::uint64_t value, unsigned bits)
+		// Any other count fails and writes nothing.
+		void write(std::uint64_t value, unsigned bits) noexcept
 		{
-			if (bits - 1u >= 64u)
-				throw std::invalid_argument("mh::bit_writer::write: bits must be in [1, 64]");
+			if (bits - 1u >= 64u) [[unlikely]]
+			{
+				m_Failed = true;
+				return;
+			}
 			put(value & detail::bit_stream_hpp::low_mask(bits), bits);
 		}
 
-		void write_bit(bool value) { put(value, 1); }
+		void write_bit(bool value) noexcept { put(value, 1); }
 
-		template<class T> void write_as(T value)
+		template<class T> void write_as(T value) noexcept
 		{
 			static_assert(std::is_trivially_copyable_v<T> && sizeof(T) <= 8);
 			using U = detail::bit_stream_hpp::bits_of<T>;
@@ -187,22 +217,23 @@ namespace mh
 		}
 
 		// Writes the bits still in the register. The cursor does not move.
-		void flush()
+		void flush() noexcept
 		{
-			if (m_AccBits)
-			{
-				flush_bytes();
-				// The partial byte stays in the register, so a later write continues it.
-				const unsigned whole = m_AccBits / 8;
-				m_Out += whole;
-				m_Acc = whole < 8 ? (m_Acc >> (8 * whole)) : 0;
-				m_AccBits -= whole * 8;
-			}
+			if (!m_AccBits)
+				return;
+			const unsigned n = (m_AccBits + 7) / 8;
+			for (unsigned i = 0; i < n; i++)
+				m_Out[i] = std::byte(std::uint8_t(m_Acc >> (8 * i)));
+			// The partial byte stays in the register, so a later write continues it.
+			const unsigned whole = m_AccBits / 8;
+			m_Out += whole;
+			m_Acc = whole < 8 ? (m_Acc >> (8 * whole)) : 0;
+			m_AccBits -= whole * 8;
 		}
 
 	private:
 		// value has no bits above the low `bits`.
-		void put(std::uint64_t value, unsigned bits)
+		void put(std::uint64_t value, unsigned bits) noexcept
 		{
 			// One compare: several bytes after m_Out hold any word this call can store, and the end check is the same compare.
 			if (m_End - m_Out >= 16) [[likely]]
@@ -222,10 +253,14 @@ namespace mh
 			put_tail(value, bits);
 		}
 
-		void put_tail(std::uint64_t value, unsigned bits)
+		// The last several bytes of the buffer: an exact bounds check, then one byte at a time.
+		void put_tail(std::uint64_t value, unsigned bits) noexcept
 		{
 			if (position() + bits > size_bits())
-				throw std::out_of_range("mh::bit_writer::write: write past the end");
+			{
+				m_Failed = true;
+				return;
+			}
 			// The register can hold a bounded number of bits from the word path.
 			flush();
 			for (unsigned i = 0; i < bits; i++)
@@ -240,17 +275,11 @@ namespace mh
 			}
 		}
 
-		void flush_bytes() noexcept
-		{
-			const unsigned n = (m_AccBits + 7) / 8;
-			for (unsigned i = 0; i < n; i++)
-				m_Out[i] = std::byte(std::uint8_t(m_Acc >> (8 * i)));
-		}
-
 		std::byte* m_Data = nullptr;
 		std::byte* m_Out = nullptr;
 		std::byte* m_End = nullptr;
 		std::uint64_t m_Acc = 0;
 		unsigned m_AccBits = 0;
+		bool m_Failed = false;
 	};
 }

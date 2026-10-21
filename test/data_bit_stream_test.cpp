@@ -195,7 +195,7 @@ TEST_CASE("bit_writer compile-time widths match run-time widths")
 	CHECK(a == b);
 }
 
-TEST_CASE("no access leaves the buffer, and a field past the end throws")
+TEST_CASE("no access leaves the buffer, and a field past the end fails")
 {
 	for (std::size_t bytes = 1; bytes <= 24; bytes++)
 	{
@@ -212,31 +212,59 @@ TEST_CASE("no access leaves the buffer, and a field past the end throws")
 					values.push_back(rng() & mask(bits));
 					w.write(values.back(), bits);
 				}
-				CHECK_THROWS_AS(w.write(0, bits), std::out_of_range);
+				REQUIRE_FALSE(w.failed());
+				w.write(0, bits);
+				CHECK(w.failed());
+				CHECK_THROWS_AS(w.throw_if_failed(), std::out_of_range);
 			}
 
 			mh::bit_reader r(buf.data(), bytes);
 			for (auto v : values)
 				REQUIRE(r.read(bits) == v);
-			CHECK_THROWS_AS(r.read(bits), std::out_of_range);
+			REQUIRE_FALSE(r.failed());
+			CHECK(r.read(bits) == 0);
+			CHECK(r.failed());
+			CHECK(r.position() == bytes * 8);
+			CHECK_THROWS_AS(r.throw_if_failed(), std::out_of_range);
 		}
 	}
 }
 
-TEST_CASE("bad widths and seeks throw")
+TEST_CASE("bad widths and seeks fail")
 {
 	std::vector<std::byte> buf(16);
-	mh::bit_reader r(buf.data(), buf.size());
-	CHECK_THROWS_AS(r.read(0), std::invalid_argument);
-	CHECK_THROWS_AS(r.read(65), std::invalid_argument);
-	CHECK_THROWS_AS(r.seek(129), std::out_of_range);
-	r.skip(100);
-	CHECK(r.position() == 100);
-	CHECK(r.remaining_bits() == 28);
-	CHECK(r.size_bits() == 128);
-
-	mh::bit_writer w(buf.data(), buf.size());
-	CHECK_THROWS_AS(w.write(0, 0), std::invalid_argument);
-	CHECK_THROWS_AS(w.seek(129), std::out_of_range);
-	CHECK(w.size_bits() == 128);
+	{
+		mh::bit_reader r(buf.data(), buf.size());
+		r.skip(100);
+		CHECK(r.position() == 100);
+		CHECK(r.remaining_bits() == 28);
+		CHECK(r.size_bits() == 128);
+		CHECK_FALSE(r.failed());
+		CHECK_NOTHROW(r.throw_if_failed());
+	}
+	for (unsigned bad : { 0u, 65u })
+	{
+		mh::bit_reader r(buf.data(), buf.size());
+		CHECK(r.read(bad) == 0);
+		CHECK(r.failed());
+	}
+	{
+		mh::bit_reader r(buf.data(), buf.size());
+		r.seek(129);
+		CHECK(r.failed());
+		CHECK(r.position() == 128);
+	}
+	{
+		mh::bit_writer w(buf.data(), buf.size());
+		CHECK(w.size_bits() == 128);
+		w.write(0, 0);
+		CHECK(w.failed());
+	}
+	{
+		mh::bit_writer w(buf.data(), buf.size());
+		w.seek(129);
+		CHECK(w.failed());
+		CHECK(w.position() == 128);
+		CHECK_THROWS_AS(w.throw_if_failed(), std::out_of_range);
+	}
 }
