@@ -377,6 +377,44 @@ TEST_CASE("bit_copy_dynamic clear modes and bit_read_dynamic")
 	CHECK_THROWS_AS(mh::bit_read_dynamic<uint8_t>(src, 9, 0), std::invalid_argument);
 }
 
+TEST_CASE("bit_write_dynamic writes every width and offset, and keeps the bits around the field")
+{
+	unsigned char value_bytes[8];
+	fill_src_pattern(value_bytes, sizeof(value_bytes));
+	uint64_t value;
+	memcpy(&value, value_bytes, sizeof(value));
+
+	size_t failures = 0;
+	for (size_t bits = 0; bits <= 64; bits++)
+	{
+		for (size_t offset = 0; offset < 8; offset++)
+		{
+			const size_t span = (offset + bits + 7) / 8;
+
+			unsigned char expected[16];
+			fill_dst_pattern(expected, sizeof(expected));
+			ref_bit_copy(expected, value_bytes, bits, 0, offset);
+
+			// A heap block of exactly span bytes, so a sanitizer build reports any access past it.
+			std::unique_ptr<unsigned char[]> exact(new unsigned char[span ? span : 1]);
+			fill_dst_pattern(exact.get(), span);
+			mh::bit_write_dynamic(exact.get(), value, bits, offset, span);
+
+			unsigned char padded[16];
+			fill_dst_pattern(padded, sizeof(padded));
+			mh::bit_write_dynamic(static_cast<unsigned char*>(padded), value, bits, offset, sizeof(padded));
+
+			if (memcmp(exact.get(), expected, span) != 0 || memcmp(padded, expected, sizeof(padded)) != 0)
+			{
+				UNSCOPED_INFO("bits=" << bits << " offset=" << offset);
+				failures++;
+			}
+		}
+	}
+	REQUIRE(failures == 0);
+	CHECK_THROWS_AS(mh::bit_write_dynamic(value_bytes, value, 65, 0, sizeof(value_bytes)), std::invalid_argument);
+}
+
 TEST_CASE("bit_read_dynamic reads every width and offset from a buffer of exactly the bytes it needs")
 {
 	unsigned char pattern[16];

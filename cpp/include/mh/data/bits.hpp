@@ -395,7 +395,7 @@ namespace mh
 #pragma GCC diagnostic pop
 #endif
 
-		inline void word_bit_copy_dynamic(std::byte* MH_RESTRICT dst, const std::byte* MH_RESTRICT src,
+		MH_BITS_ALWAYS_INLINE void word_bit_copy_dynamic(std::byte* MH_RESTRICT dst, const std::byte* MH_RESTRICT src,
 			size_t bits, size_t src_bit, size_t dst_bit, bool clear) noexcept
 		{
 			while (bits > 0)
@@ -661,5 +661,38 @@ namespace mh
 			return TOut(v & mask);
 		}
 		return TOut(detail::bits_hpp::window_read(reinterpret_cast<const std::byte*>(src), bits_to_read, src_offset));
+	}
+
+	// Writes the low bits_to_write bits of value at bit dst_offset of a destination of dst_size_bytes bytes. It keeps
+	// every other bit. Where several bytes after the write position exist, a write is one 8-byte read-modify-write. For a
+	// stream of writes, mh::bit_writer in bit_stream.hpp is faster, because it keeps the pending bits in a register.
+	template<typename TDst>
+	void bit_write_dynamic(TDst* dst, std::uint64_t value, size_t bits_to_write, size_t dst_offset, size_t dst_size_bytes)
+	{
+		static_assert(std::is_same_v<TDst, std::byte> || std::is_unsigned_v<TDst>);
+		static_assert(std::endian::native == std::endian::little, "mh::bit_write_dynamic needs a little-endian target");
+		if (bits_to_write > 64)
+			throw std::invalid_argument("mh::bit_write_dynamic: bits_to_write is wider than 64");
+		if (bits_to_write == 0)
+			return;
+
+		std::byte* p = reinterpret_cast<std::byte*>(dst) + dst_offset / 8;
+		const size_t o = dst_offset % 8;
+		const std::uint64_t mask = bits_to_write == 64 ? ~std::uint64_t(0) : (std::uint64_t(1) << bits_to_write) - 1;
+		value &= mask;
+		if (dst_offset / 8 + 9 <= dst_size_bytes)
+		{
+			const std::uint64_t w = detail::bits_hpp::load_le<std::uint64_t>(p);
+			detail::bits_hpp::store_le<std::uint64_t>(p, (w & ~(mask << o)) | (value << o));
+			if (o + bits_to_write > 64)
+			{
+				const std::uint64_t hm = mask >> (64 - o);
+				const std::uint64_t b = detail::bits_hpp::load_le<std::uint8_t>(p + 8);
+				detail::bits_hpp::store_le<std::uint8_t>(p + 8, (b & ~hm) | (value >> (64 - o)));
+			}
+			return;
+		}
+		detail::bits_hpp::word_bit_copy_dynamic(reinterpret_cast<std::byte*>(dst), reinterpret_cast<const std::byte*>(&value),
+			bits_to_write, 0, dst_offset, true);
 	}
 }
