@@ -286,3 +286,92 @@ TEST_CASE("bit_copy - non-byte-aligned destination writes exact expected bytes")
 		REQUIRE(dst[3] == 0xEE);
 	}
 }
+
+namespace
+{
+	// The constant-evaluation path, which the run-time word path does not cover.
+	constexpr uint64_t constexpr_read()
+	{
+		const uint8_t src[9] = { 0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe, 0x01 };
+		return mh::bit_read<uint64_t, 64, 4>(src);
+	}
+	static_assert(constexpr_read() == 0x1FEDCBA987654321ull);
+
+	template<size_t bits, size_t src_offset, size_t dst_offset>
+	void check_wide_bit_copy(bit_copy_failure_log& log)
+	{
+		unsigned char src_raw[32], dst_ref[32], dst_mh[32];
+		fill_src_pattern(src_raw, sizeof(src_raw));
+		fill_dst_pattern(dst_ref, sizeof(dst_ref));
+		memcpy(dst_mh, dst_ref, sizeof(dst_ref));
+
+		ref_bit_copy(dst_ref, src_raw, bits, src_offset, dst_offset);
+		mh::bit_copy<bits, src_offset, dst_offset, mh::bit_clear_mode::clear_bits>(
+			reinterpret_cast<std::byte*>(dst_mh), reinterpret_cast<const std::byte*>(src_raw));
+		if (memcmp(dst_ref, dst_mh, sizeof(dst_ref)) != 0)
+			log.record("wide", bits, src_offset, dst_offset);
+	}
+}
+
+TEST_CASE("bit_copy - widths past one 56-bit step match the reference")
+{
+	bit_copy_failure_log log;
+	check_wide_bit_copy<56, 7, 1>(log);
+	check_wide_bit_copy<57, 3, 5>(log);
+	check_wide_bit_copy<63, 7, 7>(log);
+	check_wide_bit_copy<64, 1, 6>(log);
+	check_wide_bit_copy<100, 5, 3>(log);
+	check_wide_bit_copy<113, 0, 7>(log);
+	check_wide_bit_copy<200, 6, 2>(log);
+	INFO(log.details);
+	REQUIRE(log.fail_count == 0);
+}
+
+TEST_CASE("bit_copy_dynamic matches the reference for every width and offset")
+{
+	bit_copy_failure_log log;
+	for (size_t bits = 1; bits <= 130; bits++)
+	{
+		for (size_t src_offset = 0; src_offset < 10; src_offset++)
+		{
+			for (size_t dst_offset = 0; dst_offset < 10; dst_offset++)
+			{
+				unsigned char src_raw[32], dst_ref[32], dst_mh[32];
+				fill_src_pattern(src_raw, sizeof(src_raw));
+				fill_dst_pattern(dst_ref, sizeof(dst_ref));
+				memcpy(dst_mh, dst_ref, sizeof(dst_ref));
+
+				ref_bit_copy(dst_ref, src_raw, bits, src_offset, dst_offset);
+				mh::bit_copy_dynamic(dst_mh, static_cast<const unsigned char*>(src_raw), bits, src_offset, dst_offset);
+				if (memcmp(dst_ref, dst_mh, sizeof(dst_ref)) != 0)
+					log.record("dynamic", bits, src_offset, dst_offset);
+			}
+		}
+	}
+	INFO(log.details);
+	REQUIRE(log.fail_count == 0);
+}
+
+TEST_CASE("bit_copy_dynamic clear modes and bit_read_dynamic")
+{
+	const uint8_t src[2] = { 0xC3, 0x7F };
+
+	uint8_t dst[4] = { 0xAA, 0x55, 0xEE, 0xEE };
+	mh::bit_copy_dynamic(dst, static_cast<const uint8_t*>(src), 8, 0, 4);
+	CHECK(dst[0] == 0x3A);
+	CHECK(dst[1] == 0x5C);
+	CHECK(dst[2] == 0xEE);
+
+	uint8_t ored[2] = { 0x01, 0x00 };
+	mh::bit_copy_dynamic(ored, static_cast<const uint8_t*>(src), 8, 0, 4, mh::bit_clear_mode::none);
+	CHECK(ored[0] == 0x31);
+	CHECK(ored[1] == 0x0C);
+
+	uint16_t objs[2] = { 0xFFFF, 0xFFFF };
+	mh::bit_copy_dynamic(objs, static_cast<const uint8_t*>(src), 4, 0, 2, mh::bit_clear_mode::clear_objects);
+	CHECK(objs[0] == 0x000C);
+	CHECK(objs[1] == 0xFFFF);
+
+	CHECK(mh::bit_read_dynamic<uint16_t>(src, 12, 4) == 0x7FC);
+	CHECK_THROWS_AS(mh::bit_read_dynamic<uint8_t>(src, 9, 0), std::invalid_argument);
+}

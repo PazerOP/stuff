@@ -1,10 +1,12 @@
 #pragma once
 
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <stdexcept>
 #include <type_traits>
 
 #include <iostream>
@@ -20,9 +22,6 @@ namespace mh
 #define MH_RESTRICT
 #endif
 #endif
-
-//#define MH_BITS_ENABLE_UNALIGNED_INTEGERS 1
-//#define MH_BITS_ENABLE_SMALL_MEMCPY 1
 
 	enum class int_for_bits_mode
 	{
@@ -133,16 +132,6 @@ namespace mh
 
 			debug([&]{ std::cerr << "byte_write " << std::hex << unsigned(value) << " @ " << index << '\n'; });
 
-#if (__cpp_lib_is_constant_evaluated >= 201811)
-			if (!std::is_constant_evaluated())
-			{
-#if MH_BITS_ENABLE_SMALL_MEMCPY
-				memcpy(reinterpret_cast<std::byte*>(dst) + index, &value, 1);
-				return;
-#endif
-			}
-#endif
-
 			if constexpr (sizeof(TDst) == 1)
 			{
 				dst[index] = TDst(value);
@@ -177,20 +166,6 @@ namespace mh
 			using namespace detail::bits_hpp;
 
 			uint_fast16_t retVal{};
-#if (__cpp_lib_is_constant_evaluated >= 201811)
-			if (!std::is_constant_evaluated())
-			{
-#if MH_BITS_ENABLE_UNALIGNED_INTEGERS
-				auto u8 = reinterpret_cast<const uint8_t*>(src);
-				retVal = *reinterpret_cast<const uint16_t*>(&u8[byte_index]);
-				return retVal;
-#elif MH_BITS_ENABLE_SMALL_MEMCPY
-				std::memcpy(&retVal, reinterpret_cast<const std::byte*>(src) + byte_index, 2);
-				return retVal;
-#endif
-			}
-#endif
-
 			if (sizeof(TSrc) == sizeof(uint16_t) && (byte_index % sizeof(TSrc)) == 0)
 			{
 				retVal = uint_fast16_t(src[byte_index / sizeof(TSrc)]);
@@ -211,20 +186,6 @@ namespace mh
 			using namespace detail::bits_hpp;
 
 			debug([&]{ std::cerr << "u16_write " << std::hex << value << " @ " << byte_index << '\n'; });
-
-#if (__cpp_lib_is_constant_evaluated >= 201811)
-			if (!std::is_constant_evaluated())
-			{
-#if MH_BITS_ENABLE_UNALIGNED_INTEGERS
-				auto u8 = reinterpret_cast<uint8_t*>(dst);
-				*reinterpret_cast<uint16_t*>(&u8[byte_index]) = value;
-				return;
-#elif MH_BITS_ENABLE_SMALL_MEMCPY
-				std::memcpy(reinterpret_cast<std::byte*>(dst) + byte_index, &value, 2);
-				return;
-#endif
-			}
-#endif
 
 			if constexpr (sizeof(TDst) == sizeof(uint16_t))
 			{
@@ -320,22 +281,110 @@ namespace mh
 
 		if constexpr (byte_count > 0)
 		{
-#if MH_BITS_ENABLE_SMALL_MEMCPY && (__cpp_lib_is_constant_evaluated >= 201811)
 			if (!std::is_constant_evaluated())
 			{
-				std::memcpy(dst, src, byte_count);
+				if constexpr (std::endian::native == std::endian::little)
+				{
+					std::memcpy(dst, src, byte_count);
+					return;
+				}
 			}
-			else
-#endif
-			{
-				for (size_t i = 0; i < byte_count; i++)
-					byte_write(dst, i, byte_read(src, i));
-			}
+			for (size_t i = 0; i < byte_count; i++)
+				byte_write(dst, i, byte_read(src, i));
 		}
 	}
 
 	namespace detail::bits_hpp
 	{
+#ifdef __GNUC__
+#define MH_BITS_ALWAYS_INLINE inline __attribute__((always_inline))
+#else
+#define MH_BITS_ALWAYS_INLINE inline
+#endif
+
+		// The run-time path. On a little-endian target, byte i of an array of T is byte i of its memory. Loads and stores of the touched bytes match byte_read and byte_write. Each
+		// step moves a bounded number of bits: several bits of offset plus many bits fit in the bytes of one load. No step reads or writes a byte that the copy does not touch.
+		template<size_t bits, size_t src_bit, size_t dst_bit, bool clear>
+		MH_BITS_ALWAYS_INLINE void word_bit_copy(std::byte* MH_RESTRICT dst, const std::byte* MH_RESTRICT src) noexcept
+		{
+			if constexpr (bits > 0)
+			{
+				constexpr size_t n = bits < 56 ? bits : 56;
+				constexpr size_t so = src_bit % 8;
+				constexpr size_t doff = dst_bit % 8;
+				constexpr size_t sspan = (so + n + 7) / 8;
+				constexpr size_t dspan = (doff + n + 7) / 8;
+				constexpr std::uint64_t m = ~std::uint64_t(0) >> (64 - n);
+
+				std::uint64_t v = 0;
+				std::memcpy(&v, src + src_bit / 8, sspan);
+				v = (v >> so) & m;
+
+				std::uint64_t w = 0;
+				std::memcpy(&w, dst + dst_bit / 8, dspan);
+				if constexpr (clear)
+					w &= ~(m << doff);
+				w |= v << doff;
+				std::memcpy(dst + dst_bit / 8, &w, dspan);
+
+				word_bit_copy<bits - n, src_bit + n, dst_bit + n, clear>(dst, src);
+			}
+		}
+
+		// A full word is one load. A shorter span is a byte loop, because the bytes after it may not exist.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+// GCC inlines these into callers with a short array and warns on the 8-byte branch, which the n == 8 test keeps from running there.
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+		MH_BITS_ALWAYS_INLINE std::uint64_t load_upto8(const std::byte* p, size_t n) noexcept
+		{
+			std::uint64_t v = 0;
+			if (n == 8)
+				std::memcpy(&v, p, 8);
+			else
+				for (size_t i = 0; i < n; i++)
+					v |= std::uint64_t(std::to_integer<std::uint8_t>(p[i])) << (8 * i);
+			return v;
+		}
+		MH_BITS_ALWAYS_INLINE void store_upto8(std::byte* p, std::uint64_t v, size_t n) noexcept
+		{
+			if (n == 8)
+				std::memcpy(p, &v, 8);
+			else
+				for (size_t i = 0; i < n; i++)
+					p[i] = std::byte(std::uint8_t(v >> (8 * i)));
+		}
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+
+		inline void word_bit_copy_dynamic(std::byte* MH_RESTRICT dst, const std::byte* MH_RESTRICT src,
+			size_t bits, size_t src_bit, size_t dst_bit, bool clear) noexcept
+		{
+			while (bits > 0)
+			{
+				const size_t n = bits < 56 ? bits : 56;
+				const size_t so = src_bit % 8;
+				const size_t doff = dst_bit % 8;
+				const std::uint64_t m = ~std::uint64_t(0) >> (64 - n);
+
+				const std::uint64_t v = (load_upto8(src + src_bit / 8, (so + n + 7) / 8) >> so) & m;
+				const size_t dspan = (doff + n + 7) / 8;
+				std::uint64_t w = load_upto8(dst + dst_bit / 8, dspan);
+				if (clear)
+					w &= ~(m << doff);
+				w |= v << doff;
+				store_upto8(dst + dst_bit / 8, w, dspan);
+
+				bits -= n;
+				src_bit += n;
+				dst_bit += n;
+			}
+		}
+
 		template<size_t src_offset, size_t dst_offset,
 			bool src_multibyte, bool dst_multibyte, bit_clear_mode clear_mode, uint_fast16_t mask,
 			typename TSrc = void, typename TDst = void>
@@ -413,6 +462,17 @@ namespace mh
 				dst[dst_offset_obj + i] = {};
 		}
 
+		if (!std::is_constant_evaluated())
+		{
+			if constexpr (std::endian::native == std::endian::little)
+			{
+				word_bit_copy<bits_to_copy, src_offset, dst_offset, clear_mode == bit_clear_mode::clear_bits>(
+					reinterpret_cast<std::byte*>(dst), reinterpret_cast<const std::byte*>(src));
+				return;
+			}
+		}
+
+		// The rest is the constant-evaluation path, and the path for a big-endian target.
 		// Optimization: if everything is byte-aligned, just memcpy.
 		if constexpr (src_offset_bits == 0 && dst_offset_bits == 0 &&
 			(bits_to_copy % BITS_PER_BYTE) == 0 &&
@@ -504,6 +564,38 @@ namespace mh
 		static_assert(bits_to_read <= (sizeof(TOut) * detail::bits_hpp::BITS_PER_BYTE));
 		TOut retVal{};
 		bit_copy<bits_to_read, src_offset, 0, bit_clear_mode::contents_zero>(&retVal, src);
+		return retVal;
+	}
+
+	// bit_copy with the width and both offsets known only at run time. It needs a little-endian target.
+	template<typename TSrc, typename TDst>
+	void bit_copy_dynamic(TDst* MH_RESTRICT dst, const TSrc* MH_RESTRICT src, size_t bits_to_copy, size_t src_offset, size_t dst_offset,
+		bit_clear_mode clear_mode = bit_clear_mode::clear_bits)
+	{
+		static_assert(std::is_same_v<TSrc, std::byte> || std::is_unsigned_v<TSrc>);
+		static_assert(std::is_same_v<TDst, std::byte> || std::is_unsigned_v<TDst>);
+		static_assert(std::endian::native == std::endian::little, "mh::bit_copy_dynamic needs a little-endian target");
+
+		if (clear_mode == bit_clear_mode::clear_objects && bits_to_copy > 0)
+		{
+			constexpr size_t bits_per_dst = sizeof(TDst) * detail::bits_hpp::BITS_PER_BYTE;
+			const size_t first = dst_offset / bits_per_dst;
+			const size_t last = (dst_offset + bits_to_copy - 1) / bits_per_dst;
+			for (size_t i = first; i <= last; i++)
+				dst[i] = {};
+		}
+		detail::bits_hpp::word_bit_copy_dynamic(reinterpret_cast<std::byte*>(dst), reinterpret_cast<const std::byte*>(src),
+			bits_to_copy, src_offset, dst_offset, clear_mode == bit_clear_mode::clear_bits);
+	}
+
+	// bit_read with the width and the offset known only at run time.
+	template<typename TOut, typename TIn>
+	TOut bit_read_dynamic(const TIn* src, size_t bits_to_read, size_t src_offset = 0)
+	{
+		if (bits_to_read > sizeof(TOut) * detail::bits_hpp::BITS_PER_BYTE)
+			throw std::invalid_argument("mh::bit_read_dynamic: bits_to_read is wider than TOut");
+		TOut retVal{};
+		bit_copy_dynamic(&retVal, src, bits_to_read, src_offset, 0, bit_clear_mode::contents_zero);
 		return retVal;
 	}
 }
