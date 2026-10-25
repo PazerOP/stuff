@@ -41,8 +41,8 @@ TEST_CASE("process - wait_async completes while the child is still running", "[p
 {
 	// regression: the process manager used to resume waiter coroutines while
 	// holding its own (non-recursive) mutex, deadlocking on the first completed
-	// child; the monitor coroutine was also a capturing lambda whose closure died
-	// before the first resume.
+	// child. This also covers the monitor coroutine was also a capturing lambda
+	// whose closure died before the first resume.
 	mh::dispatcher disp;
 	disp.register_for_current_thread();
 
@@ -57,8 +57,8 @@ TEST_CASE("process - wait_async completes while the child is still running", "[p
 
 TEST_CASE("process - waiting on children that exit immediately never hangs", "[process]")
 {
-	// regression: a child that exited before the SIGCHLD handler was installed
-	// (or before registration) had its signal dropped, so nothing ever woke the
+	// regression. A child that exited before the SIGCHLD handler was installed
+	// (or before registration) had its signal dropped. Nothing ever woke the
 	// monitor and wait_async suspended forever.
 	mh::dispatcher disp;
 	disp.register_for_current_thread();
@@ -105,9 +105,9 @@ TEST_CASE("process - exec failure reports 127 without duplicating the parent", "
 
 TEST_CASE("process - unimplemented io redirection fails in the parent, pre-fork", "[process]")
 {
-	// regression: this used to throw inside the FORKED CHILD, unwinding a copy of
-	// the parent's stack - a caller that catches would keep a duplicate of the
-	// entire application running.
+	// regression: this used to throw inside the FORKED CHILD. That regression is
+	// unwinding a copy of the parent's stack - a caller that catches would keep a
+	// duplicate of the entire application running.
 	auto sink = std::make_shared<mh::io::fd_sink>(STDOUT_FILENO, false);
 	mh::process p("/bin/cat", {}, nullptr, sink);
 	CHECK_THROWS_AS(p.start(), mh::not_implemented_error);

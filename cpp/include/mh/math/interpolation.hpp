@@ -37,12 +37,10 @@ namespace mh
 			{
 				return in;
 			}
-#if __cpp_lib_is_constant_evaluated >= 201811
 			else if (!std::is_constant_evaluated())
 			{
 				return std::round(in);
 			}
-#endif
 			else
 			{
 				// Round half away from zero - match std::round exactly
@@ -223,7 +221,7 @@ namespace mh
 				result = valueOffset * wholeMultiplier;
 			}
 
-			if constexpr (den != 1) // If denominator is not 1, then we need rounding logic
+			if constexpr (den != 1)
 			{
 				// Calculate the fractional part
 				constexpr TCommon fracMultiplier = (num % den);
@@ -275,7 +273,6 @@ namespace mh
 				}
 			}
 
-			// Shift range from [0, (dest_max - dest_min)] to [dest_min, dest_max]
 			result += dest_min;
 
 			return result;

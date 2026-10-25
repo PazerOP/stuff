@@ -1,7 +1,5 @@
 #include "mh/reflection/struct.hpp"
 
-#if (__cpp_concepts >= 201907) || (_MSC_VER >= 1928)
-
 #include <catch2/catch_all.hpp>
 
 #include <string>
@@ -52,8 +50,8 @@ MH_STRUCT_REFLECT_END()
 
 TEST_CASE("struct reflection - for_each_member on an lvalue", "[reflection][struct]")
 {
-	// regression: the generated for_each forwarded the object as
-	// std::forward<value_type> (an rvalue cast), so for_each_member on an LVALUE
+	// regression. The generated for_each forwarded the object as
+	// std::forward<value_type> (an rvalue cast). So for_each_member on an LVALUE
 	// failed to compile for every reflected struct - only rvalues worked.
 	Point p;
 	std::vector<std::string> names;
@@ -123,5 +121,3 @@ TEST_CASE("struct reflection - member metadata", "[reflection][struct]")
 		}
 	});
 }
-
-#endif

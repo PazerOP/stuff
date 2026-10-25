@@ -234,7 +234,7 @@ namespace
 TEST_CASE("task - self-assignment keeps the task alive")
 {
 	// regression: self copy-assignment used to call release() first, which
-	// dropped the last reference and destroyed the live state before copying
+	// dropped the last reference. It destroyed the live state before copying
 	// the (now nulled) handle from itself.
 	mh::task<int> t = make_ready_coroutine_task(7);
 	t.wait();
@@ -255,7 +255,7 @@ TEST_CASE("task - self-assignment keeps the task alive")
 TEST_CASE("task - moved-from tasks are empty")
 {
 	// regression: a user-provided (empty) destructor suppressed task's implicit
-	// move operations, so every "move" was actually a refcount copy and the
+	// move operations. Every "move" was actually a refcount copy and the
 	// moved-from task stayed attached to the shared state.
 	mh::task<int> t1 = make_ready_coroutine_task(7);
 	t1.wait();
@@ -302,15 +302,15 @@ TEST_CASE("task - make_ready_task returns a ready task")
 
 TEST_CASE("task - cross-thread completion and abandonment stress")
 {
-	// regression: the coroutine frame used to be destroyed by the thread that
-	// dropped the last task reference while the completing thread was still
-	// inside resume() (use-after-free), and is_ready() used to read the result
-	// state without synchronization. This test drives exactly that scenario;
-	// the races themselves are caught by running it under Thread/AddressSanitizer,
-	// which is done out-of-band / in sanitizer CI runs.
+	// regression. The coroutine frame used to be destroyed by the thread that
+	// dropped the last task reference while the completing thread was still inside
+	// resume(). (use-after-free), and is_ready() used to read the result state
+	// without synchronization. This test drives exactly that scenario. The races
+	// themselves are caught by running it under Thread/AddressSanitizer, which is
+	// done out-of-band / in sanitizer CI runs.
 	constexpr int ITERATIONS = 64;
 
-	// Waited-on tasks: this thread polls is_ready() (a cross-thread state read),
+	// Waited-on tasks. This thread polls is_ready() (a cross-thread state read),
 	// reads the value, then immediately destroys its task reference - racing the
 	// worker thread's final-suspend bookkeeping.
 	for (int i = 0; i < ITERATIONS; i++)

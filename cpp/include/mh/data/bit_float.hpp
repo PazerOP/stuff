@@ -1,13 +1,6 @@
 #pragma once
 
-#if __has_include(<version>)
-#include <version>
-#endif
-
-#if __cpp_lib_bit_cast >= 201806
 #include <bit>
-#endif
-
 #include <climits>
 #include <cstdint>
 #include <iosfwd>
@@ -46,26 +39,6 @@ namespace mh
 		constexpr unsigned DBL_EXP_BITS = 11;
 		constexpr unsigned FLT_MNT_BITS = std::numeric_limits<float>::digits - 1;
 		constexpr unsigned FLT_EXP_BITS = 8;
-
-		constexpr bool is_constant_evaluated() noexcept
-		{
-#if __cpp_lib_is_constant_evaluated >= 201811
-			return std::is_constant_evaluated();
-#else
-			return true;
-#endif
-		}
-
-		template<typename To, typename From>
-		constexpr To bit_cast(const From& from)
-		{
-#if __cpp_lib_bit_cast >= 201806
-			return std::bit_cast<To>(from);
-#else
-			static_assert(sizeof(To) == sizeof(From));
-			return *reinterpret_cast<const To*>(&from);
-#endif
-		}
 	}
 
 	template<unsigned bits>
@@ -281,7 +254,7 @@ namespace mh
 						if (sign)
 						{
 							// We are negative, and the new bits don't have a sign bit.
-							// Clamp to 0.
+							// Clamp to a set limit.
 							return new_bits_t{};
 						}
 					}
@@ -305,7 +278,7 @@ namespace mh
 								m = typename mantissa_t::value_t(m << 1);
 								shift++;
 							}
-							m = typename mantissa_t::value_t(m << 1); // drop the implicit leading 1
+							m = typename mantissa_t::value_t(m << 1);
 
 							const int actual = exponent_t::min().actual_value() - 1 - int(shift);
 							constexpr int new_offset = ((1 << new_bit_float::ExponentBits) / 2) - 1;
@@ -316,7 +289,6 @@ namespace mh
 								sign);
 						}
 					}
-					// +-0 stays 0; denormals narrower than the target range flush to +-0
 					return new_bit_float::components_to_bits({}, {}, sign);
 				}
 
@@ -324,7 +296,6 @@ namespace mh
 
 				if constexpr (new_bit_float::ExponentBits < ExponentBits)
 				{
-					// exponent underflow: flush to +-0 (no denormal generation)
 					if (new_exponent.value == 0)
 						return new_bit_float::components_to_bits({}, new_exponent, sign);
 				}
@@ -355,18 +326,18 @@ namespace mh
 		static constexpr native_t bits_to_native(bits_t bits)
 		{
 			static_assert(std::numeric_limits<native_t>::is_iec559);
-			return detail::bit_float_hpp::bit_cast<native_t>(bits_to_bits<native_bitfloat_t>(bits));
+			return std::bit_cast<native_t>(bits_to_bits<native_bitfloat_t>(bits));
 		}
 
 		static constexpr bits_t native_to_bits(native_t native)
 		{
 			static_assert(std::numeric_limits<native_t>::is_iec559);
 			return native_bitfloat_t::template bits_to_bits<this_t>(
-				detail::bit_float_hpp::bit_cast<typename native_bitfloat_t::bits_t>(native));
+				std::bit_cast<typename native_bitfloat_t::bits_t>(native));
 		}
 
 		// Hidden friend so ADL can find it: MantissaBits/ExponentBits/SignBit are
-		// non-deducible from bits_t, so a namespace-scope operator template can
+		// non-deducible from bits_t. A namespace-scope operator template can
 		// never be selected for this enum.
 		template<typename CharT, typename Traits>
 		friend std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, bits_t bits)

@@ -50,7 +50,6 @@ namespace mh
 
 			void return_void()
 			{
-				// Nothing to do
 			}
 
 			[[nodiscard]] const_reference& value() const

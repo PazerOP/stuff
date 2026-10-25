@@ -1,8 +1,6 @@
 #pragma once
 
-#if __has_include(<compare>)
 #include <compare>
-#endif
 
 #include <memory>
 #include <mutex>
@@ -22,9 +20,7 @@ namespace mh
 
 			struct value_type
 			{
-#if __cpp_impl_three_way_comparison >= 201907
 				auto operator<=>(const value_type&) const = default;
-#endif
 
 				const status_obj_type* operator->() const { return &m_Status; }
 				status_obj_type* operator->() { return &m_Status; }

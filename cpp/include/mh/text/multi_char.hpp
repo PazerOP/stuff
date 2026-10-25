@@ -1,21 +1,16 @@
 #pragma once
 
 #include <climits>
+#include <compare>
 #include <cstdint>
 #include <type_traits>
-
-#if __cpp_consteval >= 201811
-#define MH_CONSTEVAL consteval
-#else
-#define MH_CONSTEVAL constexpr
-#endif
 
 namespace mh
 {
 	// Stores all the possible compile-time representations of a character.
 	struct multi_char final
 	{
-		MH_CONSTEVAL multi_char(
+		consteval multi_char(
 			const char(&narrow_)[2],
 			const wchar_t(&wide_)[2],
 #if __cpp_char8_t >= 201811
@@ -72,17 +67,6 @@ namespace mh
 	inline constexpr auto operator==(const mh::multi_char& lhs, char32_t rhs) { return lhs.u32 == rhs; }
 	inline constexpr auto operator==(char32_t lhs, const mh::multi_char& rhs) { return lhs == rhs.u32; }
 
-#if __cpp_char8_t >= 201811
-#define mh_make_multi_char(c) ::mh::multi_char(#c, L ## #c, u8 ## #c, u ## #c, U ## #c)
-#else
-#define mh_make_multi_char(c) ::mh::multi_char(#c, L ## #c, u ## #c, U ## #c)
-#endif
-}
-
-#if __has_include(<compare>)
-#include <compare>
-namespace mh
-{
 	inline constexpr auto operator<=>(const mh::multi_char& lhs, char rhs) { return lhs.narrow <=> rhs; }
 	inline constexpr auto operator<=>(char lhs, const mh::multi_char& rhs) { return lhs <=> rhs.narrow; }
 	inline constexpr auto operator<=>(const mh::multi_char& lhs, wchar_t rhs) { return lhs.wide <=> rhs; }
@@ -95,5 +79,10 @@ namespace mh
 	inline constexpr auto operator<=>(char16_t lhs, const mh::multi_char& rhs) { return lhs <=> rhs.u16; }
 	inline constexpr auto operator<=>(const mh::multi_char& lhs, char32_t rhs) { return lhs.u32 <=> rhs; }
 	inline constexpr auto operator<=>(char32_t lhs, const mh::multi_char& rhs) { return lhs <=> rhs.u32; }
-}
+
+#if __cpp_char8_t >= 201811
+#define mh_make_multi_char(c) ::mh::multi_char(#c, L ## #c, u8 ## #c, u ## #c, U ## #c)
+#else
+#define mh_make_multi_char(c) ::mh::multi_char(#c, L ## #c, u ## #c, U ## #c)
 #endif
+}

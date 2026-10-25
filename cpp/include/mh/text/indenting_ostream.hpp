@@ -38,7 +38,7 @@ namespace mh
 
 			size_t count = static_cast<size_t>(countSigned);
 
-			// Just for debugging
+			// For debugging
 			[[maybe_unused]] const auto originalS = s;
 			const auto originalCount = count;
 

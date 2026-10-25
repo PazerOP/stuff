@@ -42,8 +42,6 @@ TEST_CASE("checked_ptr - equality comparisons", "[memory][checked_ptr]")
 	}
 }
 
-// mirrors the feature guard around checked_ptr's operator<=> overloads
-#if __has_include(<compare>) && (__cpp_impl_three_way_comparison >= 201907)
 TEST_CASE("checked_ptr - three-way comparisons", "[memory][checked_ptr]")
 {
 	int values[2] = { 1, 2 };
@@ -66,4 +64,3 @@ TEST_CASE("checked_ptr - three-way comparisons", "[memory][checked_ptr]")
 		REQUIRE(((second <=> raw) == std::strong_ordering::greater));
 	}
 }
-#endif

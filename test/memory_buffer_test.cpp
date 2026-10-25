@@ -140,7 +140,7 @@ TEST_CASE("buffer - empty buffer copies", "[memory][buffer]")
 }
 
 // mirrors the feature guard around buffer's operator<=>
-#if ((__cpp_lib_three_way_comparison >= 201907) || defined(_MSC_VER)) && (__cpp_impl_three_way_comparison >= 201907)
+#if (__cpp_lib_three_way_comparison >= 201907) || defined(_MSC_VER)
 TEST_CASE("buffer - three-way comparison", "[memory][buffer]")
 {
 	SECTION("empty <=> empty")

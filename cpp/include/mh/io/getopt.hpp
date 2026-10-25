@@ -114,9 +114,6 @@ namespace mh
 		const TFunc& func)
 	{
 #ifdef __GLIBC__
-		// glibc requires optind = 0 (not 1) to fully reinitialize getopt's internal
-		// scan state. A previous scan that encountered non-option arguments leaves
-		// permutation bookkeeping behind that corrupts a rescan started with optind = 1.
 		const detail::getopt_hpp::variable_pusher<int> optind_pusher(optind, 0);
 #else
 		const detail::getopt_hpp::variable_pusher<int> optind_pusher(optind, 1);
@@ -221,7 +218,7 @@ std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>&
 #endif
 
 #if !defined(MH_GETOPT_DISABLE_OPTION_COMPARISON)
-#if (__cpp_impl_three_way_comparison >= 201907) && (__cpp_lib_three_way_comparison >= 201907)
+#if (__cpp_lib_three_way_comparison >= 201907)
 inline constexpr std::strong_ordering operator<=>(const option& lhs, const option& rhs)
 {
 	if (lhs.name && rhs.name)
