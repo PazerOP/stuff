@@ -15,6 +15,10 @@ TEST_CASE("expected - basic value/error state", "[error][expected]")
 	REQUIRE(!hasError.has_value());
 	REQUIRE(hasError.has_error());
 	REQUIRE(hasError.error() == 3);
+
+	// operator bool mirrors has_value()
+	CHECK(static_cast<bool>(hasValue));
+	CHECK_FALSE(static_cast<bool>(hasError));
 }
 
 // mirrors the feature guard around expected's operator<=> overloads

@@ -6,6 +6,8 @@
 #include <array>
 #include <iterator>
 #include <string>
+#include <sstream>
+#include <stdexcept>
 #include <string.h>
 #include <utility>
 #include <vector>
@@ -131,6 +133,139 @@ TEST_CASE("getopt - non-option arguments are passed to the callback", "[io][geto
 
 	for (char* arg : argv)
 		free(arg);
+}
+
+TEST_CASE("getopt - unknown option reports the offending character", "[io][getopt]")
+{
+	char* const argv[] =
+	{
+		strdup("prog"),
+		strdup("-q"), // not in the option list
+		nullptr
+	};
+	constexpr int argc = std::size(argv) - 1;
+
+	int unknownCount = 0;
+	// leading ':' suppresses getopt's own stderr diagnostics
+	const bool result = mh::parse_args(argc, argv, ":v", [&](const mh::parsed_option& opt)
+	{
+		unknownCount++;
+		REQUIRE(opt.getopt_result == mh::parsed_option::UNKNOWN_OPT_RESULT);
+		// for '?', the short name comes from optopt (the rejected character)
+		REQUIRE(opt.get_arg_name_short() == 'q');
+		REQUIRE_THAT(opt.get_arg_name(), Catch::Matchers::Equals("q"));
+		REQUIRE(opt.get_arg_name_long().empty());
+		return true;
+	});
+
+	REQUIRE(result == true);
+	REQUIRE(unknownCount == 1);
+
+	for (char* arg : argv)
+		free(arg);
+}
+
+TEST_CASE("getopt - callback can reject an option", "[io][getopt]")
+{
+	char* const argv[] =
+	{
+		strdup("prog"),
+		strdup("-v"),
+		nullptr
+	};
+	constexpr int argc = std::size(argv) - 1;
+
+	int calls = 0;
+	const bool result = mh::parse_args(argc, argv, "v", [&](const mh::parsed_option&)
+	{
+		calls++;
+		return false; // reject the option itself (not a non-option argument)
+	});
+
+	REQUIRE(result == false);
+	REQUIRE(calls == 1);
+
+	for (char* arg : argv)
+		free(arg);
+}
+
+TEST_CASE("getopt - longopt array validation", "[io][getopt]")
+{
+	char* const argv[] = { strdup("prog"), nullptr };
+	constexpr int argc = std::size(argv) - 1;
+
+	const auto accept_all = [](const mh::parsed_option&) { return true; };
+
+	// an empty longopt range cannot hold its own null terminator
+	const option validOpt{ "x", no_argument, nullptr, 'x' };
+	REQUIRE_THROWS_AS(
+		mh::parse_args(argc, argv, "x", &validOpt, &validOpt, accept_all),
+		std::logic_error);
+
+	// a range whose last element is not zeroed is not null-terminated
+	const option notTerminated[] = { { "x", no_argument, nullptr, 'x' } };
+	REQUIRE_THROWS_AS(
+		mh::parse_args(argc, argv, "x", notTerminated, accept_all),
+		std::logic_error);
+
+	for (char* arg : argv)
+		free(arg);
+}
+
+TEST_CASE("getopt - option ostream insertion", "[io][getopt]")
+{
+	{
+		std::ostringstream os;
+		os << option{ "opt-name", optional_argument, nullptr, 'o' };
+		const std::string text = os.str();
+		CHECK(text.find("\"opt-name\"") != std::string::npos);
+		CHECK(text.find("optional_argument") != std::string::npos);
+		CHECK(text.find("nullptr") != std::string::npos);
+	}
+
+	{
+		// out-of-range has_arg values print numerically
+		std::ostringstream os;
+		os << option{ "bad", 42, nullptr, 'b' };
+		CHECK(os.str().find(", 42,") != std::string::npos);
+	}
+
+	{
+		// a null name prints "nullptr"; a flag pointer prints its target value
+		int flag = 7;
+		std::ostringstream os;
+		os << option{ nullptr, no_argument, &flag, 1 };
+		const std::string text = os.str();
+		CHECK(text.find("nullptr") != std::string::npos);
+		CHECK(text.find("&7") != std::string::npos);
+		CHECK(text.find("no_argument") != std::string::npos);
+	}
+}
+
+TEST_CASE("getopt - option comparison tie-breakers", "[io][getopt]")
+{
+	// null vs non-null name
+	constexpr option nullName{ nullptr, no_argument, nullptr, 0 };
+	constexpr option named{ "x", no_argument, nullptr, 0 };
+	CHECK(nullName != named);
+	CHECK(named != nullName);
+	CHECK(nullName == nullName);
+
+	// names equal (both null): has_arg breaks the tie
+	constexpr option needsArg{ nullptr, required_argument, nullptr, 0 };
+	CHECK(nullName != needsArg);
+
+	// then the flag pointer (same array => well-defined ordering)
+	static int flags[2] = {};
+	const option flagA{ nullptr, no_argument, &flags[0], 0 };
+	const option flagB{ nullptr, no_argument, &flags[1], 0 };
+	CHECK(flagA != flagB);
+	CHECK(flagA == flagA);
+
+	// and finally val
+	constexpr option valA{ nullptr, no_argument, nullptr, 1 };
+	constexpr option valB{ nullptr, no_argument, nullptr, 2 };
+	CHECK(valA != valB);
 }
 
 TEST_CASE("getopt - callback can reject non-option arguments", "[io][getopt]")

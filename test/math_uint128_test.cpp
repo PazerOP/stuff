@@ -273,6 +273,67 @@ TEST_CASE("uint128 - shifts by 128 or more yield zero", "[math][uint128]")
 	REQUIRE_THROWS(ones >> int64_t(-100));
 }
 
+TEST_CASE("uint128 - constexpr software fallbacks", "[math][uint128]")
+{
+	using uint128 = mh::uint128;
+	constexpr uint64_t MAX = 0xFFFFFFFFFFFFFFFFull;
+
+	// On x86-64 the runtime paths use the compiler's native __uint128_t; the
+	// portable software implementations execute only during constant
+	// evaluation, where gcov cannot observe them. These checks pin their
+	// correctness at compile time (alongside the existing constexpr from_mul /
+	// shift / division / comparison checks). The `throw "Should never get
+	// here..."` arms of the shift operators remain dead defensive code: shift
+	// counts >= 128 return zero before reaching the arm chain.
+
+	// operator++: without and with carry out of the low half
+	{
+		constexpr uint128 inc = [] { uint128 v(5); ++v; return v; }();
+		STATIC_CHECK(inc == 6u);
+
+		constexpr uint128 carry = [] { uint128 v(MAX, 7); ++v; return v; }();
+		STATIC_CHECK(carry.get_u64<0>() == 0);
+		STATIC_CHECK(carry.get_u64<1>() == 8);
+	}
+
+	// operator+(uint64_t): carry into the high half
+	{
+		constexpr uint128 sum = uint128(MAX, 1) + 2;
+		STATIC_CHECK(sum.get_u64<0>() == 1);
+		STATIC_CHECK(sum.get_u64<1>() == 2);
+	}
+
+	// operator-=(uint128): borrow out of the low half
+	{
+		constexpr uint128 diff = [] { uint128 v(0, 2); v -= uint128(1, 0); return v; }();
+		STATIC_CHECK(diff.get_u64<0>() == MAX);
+		STATIC_CHECK(diff.get_u64<1>() == 1);
+	}
+
+	// operator<<: the 1..63 arm (low bit carried across the halves) and the
+	// 64..127 arm
+	{
+		constexpr uint128 crossed = uint128(0x8000000000000001ull) << 1;
+		STATIC_CHECK(crossed.get_u64<0>() == 2);
+		STATIC_CHECK(crossed.get_u64<1>() == 1);
+
+		constexpr uint128 high = uint128(3) << 64;
+		STATIC_CHECK(high.get_u64<0>() == 0);
+		STATIC_CHECK(high.get_u64<1>() == 3);
+
+		constexpr uint128 top = uint128(1) << 127;
+		STATIC_CHECK(top.get_u64<0>() == 0);
+		STATIC_CHECK(top.get_u64<1>() == (uint64_t(1) << 63));
+	}
+
+	// operator>>: the 1..63 arm (high bit flowing down into the low half)
+	{
+		constexpr uint128 down = uint128(0, 1) >> 1;
+		STATIC_CHECK(down.get_u64<0>() == (uint64_t(1) << 63));
+		STATIC_CHECK(down.get_u64<1>() == 0);
+	}
+}
+
 TEST_CASE("uint128 - stream insertion restores formatting flags", "[math][uint128]")
 {
 	// The inserter prints in hex internally; it must not leave the stream's

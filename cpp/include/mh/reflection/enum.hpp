@@ -193,7 +193,7 @@ namespace mh
 		if (valueName.empty())
 			os << '(' << +std::underlying_type_t<TEnum>(value.m_Value) << ')';
 		else
-			os << valueName;
+			os << "::" << valueName; // same "type::value" shape as the formatter below
 
 		return os;
 	}

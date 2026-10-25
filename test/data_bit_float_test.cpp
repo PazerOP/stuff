@@ -4,6 +4,7 @@
 #include <bit>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <sstream>
 
 using half_float = mh::half_float;
@@ -312,6 +313,58 @@ TEST_CASE("bit_float - mantissa_t supports every width up to 52", "[bit_float]")
 	STATIC_REQUIRE(mh::mantissa_t<33>::MASK == 0x1FFFFFFFFull);
 	STATIC_REQUIRE(mh::mantissa_t<10>::MASK == 0x3FFu);
 	STATIC_REQUIRE(mh::mantissa_t<52>::MASK == 0xFFFFFFFFFFFFFull);
+}
+
+TEST_CASE("bit_float - narrowing conversions of overflow/inf/nan values at runtime", "[bit_float]")
+{
+	// Deliberately runtime (non-constexpr) inputs: these edge paths are pinned
+	// by static checks elsewhere, but must also execute correctly (and show up
+	// in coverage) when evaluated at runtime.
+
+	// exponent overflow: a float far beyond half's range converts to +-infinity
+	float huge = 1e30f;
+	const auto posInf = half_float::native_to_bits(huge);
+	REQUIRE(posInf == half_float::bits_t(0b0111110000000000));
+	REQUIRE(half_float::bits_to_exponent(posInf).value == half_float::exponent_t::MASK);
+	REQUIRE(half_float::bits_to_mantissa(posInf).value == 0); // clean inf, no stray mantissa bits
+	REQUIRE(std::isinf(half_float::bits_to_native(posInf)));
+
+	huge = -1e30f;
+	const auto negInf = half_float::native_to_bits(huge);
+	REQUIRE(negInf == half_float::bits_t(0b1111110000000000));
+	REQUIRE(half_float::bits_to_sign(negInf));
+	REQUIRE(std::isinf(half_float::bits_to_native(negInf)));
+
+	// NaN: the full source exponent stays full and the mantissa payload is kept
+	float nanValue = std::numeric_limits<float>::quiet_NaN();
+	const auto nanBits = half_float::native_to_bits(nanValue);
+	REQUIRE(half_float::bits_to_exponent(nanBits).value == half_float::exponent_t::MASK);
+	REQUIRE(half_float::bits_to_mantissa(nanBits).value != 0); // NaN, not inf
+	REQUIRE(std::isnan(half_float::bits_to_native(nanBits)));
+
+	// a zero/denormal-marker exponent field (all bits 0) converts to 0 in any
+	// width, wider or narrower
+	unsigned runtimeZero = 0;
+	const mh::exponent_t<8> zeroExp8(static_cast<mh::exponent_t<8>::value_t>(runtimeZero));
+	REQUIRE(zeroExp8.convert<11>().value == 0);
+	REQUIRE(zeroExp8.convert<5>().value == 0);
+}
+
+TEST_CASE("bit_float - exponent_t/mantissa_t stream insertion", "[bit_float]")
+{
+	// the values are stored in uint8_t/uint16_t; insertion must print them
+	// numerically, not as characters
+	{
+		std::ostringstream ss;
+		ss << mh::exponent_t<5>(3);
+		REQUIRE(ss.str() == "3");
+	}
+
+	{
+		std::ostringstream ss;
+		ss << mh::mantissa_t<10>(42);
+		REQUIRE(ss.str() == "42");
+	}
 }
 
 TEST_CASE("bit_float - bits_t stream insertion", "[bit_float]")
