@@ -11,6 +11,12 @@ project(
 	LANGUAGES CXX
 )
 
+# The vendored build helpers (mh_basic_install and friends) are plain .cmake
+# modules: without this include CMake dies at configure time on
+# "Unknown CMake command mh_basic_install".
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mh-cmake-common")
+include(mh-cmake-common-config)
+
 option(MH_STUFF_BUILD_SHARED_LIBS "Build stuff as a shared lib" OFF)
 if (MH_STUFF_BUILD_SHARED_LIBS)
 	set(BUILD_SHARED_LIBS ON)
