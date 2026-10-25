@@ -219,7 +219,7 @@ TEST_CASE("get_random distribution quality", "[math][random]")
 		}
 		
 		// Should see most or all values in the range
-		REQUIRE(seen_values.size() >= 7); // At least 70% coverage
+		REQUIRE(seen_values.size() >= 7);
 		
 		// Verify all seen values are in range
 		for (auto value : seen_values) {

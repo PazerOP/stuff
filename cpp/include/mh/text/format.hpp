@@ -5,11 +5,12 @@
 #define MH_FORMATTER_STL 2
 
 // The build system may pre-define MH_FORMATTER to force a backend (the mh-stuff
-// CMake target does this with MH_FORMATTER_NONE when fmt's headers are visible
-// but the compiled fmt library is not linkable with the chosen toolchain, e.g.
-// a libstdc++-built distro libfmt while building with clang + libc++).
-// __has_include only proves the headers are reachable, not that libfmt's
-// compiled symbols will resolve at link time, so an explicit decision wins.
+// CMake target does this with MH_FORMATTER_NONE when fmt's headers are
+// visible. However, the compiled fmt library is not linkable with the chosen
+// toolchain, e.g. a libstdc++-built distro libfmt while building with clang +
+// libc++). __has_include only proves the headers are reachable, not that
+// libfmt's compiled symbols will resolve at link time, so an explicit decision
+// wins.
 #ifndef MH_FORMATTER
 	#if __has_include(<fmt/format.h>)
 		#define MH_FORMATTER MH_FORMATTER_FMTLIB

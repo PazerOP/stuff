@@ -3,6 +3,7 @@
 
 #include <string>
 #include <string_view>
+#include "last_include.hpp"
 
 TEST_CASE("printf_string - basic formatting and truncation", "[text][fmtstr]")
 {
@@ -40,7 +41,7 @@ TEST_CASE("format string buffers - assignment replaces the content", "[text][fmt
 TEST_CASE("printf_string - conversion errors leave the buffer empty and reusable", "[text][fmtstr]")
 {
 	// %ls with a lone-surrogate wchar_t cannot be converted in the default "C"
-	// locale; vsnprintf reports an error (negative return), which must not be
+	// locale. Vsnprintf reports an error (negative return), which must not be
 	// misinterpreted as a huge successful write
 	const wchar_t invalidWide[] = { wchar_t(0xD800), 0 };
 	mh::pfstr<16> s("%ls", invalidWide);

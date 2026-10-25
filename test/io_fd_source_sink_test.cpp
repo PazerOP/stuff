@@ -50,7 +50,7 @@ TEST_CASE("fd_source file operations", "[io][fd_source]")
         auto task = source->read_async(buffer, sizeof(buffer) - 1);
         auto bytes_read = task.get();
 
-        REQUIRE(bytes_read == 9); // sizeof(buffer) - 1
+        REQUIRE(bytes_read == 9);
         REQUIRE(std::string(buffer, bytes_read) == test_content.substr(0, 9));
     }
 

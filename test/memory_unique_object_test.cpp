@@ -40,7 +40,7 @@ TEST_CASE("unique_object basic construction", "[memory][unique_object]")
 	SECTION("default construction")
 	{
 		mh::unique_object<int, IntTraits> obj;
-		REQUIRE(!obj); // Should be invalid by default (-1 is not valid per IntTraits)
+		REQUIRE(!obj);
 		REQUIRE(obj.value() == -1);
 	}
 
@@ -184,7 +184,7 @@ TEST_CASE("unique_object boolean conversion", "[memory][unique_object]")
 
 	SECTION("invalid object converts to false")
 	{
-		mh::unique_object<int, IntTraits> obj(-1); // -1 is invalid per IntTraits
+		mh::unique_object<int, IntTraits> obj(-1);
 		REQUIRE(!obj);
 		REQUIRE(static_cast<bool>(obj) == false);
 	}
@@ -320,8 +320,8 @@ TEST_CASE("unique_object with stateful traits", "[memory][unique_object]")
 namespace
 {
 	// Mirrors the shape of an fd-style traits type (mh::io's fd_traits), but
-	// counts "closes" instead of touching real file descriptors, so lifetime
-	// bugs (double close, closing handle 0) show up as assertion failures.
+	// counts "closes" instead of touching real file descriptors. So lifetime bugs
+	// (double close, closing the first handle) show up as assertion failures.
 	struct counting_handle_traits
 	{
 		static constexpr int invalid() { return -1; }
@@ -389,8 +389,6 @@ TEST_CASE("unique_object - default-constructed handle is invalid and never delet
 	counting_handle_traits::s_CloseCount = 0;
 	{
 		counting_handle handle;
-		// must use the traits' invalid value, not a value-initialized handle
-		// (0 would be a perfectly valid fd-style handle)
 		REQUIRE(handle.value() == -1);
 		REQUIRE(!handle);
 	}

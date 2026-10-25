@@ -1,6 +1,12 @@
 name: C/C++ CI
 
-on: [push]
+on:
+  push:
+    branches: ['**']
+
+concurrency:
+  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 defaults:
   run:
@@ -14,9 +20,7 @@ jobs:
       matrix:
         MH_STUFF_COMPILE_LIBRARY: [true, false]
         compiler:
-          # Modern compilers available on ubuntu-latest (Ubuntu 22.04/24.04)
-          # 'gcov' selects the matching gcov for coverage; coverage is GCC-only
-          # (clang would need its profile runtime + llvm-cov, which we don't install)
+          # Modern compilers available on ubuntu-latest (Ubuntu 22.04/24.04) 'gcov' selects the matching gcov for coverage; coverage is GCC-only (clang would need its profile runtime + llvm-cov, which we don't install)
           - exe: g++-12
             deps: g++-12
             gcov: gcov-12
@@ -42,9 +46,7 @@ jobs:
         ninja --version
         gcovr --version
 
-    # - name: Run tests
-    #   working-directory: ./test
-    #   run: make -j`grep -c ^processor /proc/cpuinfo` ${{ matrix.compiler }}_test_output.txt
+    # - name: Run tests working-directory: ./test run: make -j`grep -c ^processor /proc/cpuinfo` ${{ matrix.compiler }}_test_output.txt
 
     - name: Build
       env:
@@ -87,50 +89,16 @@ jobs:
 
 
 
-  # build-windows:
-  #   runs-on: windows-latest
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       MH_STUFF_COMPILE_LIBRARY: [true, false]
-
-  #   steps:
-  #   - uses: actions/checkout@v4
-
-  #   - uses: lukka/run-vcpkg@v11
-  #     with:
-  #       vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-
-  #   - uses: seanmiddleditch/gha-setup-ninja@v5
-  #   - name: Setup compiler paths
-  #     uses: ilammy/msvc-dev-cmd@v1
-
-  #   - name: Build
-  #     run: |
-  #       mkdir build
-  #       cd build
-
-  #       cmake -G Ninja \
-  #         -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-  #         -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
-  #         ../
-
-  #       cmake --build .
-
-  #   - name: Run tests
-  #     run: |
-  #       cd build
-  #       ctest --output-on-failure
+  # build-windows: runs-on: windows-latest strategy: fail-fast: false matrix: MH_STUFF_COMPILE_LIBRARY. [true, false] steps: - uses: actions/checkout@v4 - uses: lukka/run-vcpkg@v11 with: vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }} - uses: seanmiddleditch/gha-setup-ninja@v5 - name. Setup compiler paths uses. ilammy/msvc-dev-cmd@v1 - name: Build run: | mkdir build cd build cmake -G Ninja \ -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \. DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \ ../ cmake --build . - name. Run tests run: | cd build ctest --output-on-failure registry-update: needs: [build-linux] runs-on: ubuntu-latest steps: - uses. This covers PazerOP/vcpkg-registry-update@HEAD with: port-name: mh-stuff workflow-pat: ${{ secrets.WORKFLOW_PAT }}
 
 
-  # registry-update:
-  #   needs: [build-linux]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - uses: PazerOP/vcpkg-registry-update@HEAD
-  #     with:
-  #       port-name: mh-stuff
-  #       workflow-pat: ${{ secrets.WORKFLOW_PAT }}
+
+
+
+
+
+
+
 
   sanitizers:
     runs-on: ubuntu-latest

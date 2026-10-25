@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include "last_include.hpp"
 
 TEST_CASE("format - a known formatter backend is selected", "[text][format]")
 {
@@ -149,7 +150,7 @@ std::string format_source_location_from_second_tu();
 
 TEST_CASE("source_location formatting links across translation units", "[text][format]")
 {
-	// two translation units both formatting a source_location must link in
+	// translation units both formatting a source_location must link in
 	// header-only mode as well as in library mode
 	const auto fromSecondTu = format_source_location_from_second_tu();
 	REQUIRE_THAT(fromSecondTu, Catch::Matchers::ContainsSubstring("text_format_link_tu.cpp"));

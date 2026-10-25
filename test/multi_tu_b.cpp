@@ -1,8 +1,7 @@
 // Second translation unit of the multi-TU link test. See multi_tu_shared.hpp
-// for what this pair of files is protecting against. No test cases live here -
-// this TU only has to (a) compile, (b) link together with multi_tu_a.cpp, and
-// (c) hand out its view of entities that must be program-wide.
+// for what this pair of files is protecting against.
 #include "multi_tu_shared.hpp"
+#include "last_include.hpp"
 
 const std::thread::id* main_thread_id_address_tu_b()
 {
@@ -17,9 +16,7 @@ bool is_main_thread_tu_b()
 void check_thread_sentinel_tu_b()
 {
 	mh::thread_sentinel sentinel;
-	// Pass the location explicitly: on toolchains without std::source_location
-	// (e.g. clang-14/libc++-14), MH_SOURCE_LOCATION_AUTO degrades to a
-	// parameter with no default argument.
+	// Pass the location explicitly.
 	sentinel.check(MH_SOURCE_LOCATION_CURRENT());
 }
 

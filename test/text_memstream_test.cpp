@@ -99,17 +99,16 @@ TEST_CASE("memstream put", "[text][memstream]")
 
 TEST_CASE("memstream buffer with existing data", "[text][memstream]")
 {
-	// A streambuf over a 16-byte buffer whose first 6 bytes already hold data:
-	// - reads see exactly the existing data
-	// - writes append after it, with the full remaining capacity available
-	// - positions are absolute (relative to the start of the buffer)
+	// A streambuf over a 16-byte buffer whose first several bytes already hold
+	// data: - reads see exactly the existing data - writes append after it.
+	// That streambuf is with the full remaining capacity available - positions
+	// are absolute (relative to the start of the buffer)
 	char buf[16] = { 'h', 'e', 'l', 'l', 'o', ' ' };
 	mh::basic_memstreambuf<char> sb(buf, sizeof(buf), 6);
 
 	REQUIRE(to_str(sb.view_full()) == "hello ");
 	CHECK(static_cast<std::streamoff>(sb.pubseekoff(0, std::ios::cur, std::ios::out)) == 6);
 
-	// xsputn always reserves one final slot, so 16 bytes with 6 used leaves 9
 	const std::streamsize written = sb.sputn("0123456789", 10);
 	CHECK(written == 9);
 	REQUIRE(to_str(sb.view_full()) == "hello 012345678");
@@ -184,8 +183,8 @@ TEST_CASE("memstream full buffer: sputn writes nothing and returns 0", "[text][m
 	REQUIRE(static_cast<std::streamoff>(ms.tellp()) == 4);
 	REQUIRE(to_str(ms.view_full()) == "abcd");
 
-	// sputn on the completely full buffer must write nothing and return 0;
-	// in particular it must not move the put pointer backwards
+	// sputn on the completely full buffer must write nothing and the first
+	// return; in particular it must not move the put pointer backwards
 	mh::basic_memstreambuf<char>& sb = ms;
 	CHECK(sb.sputn("Z", 1) == 0);
 	CHECK(static_cast<std::streamoff>(ms.tellp()) == 4);
@@ -251,7 +250,7 @@ TEST_CASE("memstream works for wchar_t", "[text][memstream]")
 
 TEST_CASE("memstream is not default constructible", "[text][memstream]")
 {
-	// a default-constructed memstream would have no buffer to point at
+	// a default-constructed memstream would have no buffer to point.
 	STATIC_REQUIRE(!std::is_default_constructible_v<mh::memstream>);
 	STATIC_REQUIRE(!std::is_default_constructible_v<mh::basic_memstream<wchar_t>>);
 }

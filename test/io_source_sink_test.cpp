@@ -196,7 +196,6 @@ TEST_CASE("actual I/O operations with standard streams", "[io][source][sink]")
         REQUIRE(bytes_read2 == second_chunk.size());
         REQUIRE(std::string(buffer2, bytes_read2) == second_chunk);
         
-        // Reading beyond EOF should return 0
         char buffer3[32] = {0};
         auto bytes_read3 = pipe_source.read_async(buffer3, sizeof(buffer3)).get();
         REQUIRE(bytes_read3 == 0);

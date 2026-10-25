@@ -39,8 +39,6 @@ TEST_CASE("case insensitive find", "[text][case_insensitive_string]")
 
 TEST_CASE("case insensitive find - embedded null, exact count", "[text][case_insensitive_string]")
 {
-	// traits::find must examine exactly `count` characters: it may neither stop
-	// early at an embedded '\0' nor be unable to find '\0' itself
 	constexpr char raw[] = { 'A', '\0', 'b' };
 	const auto v = mh::case_insensitive_view(raw, 3);
 	CHECK(v.find('a') == 0);
@@ -57,7 +55,7 @@ TEST_CASE("case insensitive traits - bytes above 0x7F", "[text][case_insensitive
 
 	constexpr char highByte = '\xE9';
 	CHECK(traits::eq(highByte, highByte));
-	CHECK_FALSE(traits::lt(highByte, 'A')); // 0xE9 (233) orders after 'A' (65)
+	CHECK_FALSE(traits::lt(highByte, 'A'));
 	CHECK(traits::lt('A', highByte));
 	CHECK(traits::compare(&highByte, "A", 1) > 0);
 	CHECK(traits::compare("A", &highByte, 1) < 0);
@@ -79,7 +77,6 @@ TEST_CASE("case insensitive traits - wchar_t", "[text][case_insensitive_string]"
 	CHECK(wtraits::compare(L"HeLLo", L"hEllO", 5) == 0);
 	CHECK(wtraits::compare(L"abc", L"ABD", 3) < 0);
 
-	// values far outside the narrow toupper's [0, 255]+EOF domain must be safe
 	CHECK(wtraits::eq(L'\x3B1', L'\x3B1'));
 	CHECK_FALSE(wtraits::eq(L'\x3B1', L'A'));
 

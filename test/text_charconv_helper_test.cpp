@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include "last_include.hpp"
 
 TEST_CASE("from_chars - integers", "[text][charconv_helper]")
 {

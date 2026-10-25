@@ -52,15 +52,15 @@ TEST_CASE("heap push operations", "[containers][heap]")
 		REQUIRE(h.size() == 1);
 		
 		h.push(1);
-		REQUIRE(h.front() == 3); // 3 > 1, so 3 should still be at front
+		REQUIRE(h.front() == 3);
 		REQUIRE(h.size() == 2);
 		
 		h.push(4);
-		REQUIRE(h.front() == 4); // 4 is now the maximum
+		REQUIRE(h.front() == 4);
 		REQUIRE(h.size() == 3);
 		
 		h.push(2);
-		REQUIRE(h.front() == 4); // 4 should still be the maximum
+		REQUIRE(h.front() == 4);
 		REQUIRE(h.size() == 4);
 	}
 
@@ -71,7 +71,7 @@ TEST_CASE("heap push operations", "[containers][heap]")
 		std::string str = "hello";
 		h.push(std::move(str));
 		REQUIRE(h.front() == "hello");
-		REQUIRE(str.empty()); // Should be moved from
+		REQUIRE(str.empty());
 		
 		h.push(std::string("world"));
 		// "world" > "hello" lexicographically
@@ -110,7 +110,7 @@ TEST_CASE("heap pop operations", "[containers][heap]")
 		h.pop();
 		REQUIRE(h.size() == 2);
 		
-		// Now we have two 1s left, order might vary
+		// Now we have 1s left, order might vary
 		REQUIRE(h.front() == 1);
 		h.pop();
 		REQUIRE(h.size() == 1);
@@ -263,7 +263,7 @@ TEST_CASE("heap with custom comparator", "[containers][heap]")
 		REQUIRE(h.front() == "hi"); // Next shortest
 		h.pop();
 		
-		// "hello" and "world" both have length 5, either could be next
+		// "hello" and "world" both have a later length, either could be next
 		std::string next = h.front();
 		REQUIRE((next == "hello" || next == "world"));
 		REQUIRE(next.length() == 5);
@@ -306,9 +306,9 @@ TEST_CASE("heap stress test", "[containers][heap]")
 
 TEST_CASE("heap - initializer_list constructor establishes the heap invariant", "[containers][heap]")
 {
-	// The initializer_list constructor must produce a valid heap: front() is the
+	// The initializer_list constructor must produce a valid heap. Front() is the
 	// largest element and repeated pop() yields the values in descending order,
-	// exactly as if every element had been push()ed individually.
+	// exactly as. This holds if every element had been push()ed individually.
 	mh::heap<int> h({3, 1, 4, 1, 5, 9, 2, 6});
 	REQUIRE(h.size() == 8);
 	REQUIRE(h.front() == 9);

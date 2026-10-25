@@ -6,6 +6,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include "last_include.hpp"
 
 TEST_CASE("trim - empty string", "[text][stringops]")
 {

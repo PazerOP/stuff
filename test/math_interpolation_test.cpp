@@ -37,7 +37,6 @@ TEST_CASE("lerp vs lerp_slow basic comparison", "[math][interpolation]")
 
 TEST_CASE("lerp clamping behavior", "[math][interpolation]")
 {
-	// Test that clamping works correctly for values outside [0,1]
 	REQUIRE(mh::lerp_clamped(1.5f, 0, 10) == 10);
 	REQUIRE(mh::lerp_clamped(-0.5f, 0, 10) == 0);
 	REQUIRE(mh::lerp_slow_clamped(1.5f, 0, 10) == 10);
@@ -109,11 +108,7 @@ TEST_CASE("specific failing case analysis", "[math][interpolation]")
 	CAPTURE(t, min_val, max_val);
 	CAPTURE(lerp_result, lerp_slow_result);
 	
-	// Expected calculations:
-	// lerp: -105 + (105 - (-105)) * 0.349999994 = -105 + 210 * 0.349999994 = -105 + 73.4999987 = -31.5000013
-	// lerp_slow: (-105 * (1 - 0.349999994)) + (105 * 0.349999994) = (-105 * 0.650000006) + (105 * 0.349999994) = -68.2500006 + 36.7499994 = -31.5000012
 	
-	// Both should be approximately -31.5
 	REQUIRE(lerp_result == Catch::Approx(-31.5f).margin(0.01f));
 	REQUIRE(lerp_slow_result == Catch::Approx(-31.5f).margin(0.01f));
 	
@@ -140,7 +135,7 @@ TEST_CASE("lerp_slow", "[math][interpolation]")
 	// Test a smaller set first to isolate issues
 	for (int i = 0; i < 100; i++)
 	{
-		const auto t = i * 0.01f;  // Simple progression from 0 to 1
+		const auto t = i * 0.01f;
 		const auto min = -i;
 		const auto max = i;
 		CAPTURE(t, min, max);
@@ -168,7 +163,6 @@ TEST_CASE("no unwanted rounding - float to float", "[math][interpolation]")
 	auto lerp_clamped_result = mh::lerp_clamped(t, min_val, max_val);
 	auto lerp_slow_clamped_result = mh::lerp_slow_clamped(t, min_val, max_val);
 
-	// Expected: 10.0 + (20.0 - 10.0) * 0.25 = 10.0 + 2.5 = 12.5
 	float expected = 12.5f;
 
 	REQUIRE(lerp_result == expected);
@@ -198,7 +192,6 @@ TEST_CASE("no unwanted rounding - double to double", "[math][interpolation]")
 	auto lerp_clamped_result = mh::lerp_clamped(t, min_val, max_val);
 	auto lerp_slow_clamped_result = mh::lerp_slow_clamped(t, min_val, max_val);
 
-	// Expected: -100.0 + (100.0 - (-100.0)) * 0.7 = -100.0 + 200.0 * 0.7 = -100.0 + 140.0 = 40.0
 	double expected = 40.0;
 
 	REQUIRE(lerp_result == Catch::Approx(expected).epsilon(1e-14));
@@ -231,7 +224,6 @@ TEST_CASE("rounding only when converting to integer", "[math][interpolation]")
 	REQUIRE(int_result == 15.0f);
 	REQUIRE(int_clamped == 15.0f);
 
-	// Test the specific case mentioned: lerp(0.25, 3, 4) == 3.25
 	auto quarter_result = mh::lerp(0.25f, 3, 4);
 	auto quarter_clamped = mh::lerp_clamped(0.25f, 3, 4);
 	REQUIRE(quarter_result == 3.25f);
@@ -250,14 +242,13 @@ TEST_CASE("preserve fractional precision", "[math][interpolation]")
 {
 	// Test that fractional values are preserved when they should be
 
-	double t = 1.0 / 3.0; // 0.333...
+	double t = 1.0 / 3.0;
 	double min_val = 0.0;
 	double max_val = 3.0;
 
 	auto result = mh::lerp(t, min_val, max_val);
 	auto clamped_result = mh::lerp_clamped(t, min_val, max_val);
 
-	// Result should be exactly 1.0
 	REQUIRE(result == Catch::Approx(1.0).epsilon(1e-15));
 	REQUIRE(clamped_result == Catch::Approx(1.0).epsilon(1e-15));
 	REQUIRE(result == clamped_result);
@@ -267,7 +258,6 @@ TEST_CASE("preserve fractional precision", "[math][interpolation]")
 	result = mh::lerp(t, min_val, max_val);
 	clamped_result = mh::lerp_clamped(t, min_val, max_val);
 
-	// Result should be 0.3
 	REQUIRE(result == Catch::Approx(0.3).epsilon(1e-15));
 	REQUIRE(clamped_result == Catch::Approx(0.3).epsilon(1e-15));
 	REQUIRE(result == clamped_result);
@@ -517,12 +507,6 @@ TEST_CASE("remap_static", "[math][interpolation]")
 
 TEST_CASE("remap_static - uint16 full range", "[math][interpolation]")
 {
-	// The fractional multiplier here is 65534 with a source range of 65535;
-	// 65535 * 65534 overflows a (promoted) signed int, so the overflow
-	// pre-checks and frac_max must be computed in a sufficiently wide unsigned
-	// type or the whole expression fails to compile during constant evaluation.
-	// Expected values are round-to-nearest of value * 65534 / 65535 (the
-	// denominator is odd, so no ties are possible).
 	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(0)) == 0);
 	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(1)) == 1);
 	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(12345)) == 12345);
@@ -533,8 +517,9 @@ TEST_CASE("remap_static - uint16 full range", "[math][interpolation]")
 
 TEST_CASE("remap - basic runtime remapping", "[math][interpolation]")
 {
-	// mh::remap must be usable by any TU that just includes interpolation.hpp
-	// (the header has to pull in <cassert> for its own assert() use).
+	// mh::remap must be usable by any TU. That just includes
+	// interpolation.hpp (the header has to pull in <cassert> for its own
+	// assert() use).
 	REQUIRE(mh::remap(5, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.5f));
 	REQUIRE(mh::remap(0, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.0f));
 	REQUIRE(mh::remap(10, 0, 10, 0.0f, 1.0f) == Catch::Approx(1.0f));
@@ -555,7 +540,7 @@ TEST_CASE("round function constant evaluation", "[math_interpolation]")
 	STATIC_REQUIRE(round(0.5f) == 1.0f);
 	STATIC_REQUIRE(round(0.6f) == 1.0f);
 	STATIC_REQUIRE(round(-0.4f) == 0.0f);
-	STATIC_REQUIRE(round(-0.5f) == -1.0f); // half away from zero, NOT -0
+	STATIC_REQUIRE(round(-0.5f) == -1.0f);
 	STATIC_REQUIRE(round(-0.6f) == -1.0f);
 	STATIC_REQUIRE(round(1.5f) == 2.0f);
 	STATIC_REQUIRE(round(-1.5f) == -2.0f);
@@ -566,10 +551,10 @@ TEST_CASE("round function constant evaluation", "[math_interpolation]")
 	STATIC_REQUIRE(round(32.6f) == 33.0f);
 
 	// Values with no representable fractional part pass through unchanged
-	STATIC_REQUIRE(round(16777216.0f) == 16777216.0f); // 2^24
+	STATIC_REQUIRE(round(16777216.0f) == 16777216.0f);
 	STATIC_REQUIRE(round(9.3e18f) == 9.3e18f); // beyond intmax_t
 	STATIC_REQUIRE(round(-9.3e18f) == -9.3e18f);
-	STATIC_REQUIRE(round(4503599627370496.0) == 4503599627370496.0); // 2^52
+	STATIC_REQUIRE(round(4503599627370496.0) == 4503599627370496.0);
 	STATIC_REQUIRE(round(std::numeric_limits<float>::infinity()) == std::numeric_limits<float>::infinity());
 	STATIC_REQUIRE(round(-std::numeric_limits<float>::infinity()) == -std::numeric_limits<float>::infinity());
 

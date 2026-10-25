@@ -3,6 +3,7 @@
 #include "last_include.hpp"
 
 #include <string>
+#include "last_include.hpp"
 
 TEST_CASE("string insertion op", "[text][string_insertion]")
 {

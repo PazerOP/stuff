@@ -146,7 +146,6 @@ TEST_CASE("pipe EOF behavior", "[io][pipe]")
         REQUIRE(bytes_read == test_data.size());
         REQUIRE(std::string(buffer, bytes_read) == test_data);
         
-        // Subsequent read should return 0 (EOF)
         auto eof_read = pipe->out->read_async(buffer, sizeof(buffer) - 1).get();
         REQUIRE(eof_read == 0);
     }
@@ -397,7 +396,7 @@ TEST_CASE("pipe redirection scenarios", "[io][pipe]")
             auto bytes_read = co_await pipe2->out->read_async(buffer, sizeof(buffer) - 1);
             
             REQUIRE(bytes_read > 0);
-            // wc -c outputs "6\n" for "hello\n" (6 characters including newline)
+            // wc -c outputs "6\n" for "hello\n" (several characters including newline)
             std::string result(buffer, bytes_read);
             REQUIRE(result.find("6") != std::string::npos);
             

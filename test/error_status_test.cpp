@@ -2,6 +2,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <string>
+#include "last_include.hpp"
 
 namespace
 {

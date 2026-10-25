@@ -1,4 +1,4 @@
-// The header must be usable standalone: it has to provide its own MH_STUFF_API
+// The header must be usable standalone. It has to provide its own MH_STUFF_API
 // fallback even when the build system's definition is not in effect.
 #ifdef MH_STUFF_API
 #undef MH_STUFF_API
@@ -168,7 +168,7 @@ TEST_CASE("custom ensure_traits specialization", "[error][ensure]")
 		TestType valid_obj{42};
 		
 		// Default behavior: should_trigger checks truthiness (!expr)
-		REQUIRE(traits.should_trigger(obj) == true);  // 0 is falsy
+		REQUIRE(traits.should_trigger(obj) == true);
 		REQUIRE(traits.should_trigger(valid_obj) == false); // non-zero is truthy
 	}
 }
@@ -232,7 +232,7 @@ TEST_CASE("ensure - checked implementation does not steal from lvalue arguments"
 
 #if defined(__GNUC__)
 	// The designated initializer inside the macro leaves the base subobject
-	// without an explicit initializer; that pre-existing -Wextra warning is
+	// without an explicit initializer. That pre-existing -Wextra warning is
 	// unrelated to the forwarding behavior verified here.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"

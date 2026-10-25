@@ -27,7 +27,7 @@ namespace mh
 
 		const std::type_info* m_Type = nullptr;
 		std::string m_Message;
-		std::exception_ptr m_Nested; // If this was an std::nested_exception, this is filled in
+		std::exception_ptr m_Nested; // If this was an std::nested_exception, this is filled.
 
 		MH_STUFF_API const char* type_name() const noexcept;
 

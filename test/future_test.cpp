@@ -9,6 +9,7 @@
 #include <string>
 #include <thread>
 #include <utility>
+#include "last_include.hpp"
 
 using namespace std::chrono_literals;
 
@@ -23,7 +24,7 @@ TEST_CASE("make_ready_future - accepts lvalues, const lvalues, and rvalues")
 
 	std::string s = "a string that is long enough to defeat any small string optimization";
 	auto f2 = mh::make_ready_future(s);
-	REQUIRE(f2.get() == s); // the lvalue argument is copied, not moved from
+	REQUIRE(f2.get() == s); // the lvalue argument is copied.
 
 	const std::string cs = "const lvalue";
 	auto f3 = mh::make_ready_future(cs);
@@ -129,7 +130,7 @@ TEST_CASE("async - accepts lvalue callables and arguments")
 TEST_CASE("future - moved-from futures are empty")
 {
 	// regression: a user-provided (empty) task destructor suppressed the move
-	// operations, so mh::future's "move" silently degraded to a refcount copy and
+	// operations. Mh::future's "move" silently degraded to a refcount copy and
 	// the moved-from future stayed attached to the shared state.
 	mh::promise<int> p;
 	mh::future<int> f = p.get_future();
