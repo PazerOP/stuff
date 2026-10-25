@@ -163,9 +163,9 @@ namespace mh
 		 * wait_tasks family. Work that is already runnable (queued tasks, expired
 		 * delays) stays runnable so callers can drain it with run(). Pending
 		 * delay/fd waits become runnable immediately and complete by throwing on
-		 * resume, and awaiting co_dispatch, co_delay or co_wait_fd tasks after
-		 * close() throws instead of suspending - so no coroutine is ever parked
-		 * in a queue nothing will run again.
+		 * resume. Pending delay/fd awaiting co_dispatch, co_delay or co_wait_fd
+		 * tasks after close() throws instead of suspending. So no coroutine is
+		 * ever parked in a queue nothing will run again.
 		 */
 		MH_STUFF_API void close();
 

@@ -87,8 +87,8 @@ TEST_CASE("getopt")
 
 TEST_CASE("getopt - option equality", "[io][getopt]")
 {
-	// regression: under C++20 the header only provided a free operator<=>, and
-	// operator== is not synthesized from a non-defaulted <=>, so option == option
+	// regression. Under C++20 the header only provided a free operator<=>.
+	// Operator== is not synthesized from a non-defaulted <=>, so option == option
 	// failed to compile in the exact language mode the library targets
 	constexpr option a{ "file", required_argument, nullptr, 'f' };
 	constexpr option b{ "file", required_argument, nullptr, 'f' };

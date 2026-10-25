@@ -150,7 +150,7 @@ TEST_CASE("uint128 - comparisons with signed integers", "[math][uint128]")
 	REQUIRE(uint128(0) > -1); // even zero
 
 	// Values needing the high 64 bits compare greater than any built-in signed value
-	const uint128 big(0, 1); // 2^64
+	const uint128 big(0, 1);
 	REQUIRE(big > 5);
 	REQUIRE(big > -5);
 	REQUIRE(big > std::numeric_limits<int64_t>::max());
@@ -182,9 +182,6 @@ TEST_CASE("uint128 - division edge cases", "[math][uint128]")
 {
 	using uint128 = mh::uint128;
 
-	// Dividend with a zero low half and the high half exactly divisible:
-	// 2^65 / 2 == 2^64 (this shape used to shift a uint64 by its full width
-	// in the portable long-division implementation).
 	{
 		constexpr uint128 quotient = uint128(0, 2) / 2;
 		STATIC_REQUIRE(quotient.get_u64<1>() == 1);
@@ -202,14 +199,12 @@ TEST_CASE("uint128 - division edge cases", "[math][uint128]")
 		STATIC_REQUIRE(quotient.get_u64<0>() == 0);
 	}
 
-	// low == 0, high NOT divisible: (3 * 2^64) / 2 == 2^64 + 2^63
 	{
 		constexpr uint128 quotient = uint128(0, 3) / 2;
 		STATIC_REQUIRE(quotient.get_u64<1>() == 1);
 		STATIC_REQUIRE(quotient.get_u64<0>() == uint64_t(1) << 63);
 	}
 
-	// low == 0, divisor with the top bit set: (2^63 * 2^64) / 2^63 == 2^64
 	{
 		constexpr uint128 quotient = uint128(0, uint64_t(1) << 63) / (uint64_t(1) << 63);
 		STATIC_REQUIRE(quotient.get_u64<1>() == 1);

@@ -11,10 +11,9 @@ function(mh_check_cxx_coroutine_support IS_SUPPORTED_OUT REQUIRED_FLAGS_OUT)
 		return()
 	endif()
 
-	# Test actual coroutines functionality with C++20.
 	# check_cxx_source_compiles uses the compiler's DEFAULT standard unless told
 	# otherwise; <coroutine> defines nothing pre-C++20, so without this every
-	# compiler reported "unsupported" (including the GCC 10 -fcoroutines case
+	# compiler reported "unsupported" (including a later GCC -fcoroutines case
 	# this machinery exists to detect).
 	if (MSVC)
 		set(CMAKE_REQUIRED_FLAGS "/std:c++20")
@@ -40,7 +39,7 @@ int main() { return 0; }
 	set(REQUIRED_FLAGS "")
 	set(IS_SUPPORTED ${COROUTINES_WORK_WITHOUT_FLAGS})
 
-	# If coroutines don't work without flags, try with -fcoroutines (GCC 10)
+	# If coroutines don't work without flags, try with -fcoroutines (a later GCC)
 	if(NOT COROUTINES_WORK_WITHOUT_FLAGS AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		set(CMAKE_REQUIRED_FLAGS "-std=c++20 -fcoroutines")
 		check_cxx_source_compiles("

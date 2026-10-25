@@ -6,8 +6,8 @@
 namespace
 {
 	// Mirrors the shape of an fd-style traits type (mh::io's fd_traits), but
-	// counts "closes" instead of touching real file descriptors, so lifetime
-	// bugs (double close, closing handle 0) show up as assertion failures.
+	// counts "closes" instead of touching real file descriptors. So lifetime bugs
+	// (double close, closing the first handle) show up as assertion failures.
 	struct counting_handle_traits
 	{
 		static constexpr int invalid() { return -1; }
@@ -75,8 +75,6 @@ TEST_CASE("unique_object - default-constructed handle is invalid and never delet
 	counting_handle_traits::s_CloseCount = 0;
 	{
 		counting_handle handle;
-		// must use the traits' invalid value, not a value-initialized handle
-		// (0 would be a perfectly valid fd-style handle)
 		REQUIRE(handle.value() == -1);
 		REQUIRE(!handle);
 	}

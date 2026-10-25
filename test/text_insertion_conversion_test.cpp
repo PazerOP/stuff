@@ -8,7 +8,7 @@
 TEST_CASE("insertion_conversion - wide string into narrow ostream", "[text][insertion_conversion]")
 {
 	// the mismatched-character-type string insertion must actually insert the
-	// characters (C++20 deletes the wchar_t* overload this used to rely on)
+	// characters (C++20 deletes the wchar_t* overload this used to rely.
 	std::ostringstream os;
 	os << std::wstring(L"wide");
 	REQUIRE(os.str() == "wide");

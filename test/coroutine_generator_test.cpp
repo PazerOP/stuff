@@ -71,9 +71,9 @@ TEST_CASE("generator - exception before the first yield propagates")
 
 TEST_CASE("generator - exception after the first yield propagates")
 {
-	// regression: exceptions thrown by the generator body after the first co_yield
-	// used to be swallowed by iterator::operator++ - the loop just ended silently
-	// and the error vanished.
+	// regression. Exceptions thrown by the generator body after the first co_yield
+	// used to be swallowed by iterator::operator++ - the loop just ended silently.
+	// And the error vanished.
 	int sum = 0;
 	auto consume = [&sum]
 	{
@@ -82,7 +82,7 @@ TEST_CASE("generator - exception after the first yield propagates")
 	};
 
 	REQUIRE_THROWS_AS(consume(), std::runtime_error);
-	REQUIRE(sum == 1); // 0 and 1 were yielded before the throw
+	REQUIRE(sum == 1);
 }
 
 #endif

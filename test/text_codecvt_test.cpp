@@ -166,7 +166,7 @@ TEST_CASE("change_encoding - boundary code points round-trip", "[mh][text][codec
 {
 	// Valid code points at the boundaries of the encoding ranges - including
 	// supplementary-plane values whose low 16 bits happen to look like
-	// surrogates (e.g. U+1D800) - must encode and decode unchanged
+	// surrogates (e.g. U+1D800) - must encode. Decode unchanged
 	constexpr char32_t BOUNDARY_CODE_POINTS[] = {
 		0x7F, 0x80, 0x7FF, 0x800, 0xD7FF, 0xE000, 0xFFFF,
 		0x10000, 0x1D800, 0x1DC00, 0x2D800, 0x10FFFF,

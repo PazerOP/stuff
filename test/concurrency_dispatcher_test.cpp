@@ -20,10 +20,11 @@ namespace
 {
 	// The wait_tasks()/wait_tasks_while() family was removed from mh::dispatcher:
 	// the template overload never compiled (its function-pointer type was
-	// ill-formed) and the non-template overloads were declared but never defined,
-	// so every possible caller hit a compile or link error. The untimed
-	// wait_tasks() has since been reintroduced - implemented and tested this
-	// time (see the close()/shutdown tests below); wait_tasks_while() stays gone.
+	// ill-formed). The non-template overloads were declared. However, the
+	// non-template overloads never defined, so every possible caller hit a
+	// compile or link error. The untimed wait_tasks() has since been reintroduced
+	// - implemented and tested this time (see the close()/shutdown tests below).
+	// wait_tasks_while() stays gone.
 	template<typename T>
 	concept has_wait_tasks_while = requires(const T& d)
 	{
@@ -57,9 +58,9 @@ TEST_CASE("dispatcher - wait_tasks_for/until report task availability")
 
 TEST_CASE("dispatcher - a newly added delay task wakes a parked waiter")
 {
-	// regression: add_delay_task() never notified the condition variable and the
-	// waiter's wakeup deadline stayed pinned to its old value, so a thread parked
-	// in wait_tasks_until() slept through newly added earlier deadlines and delay
+	// regression: add_delay_task() never notified the condition variable. The
+	// waiter's wakeup deadline stayed pinned to its old value. A thread parked in
+	// wait_tasks_until() slept through newly added earlier deadlines and delay
 	// tasks fired up to a full wait window late.
 	mh::dispatcher d(false);
 
@@ -118,8 +119,8 @@ namespace
 
 TEST_CASE("dispatcher - resumes every coroutine whose fd is ready")
 {
-	// regression: when multiple fd-wait coroutines became ready in the same poll,
-	// the dispatcher used to resume only the first one and silently dropped the
+	// regression: when multiple fd-wait coroutines became ready in the same poll.
+	// The dispatcher used to resume only the first one and silently dropped the
 	// rest - they vanished from every queue and could never resume.
 	pipe_pair pipe1, pipe2;
 
@@ -154,10 +155,11 @@ TEST_CASE("dispatcher - resumes every coroutine whose fd is ready")
 TEST_CASE("dispatcher - task_count and try_pop are safe with concurrent producers")
 {
 	// regression: try_pop_task() and task_count() used to read the task queues
-	// without taking the mutex while producer threads pushed under it - a data
-	// race. The assertions here check the functional outcome (nothing is lost or
-	// double-run); the race itself is caught by running this test under
-	// ThreadSanitizer, which is done out-of-band / in sanitizer CI runs.
+	// without taking the mutex. This happens while producer threads pushed under
+	// it - a data race. The assertions here check the functional outcome
+	// (nothing is lost or double-run). The race itself is caught by running this
+	// test under ThreadSanitizer, which is done out-of-band / in sanitizer CI
+	// runs.
 	constexpr size_t PRODUCERS = 4;
 	constexpr size_t TASKS_PER_PRODUCER = 250;
 	constexpr size_t TOTAL = PRODUCERS * TASKS_PER_PRODUCER;
@@ -211,7 +213,7 @@ TEST_CASE("dispatcher - close wakes parked waiters")
 {
 	// Threads parked in the wait_tasks family (with or without a deadline)
 	// must wake promptly when the dispatcher is closed, instead of sleeping
-	// out their windows - this is what makes thread_pool destruction prompt.
+	// out their windows. This is what makes thread_pool destruction prompt.
 	mh::dispatcher d(false);
 	REQUIRE_FALSE(d.is_closed());
 
@@ -283,8 +285,8 @@ TEST_CASE("dispatcher - close drains ready work and rejects new awaits")
 	REQUIRE(delayed.get_exception() != nullptr);
 
 	// co_await after close() must not park a coroutine nothing will ever
-	// resume: it throws, and the exception surfaces through the task like
-	// any other.
+	// resume: it throws. The exception surfaces through the task like any
+	// other.
 	mh::task<> late = [](mh::dispatcher& disp) -> mh::task<>
 	{
 		co_await disp.co_dispatch();
@@ -315,7 +317,7 @@ TEST_CASE("dispatcher - registration slot is cleared on destruction")
 	}
 
 	// regression: the thread-local registration used to outlive the dispatcher,
-	// so try_get()/get() returned a dangling pointer and registering any new
+	// so try_get()/get() returned a dangling pointer. Registering any new
 	// dispatcher on this thread threw "already registered" forever.
 	REQUIRE(mh::dispatcher::try_get() == nullptr);
 

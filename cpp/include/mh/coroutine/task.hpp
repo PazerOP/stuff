@@ -22,7 +22,7 @@ namespace mh
 
 	enum class task_state
 	{
-		empty, // no state, never initialized, or was moved from
+		empty, // no state, never initialized, or was moved.
 		running,
 		value,
 		exception,
@@ -201,10 +201,7 @@ namespace mh
 				bool await_ready() const noexcept { return false; }
 				void await_suspend(coro::coroutine_handle<> handle) const noexcept
 				{
-					// The coroutine is fully suspended by the time await_suspend runs, so it is
-					// now safe for whichever side sees (refcount == 0 && flag set) to destroy it.
-					// If m_RefCount == 0, we are in charge of our own destiny (all referencing tasks
-					// have gone out of scope, so just delete ourselves now that we're done).
+					// The coroutine is fully suspended by the time await_suspend runs.
 					bool destroy;
 					{
 						std::lock_guard lock(m_Promise->m_Mutex);

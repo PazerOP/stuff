@@ -51,9 +51,9 @@ TEST_CASE("disable_move - derived types remain copyable", "[types][disable_copy_
 	original = copy;
 	REQUIRE(original.m_Value == 9);
 
-	// Note: for a DERIVED type the implicitly-defaulted move constructor is
+	// Note. For a DERIVED type the implicitly-defaulted move constructor is
 	// defined as deleted and therefore ignored by overload resolution
-	// ([class.copy.ctor]), so move syntax on the derived type compiles and
+	// ([class.copy.ctor]). Move syntax on the derived type compiles and
 	// falls back to copying. Nothing can be stolen through the base.
 	STATIC_REQUIRE(std::is_move_constructible_v<copyable_not_movable>);
 	STATIC_REQUIRE(std::is_copy_constructible_v<copyable_not_movable>);

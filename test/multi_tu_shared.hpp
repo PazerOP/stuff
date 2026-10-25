@@ -1,20 +1,7 @@
 #pragma once
 
-// Shared include set + cross-TU probes for the multi-translation-unit link test.
-//
-// This header is compiled into two different translation units (multi_tu_a.cpp
-// and multi_tu_b.cpp) that link into ONE executable, which must be built with
-// ONLY the include directory - no mh::stuff target, no injected defines. That
-// combination catches three whole classes of header bugs the single-TU compile
-// tests cannot see:
-//
-//  - a namespace-scope definition in a header/.inl that is missing its
-//    MH_COMPILE_LIBRARY_INLINE marker (multiple-definition link error in
-//    header-only mode),
-//  - an internal-linkage variable that should be one program-wide entity (each
-//    TU silently gets its own copy, e.g. `inline static` at namespace scope),
-//  - a header that only compiles because the build system happens to inject
-//    macros like MH_STUFF_API (non-CMake consumers get a broken header).
+// Shared include set + cross-TU probes for the multi-translation-unit link
+// test.
 
 // thread_sentinel.hpp goes first: it must compile without MH_STUFF_API having
 // been defined by an earlier include or the build system.

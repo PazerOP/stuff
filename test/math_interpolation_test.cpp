@@ -285,12 +285,6 @@ TEST_CASE("remap_static", "[math][interpolation]")
 
 TEST_CASE("remap_static - uint16 full range", "[math][interpolation]")
 {
-	// The fractional multiplier here is 65534 with a source range of 65535;
-	// 65535 * 65534 overflows a (promoted) signed int, so the overflow
-	// pre-checks and frac_max must be computed in a sufficiently wide unsigned
-	// type or the whole expression fails to compile during constant evaluation.
-	// Expected values are round-to-nearest of value * 65534 / 65535 (the
-	// denominator is odd, so no ties are possible).
 	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(0)) == 0);
 	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(1)) == 1);
 	REQUIRE(+(mh::remap_static<uint16_t, uint16_t, 0, 65535, 0, 65534>(12345)) == 12345);
@@ -301,8 +295,9 @@ TEST_CASE("remap_static - uint16 full range", "[math][interpolation]")
 
 TEST_CASE("remap - basic runtime remapping", "[math][interpolation]")
 {
-	// mh::remap must be usable by any TU that just includes interpolation.hpp
-	// (the header has to pull in <cassert> for its own assert() use).
+	// mh::remap must be usable by any TU. That just includes
+	// interpolation.hpp (the header has to pull in <cassert> for its own
+	// assert() use).
 	REQUIRE(mh::remap(5, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.5f));
 	REQUIRE(mh::remap(0, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.0f));
 	REQUIRE(mh::remap(10, 0, 10, 0.0f, 1.0f) == Catch::Approx(1.0f));
@@ -323,7 +318,7 @@ TEST_CASE("round function constant evaluation", "[math_interpolation]")
 	STATIC_REQUIRE(round(0.5f) == 1.0f);
 	STATIC_REQUIRE(round(0.6f) == 1.0f);
 	STATIC_REQUIRE(round(-0.4f) == 0.0f);
-	STATIC_REQUIRE(round(-0.5f) == -1.0f); // half away from zero, NOT -0
+	STATIC_REQUIRE(round(-0.5f) == -1.0f);
 	STATIC_REQUIRE(round(-0.6f) == -1.0f);
 	STATIC_REQUIRE(round(1.5f) == 2.0f);
 	STATIC_REQUIRE(round(-1.5f) == -2.0f);
@@ -334,10 +329,10 @@ TEST_CASE("round function constant evaluation", "[math_interpolation]")
 	STATIC_REQUIRE(round(32.6f) == 33.0f);
 
 	// Values with no representable fractional part pass through unchanged
-	STATIC_REQUIRE(round(16777216.0f) == 16777216.0f); // 2^24
+	STATIC_REQUIRE(round(16777216.0f) == 16777216.0f);
 	STATIC_REQUIRE(round(9.3e18f) == 9.3e18f); // beyond intmax_t
 	STATIC_REQUIRE(round(-9.3e18f) == -9.3e18f);
-	STATIC_REQUIRE(round(4503599627370496.0) == 4503599627370496.0); // 2^52
+	STATIC_REQUIRE(round(4503599627370496.0) == 4503599627370496.0);
 	STATIC_REQUIRE(round(std::numeric_limits<float>::infinity()) == std::numeric_limits<float>::infinity());
 	STATIC_REQUIRE(round(-std::numeric_limits<float>::infinity()) == -std::numeric_limits<float>::infinity());
 

@@ -2,6 +2,7 @@
 #include <catch2/catch_all.hpp>
 #include <cstddef>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -109,11 +110,9 @@ TEST_CASE("bit_read - uint64_t source")
 
 namespace
 {
-	// Bit-by-bit reference implementation of bit_copy's clear_bits semantics:
-	// little-endian bit addressing over the underlying bytes (bit i lives in
-	// byte i/8, position i%8), exactly matching byte_read/byte_write. The bits
-	// in [dst_offset, dst_offset + bits) become an exact copy of the bits in
-	// [src_offset, src_offset + bits); every other destination bit is untouched.
+	// The bits in [dst_offset, dst_offset + bits) become an exact copy of the
+	// bits in [src_offset, src_offset + bits). Every other destination bit is
+	// untouched.
 	bool ref_get_bit(const unsigned char* p, size_t bit)
 	{
 		return (p[bit / 8] >> (bit % 8)) & 1;
@@ -183,8 +182,6 @@ namespace
 	template<size_t bits, size_t src_offset, size_t dst_offset>
 	void check_bit_copy_u32(bit_copy_failure_log& log)
 	{
-		// Multi-byte objects: offsets are relative to the uint32_t objects, so
-		// offset % 32 can be >= 8 while the byte-level offsets stay small.
 		uint32_t src32[4], ref32[4], mh32[4];
 		for (uint32_t i = 0; i < 4; i++)
 			src32[i] = 0x12345678u * (i + 3) + 0x9E3779B9u;
@@ -225,12 +222,8 @@ TEST_CASE("bit_copy - arbitrary src/dst bit offsets match bit-by-bit reference")
 {
 	bit_copy_failure_log log;
 
-	// Full grid: bits 1..20 x src_offset 0..9 x dst_offset 0..9 over byte buffers.
-	// This includes every combination where dst_offset % 8 != 0, which the
-	// single-object fast path cannot handle (they all go through the slow path).
 	sweep_bit_copy_bits(log, std::make_index_sequence<20>{});
 
-	// Multi-byte source/destination objects with object-relative offsets >= 8.
 	check_bit_copy_u32<24, 0, 12>(log);
 	check_bit_copy_u32<20, 0, 20>(log);
 	check_bit_copy_u32<16, 12, 0>(log);
@@ -247,9 +240,7 @@ TEST_CASE("bit_copy - non-byte-aligned destination writes exact expected bytes")
 	// Hand-computed anchor values, independent of the reference implementation.
 
 	{
-		// Copy src bits [0, 8) to dst bits [4, 12).
 		// src = 0xC3 -> dst[0] high nibble := 0x3, dst[1] low nibble := 0xC.
-		// Everything outside dst bits 4..11 must be preserved (clear_bits mode).
 		uint8_t dst[4] = {0xAA, 0x55, 0xEE, 0xEE};
 		const uint8_t src[2] = {0xC3, 0x7F}; // second byte must never be read
 		mh::bit_copy<8, 0, 4, mh::bit_clear_mode::clear_bits>(dst, static_cast<const uint8_t*>(src));
@@ -261,8 +252,6 @@ TEST_CASE("bit_copy - non-byte-aligned destination writes exact expected bytes")
 	}
 
 	{
-		// Copy src bits [0, 24) to dst bits [12, 36) across two uint32_t objects.
-		// src bits 0..23 = 0xABCDEF.
 		uint32_t dst[2] = {0x00000000, 0xFFFFFFFF};
 		const uint32_t src[1] = {0x89ABCDEF};
 		mh::bit_copy<24, 0, 12, mh::bit_clear_mode::clear_bits>(dst, static_cast<const uint32_t*>(src));
@@ -272,10 +261,7 @@ TEST_CASE("bit_copy - non-byte-aligned destination writes exact expected bytes")
 	}
 
 	{
-		// The repo's original uint16_t-source configuration (see
-		// "bit_read - uint8_t source/dest" above), with a sentinel-filled
-		// destination: copy src bits [0, 6) to dst bits [5, 11).
-		// src = 8 -> only dst bit 8 is set within the region.
+		// src = 8 -> only dst a later bit is set within the region.
 		uint8_t dst[4] = {0xFF, 0xFF, 0xEE, 0xEE};
 		const uint16_t src = 8;
 		mh::bit_copy<6, 0, 5, mh::bit_clear_mode::clear_bits>(dst, &src);
@@ -285,4 +271,163 @@ TEST_CASE("bit_copy - non-byte-aligned destination writes exact expected bytes")
 		REQUIRE(dst[2] == 0xEE);
 		REQUIRE(dst[3] == 0xEE);
 	}
+}
+
+namespace
+{
+	// The constant-evaluation path, which the run-time word path does not cover.
+	constexpr uint64_t constexpr_read()
+	{
+		const uint8_t src[9] = { 0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe, 0x01 };
+		return mh::bit_read<uint64_t, 64, 4>(src);
+	}
+	static_assert(constexpr_read() == 0x1FEDCBA987654321ull);
+
+	template<size_t bits, size_t src_offset, size_t dst_offset>
+	void check_wide_bit_copy(bit_copy_failure_log& log)
+	{
+		unsigned char src_raw[32], dst_ref[32], dst_mh[32];
+		fill_src_pattern(src_raw, sizeof(src_raw));
+		fill_dst_pattern(dst_ref, sizeof(dst_ref));
+		memcpy(dst_mh, dst_ref, sizeof(dst_ref));
+
+		ref_bit_copy(dst_ref, src_raw, bits, src_offset, dst_offset);
+		mh::bit_copy<bits, src_offset, dst_offset, mh::bit_clear_mode::clear_bits>(
+			reinterpret_cast<std::byte*>(dst_mh), reinterpret_cast<const std::byte*>(src_raw));
+		if (memcmp(dst_ref, dst_mh, sizeof(dst_ref)) != 0)
+			log.record("wide", bits, src_offset, dst_offset);
+	}
+}
+
+TEST_CASE("bit_copy - widths past one 56-bit step match the reference")
+{
+	bit_copy_failure_log log;
+	check_wide_bit_copy<56, 7, 1>(log);
+	check_wide_bit_copy<57, 3, 5>(log);
+	check_wide_bit_copy<63, 7, 7>(log);
+	check_wide_bit_copy<64, 1, 6>(log);
+	check_wide_bit_copy<100, 5, 3>(log);
+	check_wide_bit_copy<113, 0, 7>(log);
+	check_wide_bit_copy<200, 6, 2>(log);
+	INFO(log.details);
+	REQUIRE(log.fail_count == 0);
+}
+
+TEST_CASE("bit_copy_dynamic matches the reference for every width and offset")
+{
+	bit_copy_failure_log log;
+	for (size_t bits = 1; bits <= 130; bits++)
+	{
+		for (size_t src_offset = 0; src_offset < 10; src_offset++)
+		{
+			for (size_t dst_offset = 0; dst_offset < 10; dst_offset++)
+			{
+				unsigned char src_raw[32], dst_ref[32], dst_mh[32];
+				fill_src_pattern(src_raw, sizeof(src_raw));
+				fill_dst_pattern(dst_ref, sizeof(dst_ref));
+				memcpy(dst_mh, dst_ref, sizeof(dst_ref));
+
+				ref_bit_copy(dst_ref, src_raw, bits, src_offset, dst_offset);
+				mh::bit_copy_dynamic(dst_mh, static_cast<const unsigned char*>(src_raw), bits, src_offset, dst_offset);
+				if (memcmp(dst_ref, dst_mh, sizeof(dst_ref)) != 0)
+					log.record("dynamic", bits, src_offset, dst_offset);
+			}
+		}
+	}
+	INFO(log.details);
+	REQUIRE(log.fail_count == 0);
+}
+
+TEST_CASE("bit_copy_dynamic clear modes and bit_read_dynamic")
+{
+	const uint8_t src[2] = { 0xC3, 0x7F };
+
+	uint8_t dst[4] = { 0xAA, 0x55, 0xEE, 0xEE };
+	mh::bit_copy_dynamic(dst, static_cast<const uint8_t*>(src), 8, 0, 4);
+	CHECK(dst[0] == 0x3A);
+	CHECK(dst[1] == 0x5C);
+	CHECK(dst[2] == 0xEE);
+
+	uint8_t ored[2] = { 0x01, 0x00 };
+	mh::bit_copy_dynamic(ored, static_cast<const uint8_t*>(src), 8, 0, 4, mh::bit_clear_mode::none);
+	CHECK(ored[0] == 0x31);
+	CHECK(ored[1] == 0x0C);
+
+	uint16_t objs[2] = { 0xFFFF, 0xFFFF };
+	mh::bit_copy_dynamic(objs, static_cast<const uint8_t*>(src), 4, 0, 2, mh::bit_clear_mode::clear_objects);
+	CHECK(objs[0] == 0x000C);
+	CHECK(objs[1] == 0xFFFF);
+
+	CHECK(mh::bit_read_dynamic<uint16_t>(src, 12, 4) == 0x7FC);
+	CHECK_THROWS_AS(mh::bit_read_dynamic<uint8_t>(src, 9, 0), std::invalid_argument);
+}
+
+TEST_CASE("bit_write_dynamic writes every width and offset, and keeps the bits around the field")
+{
+	unsigned char value_bytes[8];
+	fill_src_pattern(value_bytes, sizeof(value_bytes));
+	uint64_t value;
+	memcpy(&value, value_bytes, sizeof(value));
+
+	size_t failures = 0;
+	for (size_t bits = 0; bits <= 64; bits++)
+	{
+		for (size_t offset = 0; offset < 8; offset++)
+		{
+			const size_t span = (offset + bits + 7) / 8;
+
+			unsigned char expected[16];
+			fill_dst_pattern(expected, sizeof(expected));
+			ref_bit_copy(expected, value_bytes, bits, 0, offset);
+
+			// A heap block of exactly span bytes, so a sanitizer build reports any access past it.
+			std::unique_ptr<unsigned char[]> exact(new unsigned char[span ? span : 1]);
+			fill_dst_pattern(exact.get(), span);
+			mh::bit_write_dynamic(exact.get(), value, bits, offset, span);
+
+			unsigned char padded[16];
+			fill_dst_pattern(padded, sizeof(padded));
+			mh::bit_write_dynamic(static_cast<unsigned char*>(padded), value, bits, offset, sizeof(padded));
+
+			if (memcmp(exact.get(), expected, span) != 0 || memcmp(padded, expected, sizeof(padded)) != 0)
+			{
+				UNSCOPED_INFO("bits=" << bits << " offset=" << offset);
+				failures++;
+			}
+		}
+	}
+	REQUIRE(failures == 0);
+	CHECK_THROWS_AS(mh::bit_write_dynamic(value_bytes, value, 65, 0, sizeof(value_bytes)), std::invalid_argument);
+}
+
+TEST_CASE("bit_read_dynamic reads every width and offset from a buffer of exactly the bytes it needs")
+{
+	unsigned char pattern[16];
+	fill_src_pattern(pattern, sizeof(pattern));
+
+	size_t failures = 0;
+	for (size_t bits = 0; bits <= 64; bits++)
+	{
+		for (size_t offset = 0; offset < 8; offset++)
+		{
+			const size_t span = (offset + bits + 7) / 8;
+			// A heap block of exactly span bytes, so a sanitizer build reports any read past it.
+			std::unique_ptr<unsigned char[]> buf(new unsigned char[span ? span : 1]);
+			memcpy(buf.get(), pattern, span);
+
+			uint64_t expected = 0;
+			for (size_t i = 0; i < bits; i++)
+				expected |= uint64_t((pattern[(offset + i) / 8] >> ((offset + i) % 8)) & 1) << i;
+
+			const unsigned char* exact = buf.get();
+			if (mh::bit_read_dynamic<uint64_t>(exact, bits, offset) != expected ||
+				mh::bit_read_dynamic<uint64_t>(exact, bits, offset, span) != expected ||
+				mh::bit_read_dynamic<uint64_t>(static_cast<const unsigned char*>(pattern), bits, offset, sizeof(pattern)) != expected)
+			{
+				UNSCOPED_INFO("bits=" << bits << " offset=" << offset);
+				failures++;
+			}
+		}
+	}
+	REQUIRE(failures == 0);
 }
