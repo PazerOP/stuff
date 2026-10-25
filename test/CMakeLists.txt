@@ -42,10 +42,9 @@ include(Catch)
 # that find_library never searches), and the driver links libgcov itself when
 # --coverage is passed at link time. Clang is excluded: its gcov data needs the
 # matching llvm-cov, and CI does not install clang's profile runtime.
-if (ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES GNU)
+if (CMAKE_CXX_COMPILER_ID MATCHES GNU)
 	target_compile_options(mh-stuff ${MH_PUBLIC_OR_INTERFACE} --coverage -g)
 	target_link_options(mh-stuff ${MH_PUBLIC_OR_INTERFACE} --coverage)
-endif()
 endif()
 
 # Check that all test files have last_include.hpp as the final include
@@ -63,11 +62,6 @@ endif()
 
 # Glob all test source files
 file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "*_test.cpp")
-
-# text_format_test gets a second, test-case-free translation unit: formatting a
-# source_location from more than one TU must compile AND link in both
-# header-only and library builds (was an undefined-reference regression).
-target_sources(text_format_test PRIVATE text_format_link_tu.cpp)
 
 # Multi-TU link test. Deliberately does NOT link mh::stuff: it must build with
 # only the include directory, so that the build system's injected defines
@@ -92,24 +86,19 @@ check_include_file_cxx("unistd.h" HAS_UNISTD)
 if (NOT (HAS_GETOPT OR HAS_UNISTD))
 	list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/io_getopt_test.cpp")
 endif()
-endif()
 
 # Create the unified test executable with custom main
 add_executable(mh_stuff_tests ${TEST_SOURCES} TestMain.cpp)
+
+# text_format_test gets a second, test-case-free translation unit: formatting a
+# source_location from more than one TU must compile AND link in both
+# header-only and library builds (was an undefined-reference regression).
+target_sources(mh_stuff_tests PRIVATE text_format_link_tu.cpp)
 
 # Note: Custom string makers are defined in specific test files
 
 target_link_libraries(mh_stuff_tests Catch2::Catch2 mh::stuff)
 catch_discover_tests(mh_stuff_tests TEST_PREFIX "${PROJECT_NAME}.")
-
-# Code coverage support for tests (only enable if explicitly requested)
-if (ENABLE_COVERAGE AND (CMAKE_CXX_COMPILER_ID MATCHES Clang OR CMAKE_CXX_COMPILER_ID MATCHES GNU))
-	find_library(GCOV_LIBRARY gcov)
-	if(GCOV_LIBRARY)
-		target_compile_options(mh_stuff_tests PUBLIC --coverage -g)
-		target_link_options(mh_stuff_tests PUBLIC -lgcov --coverage -g)
-	endif()
-endif()
 
 # Make sure all header files can be compiled successfully by themselves
 set(MH_CPP_INCLUDE_ROOT "${PROJECT_SOURCE_DIR}/cpp/include")
