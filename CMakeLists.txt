@@ -11,6 +11,12 @@ project(
 	LANGUAGES CXX
 )
 
+# The vendored build helpers (mh_basic_install and friends) are plain .cmake
+# modules: without this include CMake dies at configure time on
+# "Unknown CMake command mh_basic_install".
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mh-cmake-common")
+include(mh-cmake-common-config)
+
 option(MH_STUFF_BUILD_SHARED_LIBS "Build stuff as a shared lib" OFF)
 if (MH_STUFF_BUILD_SHARED_LIBS)
 	set(BUILD_SHARED_LIBS ON)
@@ -34,10 +40,6 @@ add_library(${PROJECT_NAME} ${MH_INTERFACE_OR_EMPTY}
 	${MH_HEADER_FILES}
 )
 add_library(mh::stuff ALIAS ${PROJECT_NAME})
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mh-cmake-common")
-include(mh-BasicInstall)
-include(mh-CheckCoroutineSupport)
 
 if (MH_STUFF_COMPILE_LIBRARY)
 	find_package(CURL REQUIRED)
@@ -78,8 +80,9 @@ if (MH_STUFF_COMPILE_LIBRARY)
 	)
 	# PRIVATE: a PUBLIC PCH exports INTERFACE_PRECOMPILE_HEADERS with an absolute
 	# build-tree path into the installed target (and the export header is never
-	# installed), breaking every consumer on a machine without this build tree.
-	# The headers all carry an #ifndef MH_STUFF_API fallback for consumers.
+	# installed). That PRIVATE is breaking every consumer on a machine without
+	# this build tree. The headers all carry an #ifndef MH_STUFF_API fallback for
+	# consumers.
 	target_precompile_headers(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_export.h")
 
 else()
@@ -89,14 +92,11 @@ else()
 	)
 endif()
 
-mh_check_cxx_coroutine_support(SUPPORTS_COROUTINES COROUTINES_FLAGS)
-target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} ${COROUTINES_FLAGS})
-
 # Optional fmt support: the vcpkg manifest has always shipped fmt, but nothing
-# ever put its headers on the include path, so text/format.hpp's
+# ever put its headers on the include path. This is text/format.hpp's
 # __has_include(<fmt/format.h>) was false and the whole fmt-backed formatter
 # layer silently compiled as MH_FORMATTER_NONE (untested, unusable). Link it
-# when present AND actually linkable: a found fmt can still be ABI-incompatible
+# when present AND actually linkable. A found fmt can still be ABI-incompatible
 # (e.g. a libstdc++-built libfmt while this target uses clang + libc++), so
 # probe a real compile+link of a compiled-fmt symbol before committing to it.
 # On probe failure we fall back to MH_FORMATTER_NONE - the status quo.
@@ -132,13 +132,12 @@ elseif (fmt_FOUND)
 	# fmt's headers can be visible to the compiler without any help from us
 	# (e.g. a distro libfmt-dev in /usr/include). text/format.hpp's
 	# __has_include probe would then select the fmtlib backend even though we
-	# are NOT linking libfmt, and every TU that instantiates a compiled-fmt
+	# are NOT linking libfmt. Every TU that instantiates a compiled-fmt
 	# symbol would fail to link. Export the fallback decision so the
 	# preprocessor agrees with the linker (format.hpp honors a pre-defined
 	# MH_FORMATTER).
 	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_FORMATTER=MH_FORMATTER_NONE")
 endif()
-
 target_include_directories(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 	"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cpp/include>"
 	"$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
@@ -146,7 +145,7 @@ target_include_directories(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 target_compile_features(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "cxx_std_20")
 
 if (MSVC)
-	# There is a bug in visual studio that prevents intellisense from realizing
+	# There is a bug in visual studio. That studio prevents intellisense from realizing
 	# /std:c++latest is on the command line if you only use target_compile_features(cxx_std_20)
 	target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "/std:c++latest")
 elseif (CMAKE_CXX_COMPILER_ID MATCHES GNU)
@@ -163,6 +162,7 @@ endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -pthread)
+	target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -Wno-missing-field-initializers)
 	target_link_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -pthread)
 endif()
 
@@ -187,6 +187,8 @@ message(STATUS "Forcing MH_BROKEN_UNICODE=1 to work around compiler Unicode issu
 if (NOT DEFINED BUILD_TESTING)
 	if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 		set(BUILD_TESTING ON)
+		# Define MH_STUFF_STANDALONE_BUILD when building as main project
+		target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_STUFF_STANDALONE_BUILD")
 	else()
 		set(BUILD_TESTING OFF)
 	endif()
@@ -199,9 +201,9 @@ if (BUILD_TESTING)
 endif()
 
 # The compiled library's exported link interface references CURL::libcurl
-# ($<LINK_ONLY:...>), so the installed package config must find_dependency(CURL)
-# or consumer find_package(mh-stuff) fails at generate time. Plain variable, not
-# a genexp: configure_package_config_file cannot evaluate generator expressions.
+# ($<LINK_ONLY:...>). The installed package config must find_dependency(CURL) or
+# consumer find_package(mh-stuff) fails at generate time. Plain variable, not a
+# genexp: configure_package_config_file cannot evaluate generator expressions.
 if (MH_STUFF_COMPILE_LIBRARY)
 	set(MH_STUFF_INSTALL_DEPS CURL)
 endif()
@@ -214,36 +216,3 @@ mh_basic_install(
 	FIND_DEPENDENCIES ${MH_STUFF_INSTALL_DEPS}
 )
 
-###########################################
-# "install" is intended for vcpkg support #
-###########################################
-# include(CMakePackageConfigHelpers)
-# configure_package_config_file(
-# 	cmake/config.cmake.in
-# 	"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-# 	INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )
-
-# include(GNUInstallDirs)
-
-# write_basic_package_version_file(
-# 	"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
-# 	VERSION ${PROJECT_VERSION}
-# 	COMPATIBILITY SameMajorVersion
-# )
-
-# install(
-# 	FILES
-# 		"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-# 		"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
-# 	DESTINATION
-# 		"${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )
-
-# install(TARGETS stuff EXPORT ${PROJECT_NAME}_targets)
-# install(DIRECTORY cpp/include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
-# install(
-# 	EXPORT ${PROJECT_NAME}_targets
-# 	NAMESPACE mh::
-# 	DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
-# )

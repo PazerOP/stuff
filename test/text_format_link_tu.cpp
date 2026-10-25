@@ -1,10 +1,11 @@
-// Second translation unit for text_format_test: formatting a source_location
+// Second translation unit for text_format_test. Formatting a source_location
 // from more than one TU must compile AND link in both header-only and library
 // builds. This file intentionally contains no test cases of its own.
 #include "mh/text/format.hpp"
 #include "mh/source_location.hpp"
 
 #include <string>
+#include "last_include.hpp"
 
 #if MH_FORMATTER != MH_FORMATTER_NONE
 

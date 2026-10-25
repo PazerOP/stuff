@@ -26,13 +26,11 @@ namespace mh
 		{
 		}
 
-#if _MSC_VER >= 1927
 		static constexpr source_location current(std::uint_least32_t line = __builtin_LINE(), const char* fileName = __builtin_FILE(),
-			const char* functionName = __builtin_FUNCTION(), std::uint_least32_t column = __builtin_COLUMN()) noexcept
+			const char* functionName = __builtin_FUNCTION()) noexcept
 		{
-			return source_location(line, fileName, functionName, column);
+			return source_location(line, fileName, functionName);
 		}
-#endif
 
 		constexpr std::uint_least32_t line() const noexcept { return m_Line; }
 		constexpr std::uint_least32_t column() const noexcept { return m_Column; }
@@ -46,20 +44,17 @@ namespace mh
 		const char* m_FunctionName = nullptr;
 	};
 
-#if _MSC_VER >= 1927
 #define MH_SOURCE_LOCATION_CURRENT() ::mh::source_location::current()
 #define MH_SOURCE_LOCATION_AUTO(varName) const ::mh::source_location& varName = ::mh::source_location::current()
-#else
-#define MH_SOURCE_LOCATION_CURRENT() ::mh::source_location(__LINE__, __FILE__, __func__)
-#define MH_SOURCE_LOCATION_AUTO(varName) const ::mh::source_location& varName
-#endif
 
 #endif
 
 	template<typename CharT, typename Traits>
 	inline std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, const mh::source_location& location)
 	{
-		return os << location.file_name() << '(' << location.line() << "):" << location.function_name();
+		const char* file = location.file_name();
+		const char* func = location.function_name();
+		return os << (file ? file : "(unknown)") << '(' << location.line() << "):" << (func ? func : "(unknown)");
 	}
 }
 

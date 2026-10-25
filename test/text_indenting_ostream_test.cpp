@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include <string>
+#include "last_include.hpp"
 
 TEST_CASE("indented - indentation is added after newlines", "[text][indenting_ostream]")
 {

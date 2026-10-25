@@ -9,29 +9,38 @@ endif()
 
 # Build Catch2 with the same C++ standard as the tests that link it. Catch2 only
 # requires cxx_std_14 (a minimum), so on compilers whose default is pre-C++17
-# (clang < 16) libCatch2.a would otherwise lack symbols that its headers declare
-# for C++17+ consumers (e.g. Catch::StringMaker<std::string_view>::convert),
-# breaking the link of any C++20 test that stringifies a string_view.
+# (clang < 16) libCatch2.a would otherwise lack symbols. That its headers
+# declare for C++17+ consumers (e.g.
+# Catch::StringMaker<std::string_view>::convert), breaking the link of any C++20
+# test that stringifies a string_view.
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Include CPM for package management
 include(${PROJECT_SOURCE_DIR}/cmake/get_cpm.cmake)
 
+enable_testing()
+include(CTest)
+
 # Use CPM to get Catch2
 CPMAddPackage(
   NAME Catch2
   GITHUB_REPOSITORY catchorg/Catch2
-  VERSION 3.4.0
-  GIT_TAG v3.4.0
+  VERSION 3.12.0
+  GIT_TAG v3.12.0
+  OPTIONS
+    "CATCH_CONFIG_CPP17_BYTE ON"
+    "CATCH_CONFIG_CPP17_STRING_VIEW ON"
 )
+
+target_compile_features(Catch2 PUBLIC cxx_std_20)
+
 list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
 include(Catch)
 
-
 # Coverage instrumentation. GCC only: gating this on find_library(gcov) silently
 # disabled coverage everywhere (libgcov.a lives in the compiler-private directory
-# that find_library never searches), and the driver links libgcov itself when
+# that find_library never searches). The driver links libgcov itself when
 # --coverage is passed at link time. Clang is excluded: its gcov data needs the
 # matching llvm-cov, and CI does not install clang's profile runtime.
 if (CMAKE_CXX_COMPILER_ID MATCHES GNU)
@@ -39,72 +48,26 @@ if (CMAKE_CXX_COMPILER_ID MATCHES GNU)
 	target_link_options(mh-stuff ${MH_PUBLIC_OR_INTERFACE} --coverage)
 endif()
 
-function(mh_test name)
-	add_executable(${name} "${name}.cpp")
+# Check that all test files have last_include.hpp as the final include
+execute_process(
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/check_last_include.sh"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    RESULT_VARIABLE LAST_INCLUDE_CHECK_RESULT
+    OUTPUT_VARIABLE LAST_INCLUDE_CHECK_OUTPUT
+    ERROR_VARIABLE LAST_INCLUDE_CHECK_ERROR
+)
 
-	target_link_libraries(${name} Catch2::Catch2WithMain mh::stuff)
-	catch_discover_tests(${name} TEST_PREFIX "${PROJECT_NAME}.")
+if(NOT LAST_INCLUDE_CHECK_RESULT EQUAL 0)
+    message(FATAL_ERROR "last_include.hpp check failed:\n${LAST_INCLUDE_CHECK_OUTPUT}\n${LAST_INCLUDE_CHECK_ERROR}")
+endif()
 
-	if (CMAKE_CXX_COMPILER_ID MATCHES GNU)
-		target_compile_options(${name} PRIVATE --coverage -g)
-		target_link_options(${name} PRIVATE --coverage)
-	endif()
+# Glob all test source files
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "*_test.cpp")
 
-endfunction()
-
-mh_test(algorithm_algorithm_test)
-mh_test(chrono_helpers_test)
-mh_test(concurrency_dispatcher_test)
-mh_test(concurrency_thread_pool_test)
-mh_test(concurrency_upgrade_mutex_test)
-mh_test(containers_heap_test)
-mh_test(coroutine_generator_test)
-mh_test(coroutine_task_test)
-mh_test(data_bit_float_test)
-mh_test(data_bit_stream_test)
-mh_test(data_bits_test)
-mh_test(data_variable_pusher_test)
-mh_test(error_ensure_test)
-mh_test(error_expected_test)
-mh_test(error_nested_exception_test)
-mh_test(error_status_test)
-mh_test(future_test)
-mh_test(http_client_test)
-mh_test(io_fd_test)
-mh_test(io_file_test)
-mh_test(math_interpolation_test)
-mh_test(math_uint128_test)
-mh_test(memory_buffer_test)
-mh_test(memory_cached_variable_test)
-mh_test(memory_checked_ptr_test)
-mh_test(memory_helpers_test)
-mh_test(memory_unique_object_test)
-mh_test(process_process_test)
-mh_test(raii_scope_exit_test)
-mh_test(reflection_struct_test)
-mh_test(text_case_insensitive_string_test)
-mh_test(text_codecvt_test)
-mh_test(text_charconv_helper_test)
-mh_test(text_filebuf_test)
-mh_test(text_fmtstr_test)
-mh_test(text_indenting_ostream_test)
-mh_test(text_insertion_conversion_test)
-mh_test(text_memstream_test)
-mh_test(text_string_insertion_test)
-mh_test(text_stringops_test)
-mh_test(types_test)
-mh_test(variant_test)
-
-# text_format_test gets a second, test-case-free translation unit: formatting a
-# source_location from more than one TU must compile AND link in both
-# header-only and library builds (was an undefined-reference regression).
-mh_test(text_format_test)
-target_sources(text_format_test PRIVATE text_format_link_tu.cpp)
-
-# Multi-TU link test. Deliberately does NOT link mh::stuff: it must build with
+# Multi-TU link test. Deliberately does NOT link mh::stuff. It must build with
 # only the include directory, so that the build system's injected defines
-# (e.g. MH_STUFF_API=) and compiled-library mode cannot mask header-only-mode
-# bugs (missing MH_COMPILE_LIBRARY_INLINE markers -> multiple-definition link
+# (e.g. MH_STUFF_API=). And compiled-library mode cannot mask header-only-mode
+# bugs (missing MH_COMPILE_LIBRARY_INLINE markers, multiple-definition link
 # errors, per-TU copies of program-wide entities, headers that rely on
 # build-system macros). Linking this executable is the core of the test.
 add_executable(multi_tu_test multi_tu_a.cpp multi_tu_b.cpp)
@@ -117,19 +80,28 @@ if (NOT MSVC)
 endif()
 catch_discover_tests(multi_tu_test TEST_PREFIX "${PROJECT_NAME}.")
 
+# Check for getopt/unistd and conditionally exclude io_getopt_test if not available
 include(CheckIncludeFileCXX)
 check_include_file_cxx("getopt.h" HAS_GETOPT)
 check_include_file_cxx("unistd.h" HAS_UNISTD)
-if (HAS_GETOPT OR HAS_UNISTD)
-	mh_test(io_getopt_test)
+if (NOT (HAS_GETOPT OR HAS_UNISTD))
+	list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/io_getopt_test.cpp")
 endif()
 
-# add_executable(text_stringops_test "text_stringops_test.cpp")
-# target_link_libraries(text_stringops_test catch2 mh::stuff)
-# add_test(NAME text_stringops_test COMMAND text_stringops_test)
+# Create the unified test executable with custom main
+add_executable(mh_stuff_tests ${TEST_SOURCES} TestMain.cpp)
+
+# text_format_test gets a second, test-case-free translation unit. Formatting a
+# source_location from more than one TU must compile AND link in both
+# header-only and library builds (was an undefined-reference regression).
+target_sources(mh_stuff_tests PRIVATE text_format_link_tu.cpp)
+
+# Note: Custom string makers are defined in specific test files
+
+target_link_libraries(mh_stuff_tests Catch2::Catch2 mh::stuff)
+catch_discover_tests(mh_stuff_tests TEST_PREFIX "${PROJECT_NAME}.")
 
 # Make sure all header files can be compiled successfully by themselves
-
 set(MH_CPP_INCLUDE_ROOT "${PROJECT_SOURCE_DIR}/cpp/include")
 file(GLOB_RECURSE MH_HPP_FILES
 	RELATIVE ${MH_CPP_INCLUDE_ROOT}
@@ -150,4 +122,5 @@ foreach (F IN LISTS MH_HPP_FILES)
 	)
 
 	target_link_libraries(test_compile_file_${SAFE_FILENAME} PUBLIC mh::stuff)
+	target_include_directories(test_compile_file_${SAFE_FILENAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 endforeach()

@@ -6,6 +6,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include "last_include.hpp"
 
 // Helper to convert std::byte to unsigned for CAPTURE (Catch2 v3.4.0 lacks StringMaker<std::byte> implementation)
 template<typename T>
@@ -25,7 +26,7 @@ static void test_bit_functions(const TSrc* src, const TDst expected)
 	memcpy(&srcVal, src, srcValSize);
 	CAPTURE(srcVal);
 
-	CAPTURE(capture_value(*src), expected, bits_to_copy, src_offset, typeid(TSrc).name(), typeid(TDst).name());
+	CAPTURE(*src, expected, bits_to_copy, src_offset, typeid(TSrc).name(), typeid(TDst).name());
 
 	const auto read = +mh::bit_read<TDst, bits_to_copy, src_offset>(src);
 
@@ -110,11 +111,9 @@ TEST_CASE("bit_read - uint64_t source")
 
 namespace
 {
-	// Bit-by-bit reference implementation of bit_copy's clear_bits semantics:
-	// little-endian bit addressing over the underlying bytes (bit i lives in
-	// byte i/8, position i%8), exactly matching byte_read/byte_write. The bits
-	// in [dst_offset, dst_offset + bits) become an exact copy of the bits in
-	// [src_offset, src_offset + bits); every other destination bit is untouched.
+	// The bits in [dst_offset, dst_offset + bits) become an exact copy of the
+	// bits in [src_offset, src_offset + bits). Every other destination bit is
+	// untouched.
 	bool ref_get_bit(const unsigned char* p, size_t bit)
 	{
 		return (p[bit / 8] >> (bit % 8)) & 1;
@@ -184,8 +183,6 @@ namespace
 	template<size_t bits, size_t src_offset, size_t dst_offset>
 	void check_bit_copy_u32(bit_copy_failure_log& log)
 	{
-		// Multi-byte objects: offsets are relative to the uint32_t objects, so
-		// offset % 32 can be >= 8 while the byte-level offsets stay small.
 		uint32_t src32[4], ref32[4], mh32[4];
 		for (uint32_t i = 0; i < 4; i++)
 			src32[i] = 0x12345678u * (i + 3) + 0x9E3779B9u;
@@ -226,12 +223,8 @@ TEST_CASE("bit_copy - arbitrary src/dst bit offsets match bit-by-bit reference")
 {
 	bit_copy_failure_log log;
 
-	// Full grid: bits 1..20 x src_offset 0..9 x dst_offset 0..9 over byte buffers.
-	// This includes every combination where dst_offset % 8 != 0, which the
-	// single-object fast path cannot handle (they all go through the slow path).
 	sweep_bit_copy_bits(log, std::make_index_sequence<20>{});
 
-	// Multi-byte source/destination objects with object-relative offsets >= 8.
 	check_bit_copy_u32<24, 0, 12>(log);
 	check_bit_copy_u32<20, 0, 20>(log);
 	check_bit_copy_u32<16, 12, 0>(log);
@@ -248,9 +241,7 @@ TEST_CASE("bit_copy - non-byte-aligned destination writes exact expected bytes")
 	// Hand-computed anchor values, independent of the reference implementation.
 
 	{
-		// Copy src bits [0, 8) to dst bits [4, 12).
 		// src = 0xC3 -> dst[0] high nibble := 0x3, dst[1] low nibble := 0xC.
-		// Everything outside dst bits 4..11 must be preserved (clear_bits mode).
 		uint8_t dst[4] = {0xAA, 0x55, 0xEE, 0xEE};
 		const uint8_t src[2] = {0xC3, 0x7F}; // second byte must never be read
 		mh::bit_copy<8, 0, 4, mh::bit_clear_mode::clear_bits>(dst, static_cast<const uint8_t*>(src));
@@ -262,8 +253,6 @@ TEST_CASE("bit_copy - non-byte-aligned destination writes exact expected bytes")
 	}
 
 	{
-		// Copy src bits [0, 24) to dst bits [12, 36) across two uint32_t objects.
-		// src bits 0..23 = 0xABCDEF.
 		uint32_t dst[2] = {0x00000000, 0xFFFFFFFF};
 		const uint32_t src[1] = {0x89ABCDEF};
 		mh::bit_copy<24, 0, 12, mh::bit_clear_mode::clear_bits>(dst, static_cast<const uint32_t*>(src));
@@ -273,10 +262,7 @@ TEST_CASE("bit_copy - non-byte-aligned destination writes exact expected bytes")
 	}
 
 	{
-		// The repo's original uint16_t-source configuration (see
-		// "bit_read - uint8_t source/dest" above), with a sentinel-filled
-		// destination: copy src bits [0, 6) to dst bits [5, 11).
-		// src = 8 -> only dst bit 8 is set within the region.
+		// src = 8 -> only dst a later bit is set within the region.
 		uint8_t dst[4] = {0xFF, 0xFF, 0xEE, 0xEE};
 		const uint16_t src = 8;
 		mh::bit_copy<6, 0, 5, mh::bit_clear_mode::clear_bits>(dst, &src);

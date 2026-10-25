@@ -1,14 +1,15 @@
 // First translation unit of the multi-TU link test. See multi_tu_shared.hpp for
 // what this pair of files is protecting against.
 //
-// regression: in header-only mode the dispatcher's thread-local static member
-// definition was missing its inline marker, so ANY program with two TUs that
-// include dispatcher.hpp failed to link (multiple definition). Merely linking
-// this executable is the core of the test; the assertions below additionally
-// prove the header entities are one program-wide instance each.
+// regression. In header-only mode the dispatcher's thread-local static member
+// definition was missing its inline marker. ANY program with TUs that include
+// dispatcher.hpp failed to link (multiple definition). Merely linking this
+// executable is the core of the test; the assertions below additionally prove
+// the header entities are one program-wide instance each.
 #include "multi_tu_shared.hpp"
 
 #include <catch2/catch_all.hpp>
+#include "last_include.hpp"
 
 const std::thread::id* main_thread_id_address_tu_a()
 {

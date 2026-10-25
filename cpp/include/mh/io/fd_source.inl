@@ -21,6 +21,22 @@ namespace mh::io
         : fd_(take_ownership ? unique_native_handle(fd) : unique_native_handle(dup(fd))),
           is_open_(static_cast<bool>(fd_)) // dup() may fail: reflect the handle we actually hold
     {
+        // Prevent multiple instantiations of standard streams
+        static bool stdout_created = false;
+        static bool stderr_created = false;
+
+        if (fd == STDOUT_FILENO) {
+            if (stdout_created) {
+                throw std::runtime_error("Attempt to create multiple fd_source instances for STDOUT_FILENO");
+            }
+            stdout_created = true;
+        }
+        else if (fd == STDERR_FILENO) {
+            if (stderr_created) {
+                throw std::runtime_error("Attempt to create multiple fd_source instances for STDERR_FILENO");
+            }
+            stderr_created = true;
+        }
     }
 
     MH_COMPILE_LIBRARY_INLINE fd_source::~fd_source() = default;
@@ -37,6 +53,7 @@ namespace mh::io
         {
             bytes_read = ::read(fd_.value(), buffer, size);
         } while (bytes_read < 0 && errno == EINTR);
+
 
         if (bytes_read < 0)
             throw std::system_error(errno, std::generic_category(), "fd_source::read_async");
@@ -72,4 +89,24 @@ namespace mh::io
         return std::make_shared<fd_source>(fd, true);
     }
 #endif
+
+    MH_COMPILE_LIBRARY_INLINE source_ptr source::stdout_source()
+    {
+#ifdef __unix__
+        static auto instance = std::make_shared<fd_source>(STDOUT_FILENO, false);
+        return instance;
+#else
+        throw mh::not_implemented_error();
+#endif
+    }
+
+    MH_COMPILE_LIBRARY_INLINE source_ptr source::stderr_source()
+    {
+#ifdef __unix__
+        static auto instance = std::make_shared<fd_source>(STDERR_FILENO, false);
+        return instance;
+#else
+        throw mh::not_implemented_error();
+#endif
+    }
 }

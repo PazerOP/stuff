@@ -1,0 +1,126 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 16,
+        "patch": 3
+    },
+    "configurePresets": [
+        {
+            "name": "default",
+            "displayName": "Default Configuration",
+            "description": "Default build configuration with Ninja generator",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            },
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug Configuration",
+            "description": "Debug build with coverage support",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "shared",
+            "displayName": "Shared Library",
+            "description": "Build as shared library",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/shared",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "MH_STUFF_BUILD_SHARED_LIBS": "ON"
+            }
+        },
+        {
+            "name": "header-only",
+            "displayName": "Header-Only Mode",
+            "description": "Build in header-only mode",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/header-only",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "MH_STUFF_COMPILE_LIBRARY": "OFF"
+            }
+        },
+        {
+            "name": "coverage",
+            "displayName": "Coverage Build",
+            "description": "Debug build optimized for coverage reporting",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/coverage",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "ENABLE_COVERAGE": "ON",
+                "CMAKE_CXX_FLAGS": "-g -O0 --coverage -fprofile-arcs -ftest-coverage",
+                "CMAKE_C_FLAGS": "-g -O0 --coverage -fprofile-arcs -ftest-coverage",
+                "CMAKE_EXE_LINKER_FLAGS": "--coverage"
+            },
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "default",
+            "configurePreset": "default"
+        },
+        {
+            "name": "debug",
+            "configurePreset": "debug"
+        },
+        {
+            "name": "shared",
+            "configurePreset": "shared"
+        },
+        {
+            "name": "header-only",
+            "configurePreset": "header-only"
+        },
+        {
+            "name": "coverage",
+            "configurePreset": "coverage"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "default",
+            "configurePreset": "default",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "coverage",
+            "configurePreset": "coverage",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ]
+}

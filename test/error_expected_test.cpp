@@ -3,6 +3,7 @@
 
 #include <compare>
 #include <memory>
+#include "last_include.hpp"
 
 TEST_CASE("expected - basic value/error state", "[error][expected]")
 {

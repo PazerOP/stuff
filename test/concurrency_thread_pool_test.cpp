@@ -8,6 +8,7 @@
 #include <chrono>
 #include <thread>
 #include <vector>
+#include "last_include.hpp"
 
 using namespace std::chrono_literals;
 
@@ -34,15 +35,16 @@ TEST_CASE("thread_pool - add_task runs the callable and returns its result")
 		total += t.get();
 	}
 
-	REQUIRE(sum == 496);   // 0 + 1 + ... + 31
+	REQUIRE(sum == 496);
 	REQUIRE(total == 992);
 }
 
 TEST_CASE("thread_pool - short delays on an idle pool complete promptly")
 {
-	// regression: a newly added delay task never woke the parked pool thread, so
-	// a 50ms co_delay_for() on an idle pool completed only when the pool thread's
-	// current 1s wait window expired - up to a full second late, every time.
+	// regression: a newly added delay task never woke the parked pool thread.
+	// Consider a 50ms co_delay_for() on an idle pool. That co_delay_for(
+	// completed only when the pool thread's current 1s wait window expired - up
+	// to a full second late, every time.
 	mh::thread_pool tp(1);
 
 	std::chrono::milliseconds totalLatency{};
@@ -62,8 +64,7 @@ TEST_CASE("thread_pool - short delays on an idle pool complete promptly")
 		totalLatency += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	}
 
-	// Three 50ms delays: ~150ms of real delay, so 2s is extremely generous slack
-	// for slow CI machines. Before the fix each delay cost ~1s (3s+ total).
+	// Before the fix each delay cost ~1s (3s+ total).
 	REQUIRE(totalLatency < 2000ms);
 }
 
@@ -72,7 +73,7 @@ TEST_CASE("thread_pool - repeated construction and shutdown with work in flight"
 	// regression: the shutdown flag was a plain bool written by the destructor
 	// and read concurrently by every pool thread (a data race). The assertions
 	// here check the functional outcome (all work completes, shutdown does not
-	// hang or crash); the race itself is caught by running this test under
+	// hang or crash). The race itself is caught by running this test under
 	// ThreadSanitizer, which is done out-of-band / in sanitizer CI runs.
 	constexpr int POOLS = 8;
 	constexpr int TASKS = 16;

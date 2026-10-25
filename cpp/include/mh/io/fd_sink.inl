@@ -21,6 +21,15 @@ namespace mh::io
         : fd_(take_ownership ? unique_native_handle(fd) : unique_native_handle(dup(fd))),
           is_open_(static_cast<bool>(fd_)) // dup() may fail: reflect the handle we actually hold
     {
+        // Prevent multiple instantiations of standard streams
+        static bool stdin_created = false;
+
+        if (fd == STDIN_FILENO) {
+            if (stdin_created) {
+                throw std::runtime_error("Attempt to create multiple fd_sink instances for STDIN_FILENO");
+            }
+            stdin_created = true;
+        }
     }
 
     MH_COMPILE_LIBRARY_INLINE fd_sink::~fd_sink() = default;
@@ -37,6 +46,7 @@ namespace mh::io
         {
             bytes_written = ::write(fd_.value(), buffer, size);
         } while (bytes_written < 0 && errno == EINTR);
+
 
         if (bytes_written < 0)
             throw std::system_error(errno, std::generic_category(), "fd_sink::write_async");
@@ -74,4 +84,14 @@ namespace mh::io
         return std::make_shared<fd_sink>(fd, true);
     }
 #endif
+
+    MH_COMPILE_LIBRARY_INLINE sink_ptr sink::stdin_sink()
+    {
+#ifdef __unix__
+        static auto instance = std::make_shared<fd_sink>(STDIN_FILENO, false);
+        return instance;
+#else
+        throw mh::not_implemented_error();
+#endif
+    }
 }

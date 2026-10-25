@@ -6,17 +6,16 @@
 #include <ctime>
 #include <optional>
 #include <string>
+#include "last_include.hpp"
 
 namespace
 {
-	// 2000-01-02 03:04:05 UTC
 	constexpr std::time_t KNOWN_EPOCH = 946782245;
-	// 2000-07-01 12:00:00 UTC (northern-hemisphere DST in most zones that use it)
 	constexpr std::time_t KNOWN_EPOCH_SUMMER = 962452800;
 
-	// Forces a specific (non-UTC) time zone for the duration of a test so that
+	// Forces a specific (non-UTC) time. Zone for the duration of a test so that
 	// UTC conversions which accidentally use local time produce a visibly wrong
-	// result, and local-time conversions get exercised against DST rules,
+	// result. Local-time conversions get exercised against DST rules,
 	// independent of the machine's real configuration.
 	class scoped_timezone
 	{
@@ -60,7 +59,7 @@ TEST_CASE("chrono_helpers - to_tm utc yields calendar fields independent of the 
 	const scoped_timezone tz("America/New_York");
 
 	const std::tm tm = mh::chrono::to_tm(KNOWN_EPOCH, mh::chrono::time_zone::utc);
-	CHECK(tm.tm_year == 100); // years since 1900
+	CHECK(tm.tm_year == 100);
 	CHECK(tm.tm_mon == 0);    // january
 	CHECK(tm.tm_mday == 2);
 	CHECK(tm.tm_hour == 3);

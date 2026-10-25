@@ -1,10 +1,12 @@
 #include "mh/data/bit_float.hpp"
 #include <catch2/catch_all.hpp>
+#include "last_include.hpp"
 
 #include <bit>
 #include <cmath>
 #include <cstdint>
 #include <sstream>
+#include "last_include.hpp"
 
 using half_float = mh::half_float;
 using native_float = mh::native_float;
@@ -188,9 +190,8 @@ TEST_CASE("bit_float - roundtrip inf/nan")
 
 TEST_CASE("bit_float - narrowing exponent underflow flushes to zero", "[bit_float]")
 {
-	// Values below half's normal/denormal range must encode as +-0. They must
-	// NEVER wrap around to an in-range or all-ones (infinity/NaN) exponent.
-	// 2e-5f in particular used to come back as +infinity.
+	// They must NEVER wrap around to an in-range or all-ones (infinity/NaN)
+	// exponent. 2e-5f in particular used to come back as +infinity.
 	for (const float value : { 2e-5f, 1e-8f, 1e-10f, 1e-20f, 1e-30f,
 		5.9604645e-8f /* == half's smallest denormal; flush-to-zero semantics */ })
 	{
@@ -199,15 +200,12 @@ TEST_CASE("bit_float - narrowing exponent underflow flushes to zero", "[bit_floa
 		REQUIRE(uint16_t(half_float::native_to_bits(-value)) == 0x8000); // sign preserved
 	}
 
-	// float denormals are far below half's entire range: also +-0
 	REQUIRE(uint16_t(half_float::native_to_bits(1e-40f)) == 0x0000);
 	REQUIRE(uint16_t(half_float::native_to_bits(-1e-40f)) == 0x8000);
 }
 
 TEST_CASE("bit_float - half denormals decode to their actual values", "[bit_float]")
 {
-	// A half denormal encodes mantissa * 2^-24; the float result is a normal
-	// float and must be produced exactly (not a raw-shifted float denormal).
 	REQUIRE(half_float::bits_to_native(half_float::bits_t(0x0001)) == std::ldexp(1.0f, -24)); // 5.9604645e-8
 	REQUIRE(half_float::bits_to_native(half_float::bits_t(0x03FF)) == std::ldexp(1023.0f, -24)); // largest denormal
 	REQUIRE(half_float::bits_to_native(half_float::bits_t(0x0155)) == std::ldexp(float(0x155), -24));
@@ -217,7 +215,7 @@ TEST_CASE("bit_float - half denormals decode to their actual values", "[bit_floa
 
 namespace
 {
-	// Reference IEEE 754 binary16 -> float decode
+	// Reference a later IEEE binary16 -> float decode
 	float reference_half_decode(uint16_t h)
 	{
 		const uint32_t sign = (h >> 15) & 1;
@@ -238,10 +236,7 @@ namespace
 
 TEST_CASE("bit_float - exhaustive half->float->half sweep", "[bit_float]")
 {
-	// All 65536 half patterns: bits_to_native must match the reference decode
-	// bit-for-bit (NaN compares by NaN-ness), and every value that is exactly
-	// representable in half (normals, zeros, infinities) must round-trip back
-	// to the identical bit pattern. Runs in milliseconds.
+	// Runs in milliseconds.
 	int decode_mismatches = 0;
 	int roundtrip_mismatches = 0;
 	uint32_t first_decode_mismatch = ~0u;
@@ -263,7 +258,7 @@ TEST_CASE("bit_float - exhaustive half->float->half sweep", "[bit_float]")
 		}
 
 		const uint32_t exponent = (pattern >> 10) & 0x1F;
-		if (exponent != 31 && (exponent != 0 || (pattern & 0x3FF) == 0)) // normals and +-0
+		if (exponent != 31 && (exponent != 0 || (pattern & 0x3FF) == 0))
 		{
 			const auto reencoded = uint16_t(half_float::native_to_bits(decoded));
 			if (reencoded != pattern)
@@ -281,9 +276,6 @@ TEST_CASE("bit_float - exhaustive half->float->half sweep", "[bit_float]")
 
 TEST_CASE("bit_float - mixed float/double-sized mantissa and exponent widths", "[bit_float]")
 {
-	// Formats whose mantissa fits float's but whose exponent does not (and vice
-	// versa) must go through a native-layout intermediate that matches an actual
-	// native type; conversions through a 23+11-bit hybrid silently produce garbage.
 	{
 		using wide_exponent = mh::bit_float<10, 11, true>;
 		static_assert(std::is_same_v<wide_exponent::native_t, double>);
@@ -302,7 +294,7 @@ TEST_CASE("bit_float - mixed float/double-sized mantissa and exponent widths", "
 
 TEST_CASE("bit_float - mantissa_t supports every width up to 52", "[bit_float]")
 {
-	// Width 32 needs a mask computed without shifting a 32-bit type by 32.
+	// A later width needs a mask computed without shifting a 32-bit type by a set amount.
 	STATIC_REQUIRE(mh::mantissa_t<32>::MASK == 0xFFFFFFFFu);
 	STATIC_REQUIRE(std::is_same_v<mh::mantissa_t<32>::value_t, uint32_t>);
 	STATIC_REQUIRE(mh::mantissa_t<32>(mh::mantissa_t<32>::MASK).value == 0xFFFFFFFFu);
@@ -316,12 +308,12 @@ TEST_CASE("bit_float - mantissa_t supports every width up to 52", "[bit_float]")
 
 TEST_CASE("bit_float - bits_t stream insertion", "[bit_float]")
 {
-	// bits_t values must be printable (as their decoded native value); the
+	// bits_t values must be printable (as their decoded native value). The
 	// operator has to be discoverable via ADL since the enclosing bit_float's
 	// template arguments are not deducible from the enum type alone.
 	{
 		std::ostringstream ss;
-		ss << half_float::bits_t(0x3C00); // 1.0 in binary16
+		ss << half_float::bits_t(0x3C00);
 		REQUIRE(ss.str() == "1");
 	}
 

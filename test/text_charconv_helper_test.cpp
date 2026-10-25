@@ -1,11 +1,16 @@
 #include "mh/text/charconv_helper.hpp"
+#include "mh/text/string_insertion.hpp"
+#include "last_include.hpp"
 #include <catch2/catch_all.hpp>
+
+#if __cpp_lib_to_chars >= 201611
 
 #if __cpp_lib_to_chars >= 201611
 
 #include <optional>
 #include <string>
 #include <string_view>
+#include "last_include.hpp"
 
 TEST_CASE("from_chars - integers", "[text][charconv_helper]")
 {
