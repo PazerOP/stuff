@@ -73,5 +73,13 @@ namespace mh::io
 
         return std::make_shared<fd_sink>(fd, true);
     }
+
+    MH_COMPILE_LIBRARY_INLINE sink_ptr sink::stdin_sink()
+    {
+        // Duplicate the descriptor rather than taking ownership: closing the
+        // shared sink must not close this process's stdin.
+        static auto instance = std::make_shared<fd_sink>(STDIN_FILENO, false);
+        return instance;
+    }
 #endif
 }

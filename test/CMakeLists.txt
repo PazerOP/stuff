@@ -8,10 +8,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
 endif()
 
 # Build Catch2 with the same C++ standard as the tests that link it. Catch2 only
-# requires cxx_std_14 (a minimum), so on compilers whose default is pre-C++17
+# requires cxx_std_14 (a minimum). So on compilers whose default is pre-C++17
 # (clang < 16) libCatch2.a would otherwise lack symbols that its headers declare
-# for C++17+ consumers (e.g. Catch::StringMaker<std::string_view>::convert),
-# breaking the link of any C++20 test that stringifies a string_view.
+# for C++17+ consumers (e.g. Catch::StringMaker<std::string_view>::convert).
+# Those compilers are breaking the link of any C++20 test that stringifies a
+# string_view.
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -31,7 +32,7 @@ include(Catch)
 
 # Coverage instrumentation. GCC only: gating this on find_library(gcov) silently
 # disabled coverage everywhere (libgcov.a lives in the compiler-private directory
-# that find_library never searches), and the driver links libgcov itself when
+# that find_library never searches). The driver links libgcov itself when
 # --coverage is passed at link time. Clang is excluded: its gcov data needs the
 # matching llvm-cov, and CI does not install clang's profile runtime.
 if (CMAKE_CXX_COMPILER_ID MATCHES GNU)
@@ -95,14 +96,14 @@ mh_test(text_stringops_test)
 mh_test(types_test)
 mh_test(variant_test)
 
-# text_format_test gets a second, test-case-free translation unit: formatting a
+# text_format_test gets a second, test-case-free translation unit. Formatting a
 # source_location from more than one TU must compile AND link in both
 # header-only and library builds (was an undefined-reference regression).
 mh_test(text_format_test)
 target_sources(text_format_test PRIVATE text_format_link_tu.cpp)
 
-# Multi-TU link test. Deliberately does NOT link mh::stuff: it must build with
-# only the include directory, so that the build system's injected defines
+# Multi-TU link test. Deliberately does NOT link mh::stuff. It must build with
+# only the include directory. So that the build system's injected defines
 # (e.g. MH_STUFF_API=) and compiled-library mode cannot mask header-only-mode
 # bugs (missing MH_COMPILE_LIBRARY_INLINE markers -> multiple-definition link
 # errors, per-TU copies of program-wide entities, headers that rely on
@@ -148,6 +149,10 @@ foreach (F IN LISTS MH_HPP_FILES)
 		"${MH_CPP_INCLUDE_ROOT}/${F}"
 		"${GENERATED_FILE}"
 	)
+
+	# The generated source includes "last_include.hpp" from this directory, which
+	# is not on the include path the mh::stuff target exports.
+	target_include_directories(test_compile_file_${SAFE_FILENAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 	target_link_libraries(test_compile_file_${SAFE_FILENAME} PUBLIC mh::stuff)
 endforeach()

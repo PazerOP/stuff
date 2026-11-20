@@ -263,7 +263,7 @@ namespace mh
 				result = valueOffset * wholeMultiplier;
 			}
 
-			if constexpr (den != 1) // If denominator is not 1, then we need rounding logic
+			if constexpr (den != 1)
 			{
 				// Calculate the fractional part
 				constexpr TCommon fracMultiplier = (num % den);
@@ -315,7 +315,6 @@ namespace mh
 				}
 			}
 
-			// Shift range from [0, (dest_max - dest_min)] to [dest_min, dest_max]
 			result += dest_min;
 
 			return result;
