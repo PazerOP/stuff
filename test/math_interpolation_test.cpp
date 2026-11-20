@@ -1,6 +1,8 @@
 #include "mh/math/interpolation.hpp"
 #include <catch2/catch_all.hpp>
+#include <cmath>
 #include <iomanip>
+#include <limits>
 
 
 TEST_CASE("lerp", "[math][interpolation]")
@@ -118,9 +120,11 @@ TEST_CASE("specific failing case analysis", "[math][interpolation]")
 	
 	CAPTURE(lerp_clamped_result, lerp_slow_clamped_result);
 	
-	// The clamped versions no longer round, they preserve floating point precision
-	// Both should give approximately the same result (small floating point differences expected)
-	REQUIRE(lerp_clamped_result == Catch::Approx(lerp_slow_clamped_result).epsilon(1e-6));
+	// The clamped versions no longer round, they preserve floating point precision.
+	// Hold both to that error budget instead of a result-relative tolerance nothing
+	// can meet.
+	const auto slow_error_budget = 4 * std::numeric_limits<float>::epsilon() * std::abs(float(max_val));
+	REQUIRE(lerp_clamped_result == Catch::Approx(lerp_slow_clamped_result).margin(slow_error_budget));
 
 }
 
@@ -143,9 +147,15 @@ TEST_CASE("lerp_slow", "[math][interpolation]")
 		CAPTURE(t, min, max);
 
 		if (min != max) {  // Avoid division by zero case
+			// lerp and lerp_slow are algebraically equal but evaluate different
+			// formulas. A result-relative tolerance cannot hold there. Hold both
+			// to the cancellation error of the larger operands, which is still
+			// orders of magnitude below any wrong-formula or wrong-clamp error.
+			const auto slow_error_budget = 4 * std::numeric_limits<float>::epsilon() * std::abs(float(max));
+
 			REQUIRE(mh::lerp(t, min, max) ==
 				Catch::Approx(mh::lerp_slow(t, min, max)).epsilon(0.0005));
-			REQUIRE(mh::lerp_clamped(t, min, max) == Catch::Approx(mh::lerp_slow_clamped(t, min, max)).epsilon(1e-6));
+			REQUIRE(mh::lerp_clamped(t, min, max) == Catch::Approx(mh::lerp_slow_clamped(t, min, max)).margin(slow_error_budget));
 		}
 
 	}
