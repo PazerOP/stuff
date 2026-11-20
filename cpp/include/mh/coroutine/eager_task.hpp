@@ -1,36 +1,29 @@
 #pragma once
 
-#include <atomic>
-#include <mutex>
+#include "coroutine_include.hpp"
 
-#if __has_include(<coroutine>)
-#include <coroutine>
-namespace mh::detail::eager_task_hpp
-{
-	namespace stdcoro = std;
-}
-#elif __has_include(<experimental/coroutine>)
-#include <experimental/coroutine>
-namespace mh::detail::eager_task_hpp
-{
-	namespace stdcoro = std::experimental;
-}
-#endif
+#ifdef MH_COROUTINES_SUPPORTED
+
+#include <cassert>
+#include <condition_variable>
+#include <mutex>
+#include <optional>
+#include <type_traits>
+#include <utility>
 
 namespace mh
 {
-	template<typename T> class eager_task;
+	template<typename T = void> class eager_task;
 
 	namespace detail::eager_task_hpp
 	{
-		static constexpr bool AWAIT_READY_RESUME = true;
-		static constexpr bool AWAIT_READY_DEFER = false;
+		// await_ready() results: either resume here, or defer to the task itself.
+		inline constexpr bool AWAIT_READY_RESUME = true;
+		inline constexpr bool AWAIT_READY_DEFER = false;
 
-		// Cancel the suspension. On this thread, immediately resume the coroutine we were about to suspend.
-		static constexpr bool AWAIT_SUSPEND_RESUME = false;
-
-		// Put ourselves to sleep for now. Someone else will wake us back up later.
-		static constexpr bool AWAIT_SUSPEND_DEFER = true;
+		// await_suspend() results: suspend the awaiting coroutine, or keep running it.
+		inline constexpr bool AWAIT_SUSPEND_DEFER = true;
+		inline constexpr bool AWAIT_SUSPEND_RESUME = false;
 
 		template<typename T> using remove_rvalue_reference_t = std::conditional_t<std::is_rvalue_reference_v<T>, std::remove_reference_t<T>, T>;
 
@@ -42,62 +35,65 @@ namespace mh
 		template<typename T>
 		struct promise_type_base
 		{
-			auto initial_suspend() const
-			{
-				return detail::eager_task_hpp::stdcoro::suspend_never{};
-			}
+			// Eager: the coroutine body runs before the caller receives the task.
+			auto initial_suspend() const noexcept { return coro::suspend_never{}; }
 
 			struct final_awaitable
 			{
-				bool await_ready() const
-				{
-					//__debugbreak();
-					return false;
-				}
-				void await_resume()
-				{
-					__debugbreak();
-				}
+				bool await_ready() const noexcept { return false; }
 
 				template<typename TPromise>
-				void await_suspend(
-					stdcoro::coroutine_handle<TPromise> coroutine)
+				void await_suspend(coro::coroutine_handle<TPromise> coroutine) noexcept
 				{
 					auto& promise = coroutine.promise();
-					std::lock_guard lock(promise.m_ContinuationMutex);
-					//return promise.m_Continuation;
-					if (promise.m_Continuation)
-						promise.m_Continuation.resume();
+
+					coro::coroutine_handle<> continuation;
+					{
+						std::lock_guard lock(promise.m_ContinuationMutex);
+						promise.m_Finished = true;
+						continuation = std::exchange(promise.m_Continuation, nullptr);
+					}
+
+					promise.m_FinishedCV.notify_all();
+
+					// Wake the awaiting coroutine outside the lock: it re-enters this promise.
+					if (continuation)
+						continuation.resume();
 				}
+
+				void await_resume() const noexcept {}
 			};
 
-			auto final_suspend() const
-			{
-				return final_awaitable{};
+			auto final_suspend() const noexcept { return final_awaitable{}; }
 
-				//__debugbreak();
-				//assert(m_NeedsResume);
-				//m_NeedsResume = false;
-				//throw "Not implemented";
-				//return detail::eager_task_hpp::stdcoro::suspend_always{};
-			}
-
-			//bool needs_resume() const { return m_NeedsResume; }
-
-			bool try_set_continuation(stdcoro::coroutine_handle<> continuation)
+			// False when the coroutine already finished: the caller must not suspend then.
+			bool try_set_continuation(coro::coroutine_handle<> continuation)
 			{
 				std::lock_guard lock(m_ContinuationMutex);
-				if (m_ContinuationChecked)
+				if (m_Finished)
 					return false;
 
 				m_Continuation = continuation;
 				return true;
 			}
 
+			bool is_finished() const
+			{
+				std::lock_guard lock(m_ContinuationMutex);
+				return m_Finished;
+			}
+
+			void wait_until_finished()
+			{
+				std::unique_lock lock(m_ContinuationMutex);
+				m_FinishedCV.wait(lock, [this] { return m_Finished; });
+			}
+
 		private:
-			std::mutex m_ContinuationMutex;
-			bool m_ContinuationChecked = false;
-			stdcoro::coroutine_handle<> m_Continuation;
+			mutable std::mutex m_ContinuationMutex;
+			std::condition_variable m_FinishedCV;
+			bool m_Finished = false;
+			coro::coroutine_handle<> m_Continuation;
 		};
 
 		template<typename T>
@@ -116,7 +112,7 @@ namespace mh
 
 			eager_task<T> get_return_object()
 			{
-				return stdcoro::coroutine_handle<promise_type>::from_promise(*this);
+				return coro::coroutine_handle<promise_type>::from_promise(*this);
 			}
 
 			bool is_ready() const { return m_Result.has_value(); }
@@ -129,16 +125,12 @@ namespace mh
 		template<>
 		struct promise_type<void> : promise_type_base<void>
 		{
-			void return_void()
-			{
-				m_IsReady = true;
-				//__debugbreak();
-			}
+			void return_void() { m_IsReady = true; }
 
 			eager_task<void> get_return_object();
 
 			bool is_ready() const { return m_IsReady; }
-			void value() const {}
+			void value() const { assert(m_IsReady); }
 
 		private:
 			bool m_IsReady = false;
@@ -151,77 +143,37 @@ namespace mh
 	public:
 		using promise_type = detail::eager_task_hpp::promise_type<T>;
 
-		eager_task(detail::eager_task_hpp::stdcoro::coroutine_handle<promise_type> handle) :
-			m_Handle(handle)
+		eager_task(detail::coro::coroutine_handle<promise_type> handle) : m_Handle(handle) {}
+
+		bool await_ready() const
 		{
+			using namespace detail::eager_task_hpp;
+			return m_Handle.promise().is_finished() ? AWAIT_READY_RESUME : AWAIT_READY_DEFER;
+		}
+
+		bool await_suspend(detail::coro::coroutine_handle<> handle)
+		{
+			using namespace detail::eager_task_hpp;
+			// Park this coroutine until the task finishes, unless it already has.
+			return m_Handle.promise().try_set_continuation(handle) ? AWAIT_SUSPEND_DEFER : AWAIT_SUSPEND_RESUME;
 		}
 
 		T await_resume()
 		{
-			bool expected = false;
-			bool desired = true;
-			assert(m_Handle.done());
-			//if (m_Handle.promise().m_IsResumed.compare_exchange_strong(expected, desired))
-			//{
-			//	assert(!m_Handle.done());
-			//	m_Handle.resume();
-			//}
-			//else
-			{
-				//assert(!m_Handle.promise().needs_resume());
-				while (!m_Handle.done())
-					std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			}
-
+			m_Handle.promise().wait_until_finished();
+			assert(m_Handle.promise().is_ready());
 			assert(m_Handle.done());
 
 			return m_Handle.promise().value();
-
-			//__debugbreak();
-		}
-
-		// What should we do if await_ready() returns false? We need to define how we
-		// "go to sleep" and ensure that someone else will wake us up again later.
-#if 0
-		detail::eager_task_hpp::stdcoro::coroutine_handle<> await_suspend(
-			detail::eager_task_hpp::stdcoro::coroutine_handle<> handle)
-		{
-			// Already in progress, nothing to start
-			return stdcoro::noop_coroutine();
-			//return handle;
-
-			// TODO is this correct?
-			//return m_Handle;
-			//__debugbreak(); return false;
-		}
-#else
-		bool await_suspend(detail::eager_task_hpp::stdcoro::coroutine_handle<> handle)
-		{
-			// Don't need to resume, we're already in progress
-
-			using namespace detail::eager_task_hpp;
-			if (m_Handle.promise().try_set_continuation(handle))
-				return AWAIT_SUSPEND_DEFER; // This means we are suspending <handle>, NOT <m_Handle>
-
-			return AWAIT_SUSPEND_RESUME; // value is ready or something
-		}
-#endif
-		bool await_ready()
-		{
-			using namespace detail::eager_task_hpp;
-			if (!m_Handle.promise().is_ready())
-				return AWAIT_READY_DEFER;
-			else
-				return AWAIT_READY_RESUME;
 		}
 
 	private:
-		detail::eager_task_hpp::stdcoro::coroutine_handle<promise_type> m_Handle;
+		detail::coro::coroutine_handle<promise_type> m_Handle;
 	};
 
 	inline eager_task<void> detail::eager_task_hpp::promise_type<void>::get_return_object()
 	{
-		return stdcoro::coroutine_handle<promise_type>::from_promise(*this);
+		return detail::coro::coroutine_handle<promise_type>::from_promise(*this);
 	}
 
 	template<typename Task>
@@ -236,3 +188,5 @@ namespace mh
 		return std::move(task);
 	}
 }
+
+#endif
