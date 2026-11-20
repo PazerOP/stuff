@@ -19,7 +19,12 @@
 namespace mh
 {
 #if __cpp_lib_semaphore >= 201907
-	template<std::ptrdiff_t LeastMaxValue = std::numeric_limits<std::ptrdiff_t>::max()>
+	// The standard leaves counting_semaphore's default LeastMaxValue
+	// implementation-defined. libstdc++ picks INT_MAX (its futex counter is an
+	// int), so spelling PTRDIFF_MAX here would fail its static_assert and make
+	// mh::counting_semaphore<> unusable. Follow the standard library's own
+	// default so the alias matches std::counting_semaphore<>.
+	template<std::ptrdiff_t LeastMaxValue = std::counting_semaphore<>::max()>
 		using counting_semaphore = std::counting_semaphore<LeastMaxValue>;
 	using binary_semaphore = std::binary_semaphore;
 #else
