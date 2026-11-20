@@ -13,7 +13,7 @@
 
 namespace mh
 {
-	template<typename T = void> class eager_task;
+	template<typename T> class eager_task;
 
 	namespace detail::eager_task_hpp
 	{
