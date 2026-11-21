@@ -13,6 +13,7 @@
 #include <memory>
 #include <thread>
 #include <sys/types.h>
+#include <stdexcept>
 #include <sys/wait.h>
 #include <unistd.h>
 #include "last_include.hpp"
@@ -88,34 +89,41 @@ TEST_CASE("process - exit codes are reported", "[process]")
 	CHECK(t.get() == 1);
 }
 
-TEST_CASE("process - exec failure reports 127 without duplicating the parent", "[process]")
+TEST_CASE("process - a failed spawn is reported to the parent and leaves no child behind", "[process]")
 {
-	// regression: the child used to exit(1) after a failed exec, running atexit
-	// handlers and flushing stdio buffers duplicated from the parent. _exit(127)
-	// follows the shell convention and keeps the child side-effect free.
+	// posix_spawn reports a failed exec synchronously, so start() throws in the
+	// parent. No forked child ever runs a copy of the parent's code (which
+	// would unwind its stack and run its atexit handlers).
 	mh::dispatcher disp;
 	disp.register_for_current_thread();
 
 	mh::process p("/nonexistent-binary-mh-stuff-test", {});
-	REQUIRE(p.start()); // fork succeeds; exec fails inside the child
+	CHECK_THROWS_AS(p.start(), std::runtime_error);
+	CHECK_FALSE(p.is_running());
+
+	// Nothing was spawned, so there is no child to reap. wait4 does exactly what
+	// waitpid does here; waitpid itself is poisoned by last_include.hpp.
+	int status = 0;
+	errno = 0;
+	CHECK(wait4(-1, &status, WNOHANG, nullptr) == -1);
+	CHECK(errno == ECHILD);
 
 	auto t = p.wait_async();
-	REQUIRE(pump_until_ready(disp, t));
-	CHECK(t.get() == 127);
+	REQUIRE(t.is_ready());
+	CHECK(t.get() == -1);
 }
 
-TEST_CASE("process - unimplemented io redirection fails in the parent, pre-fork", "[process]")
+TEST_CASE("process - io redirection is configured in the parent, before the child exists", "[process]")
 {
-	// regression: this used to throw inside the FORKED CHILD. That regression is
-	// unwinding a copy of the parent's stack - a caller that catches would keep a
-	// duplicate of the entire application running.
+	// Redirection goes through posix_spawn file actions here, so a sink that
+	// cannot be redirected fails in the parent. No forked child is left to
+	// unwind a copy of the parent's stack.
 	auto sink = std::make_shared<mh::io::fd_sink>(STDOUT_FILENO, false);
+	sink->close();
 	mh::process p("/bin/cat", {}, nullptr, sink);
-	CHECK_THROWS_AS(p.start(), mh::not_implemented_error);
+	CHECK_THROWS_AS(p.start(), std::runtime_error);
 
-	// and no child process may be left behind. wait4 does exactly what waitpid
-	// does here; waitpid itself is poisoned by last_include.hpp.
-	int status;
+	int status = 0;
 	errno = 0;
 	const pid_t r = wait4(-1, &status, WNOHANG, nullptr);
 	CHECK(r == -1);
