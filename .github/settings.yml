@@ -69,7 +69,7 @@ branches:
         # Required. The list of status checks to require in order to merge into this branch.
         # all-checks-passed is the aggregate gate job in ccpp.yml: matrix jobs report
         # per-configuration names like "build-linux (true, g++-12, g++-12)" (a bare
-        # "build-linux" context is never reported), and build-windows does not exist.
+        # "build-linux" context is never reported). Build-windows does not exist.
         contexts:
           - all-checks-passed
 

@@ -14,11 +14,11 @@ namespace mh
 	/**
 	 * An upgradable shared mutex modeled on Boost.Thread's UpgradeLockable concept.
 	 *
-	 * Three ownership levels:
+	 * ownership levels:
 	 * - shared: any number of threads at once.
 	 * - upgrade: at most ONE thread, coexists with shared owners. Holding upgrade
 	 *   ownership reserves the exclusive right to later upgrade to exclusive
-	 *   ownership without releasing the lock (two shared owners that both tried to
+	 *   ownership without releasing the lock ( shared owners that both tried to
 	 *   upgrade in-place would deadlock waiting for each other to release).
 	 * - exclusive: one thread, excludes shared, upgrade, and exclusive.
 	 *
@@ -177,11 +177,11 @@ namespace mh
 
 	/**
 	 * Scoped upgrade in the style of boost::upgrade_to_unique_lock: the
-	 * constructor takes an owning upgrade_lock and converts it to exclusive
-	 * ownership via unlock_upgrade_and_lock(); the destructor downgrades via
-	 * unlock_and_lock_upgrade() and returns upgrade ownership to the referenced
-	 * upgrade_lock. While this object owns the exclusive lock, the source
-	 * upgrade_lock reports owns_lock() == false.
+	 * constructor takes an owning upgrade_lock. The constructor converts it to
+	 * exclusive ownership via unlock_upgrade_and_lock(). The destructor
+	 * downgrades via unlock_and_lock_upgrade() and returns upgrade ownership to
+	 * the referenced upgrade_lock. While this object owns the exclusive lock,
+	 * the source upgrade_lock reports owns_lock() == false.
 	 */
 	template<typename Mutex>
 	class upgrade_to_unique_lock

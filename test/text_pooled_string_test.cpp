@@ -2,6 +2,10 @@
 #include <catch2/catch_all.hpp>
 
 #include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <iomanip>
+#include <iterator>
 #include <map>
 #include <sstream>
 #include <string>

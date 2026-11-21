@@ -18,8 +18,7 @@ namespace
 	// implementation reliably exposes itself, short enough to keep the suite fast.
 	constexpr std::chrono::milliseconds SETTLE_TIME = 200ms;
 
-	// "must eventually happen" deadline. Generous so the suite stays reliable
-	// under ThreadSanitizer's 5-15x slowdown.
+	// "must eventually happen" deadline.
 	constexpr std::chrono::seconds WAIT_DEADLINE = 10s;
 
 	template<typename TFunc>
@@ -131,7 +130,8 @@ namespace
 
 	// try_lock_shared probe that never retains ownership. Fails only while
 	// exclusive is held or an upgrade transition is pending, so it doubles as a
-	// "transition pending" detector when exclusive is known not to be held.
+	// "transition pending" detector. This happens when exclusive is known not
+	// to be held.
 	bool probe_try_lock_shared(mh::upgrade_mutex& mutex)
 	{
 		if (mutex.try_lock_shared())
@@ -312,9 +312,9 @@ TEST_CASE("upgrade_mutex - try_lock matrix")
 
 TEST_CASE("upgrade_mutex - pending upgrade gates out new shared acquires")
 {
-	// THE core semantic: while unlock_upgrade_and_lock() waits for existing
-	// shared owners to drain, a NEW shared-lock attempt must not succeed until
-	// the upgrader has taken (and released) its exclusive hold.
+	// THE core semantic. A NEW shared-lock attempt must not succeed until the
+	// upgrader has taken (and released) its exclusive hold. This applies while
+	// unlock_upgrade_and_lock() waits for existing shared owners to drain.
 	mh::upgrade_mutex m;
 	event_log log;
 
@@ -412,7 +412,7 @@ TEST_CASE("upgrade_mutex - upgraders serialize their write sections")
 	// plain int -> unlock. Upgrade exclusivity + transition exclusivity make the
 	// read-modify-write sections mutually exclusive, so the final count is
 	// exact. A widened race window (yield between read and write) makes lost
-	// updates near-certain if two threads ever hold the write side at once.
+	// updates near-certain if threads ever hold the write side at once.
 	constexpr int THREADS = 4;
 	constexpr int ITERATIONS = 25;
 
@@ -682,7 +682,7 @@ TEST_CASE("upgrade_mutex - upgrade_to_unique_lock round trip")
 
 TEST_CASE("upgrade_mutex - stress")
 {
-	// Readers verify a multi-word invariant (two counters that must always
+	// Readers verify a multi-word invariant (counters that must always
 	// match); every mutation goes through exclusive ownership with a widened
 	// torn-state window in between. Any failure of exclusion shows up as a
 	// violation count (and as a data race under ThreadSanitizer).
