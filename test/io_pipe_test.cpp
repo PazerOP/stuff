@@ -287,166 +287,164 @@ TEST_CASE("pipe resource management", "[io][pipe]")
     }
 }
 
-TEST_CASE("pipe with child process communication", "[io][pipe]")
+// Each of these runs as its own test case, so each gets its own process. The
+// process manager's monitor coroutine and the thread's dispatcher registration
+// are per-process state. Keeping one scenario per process means a scenario can
+// never inherit them from the previous one.
+TEST_CASE("pipe to child process stdout", "[io][pipe][process]")
 {
-    SECTION("pipe to child process stdout")
-    {
-        run_async_test([]() -> mh::task<void> {
-            auto pipe = mh::io::pipe::create();
-            
-            // Create process that outputs to stdout
-            mh::process proc("echo", {"echo", "Hello from child process!"}, 
-                            nullptr, pipe->in, nullptr);
-            
-            REQUIRE(proc.start());
-            
-            // Wait for process to complete first
-            auto exit_code = co_await proc.wait_async();
-            REQUIRE(exit_code == 0);
-            
-            // Now read from the pipe (data should be buffered)
-            char buffer[1024] = {0};
-            REQUIRE(fd_ready(pipe->out->get_native_handle(), POLLIN));
-            auto bytes_read = co_await pipe->out->read_async(buffer, sizeof(buffer) - 1);
-            
-            REQUIRE(bytes_read > 0);
-            REQUIRE(std::string(buffer, bytes_read) == "Hello from child process!\n");
-        });
-    }
-    
-    SECTION("pipe to child process stdin")
-    {
-        run_async_test([]() -> mh::task<void> {
-            auto pipe = mh::io::pipe::create();
-            
-            // Create process that reads from stdin and prints to stdout
-            // Using echo since cat may buffer input
-            mh::process proc("/bin/bash", {"/bin/bash", "-c", "read line && echo \"Received: $line\""}, 
-                            pipe->out, nullptr, nullptr);
-            
-            REQUIRE(proc.start());
-            
-            // Write to child's stdin via pipe
-            const std::string test_message = "Input for child process!\n";
-            auto bytes_written = co_await pipe->in->write_async(test_message.data(), test_message.size());
-            REQUIRE(bytes_written == test_message.size());
-            
-            // Close write end to signal EOF
-            pipe->in->close();
-            
-            // Wait for process to complete
-            auto exit_code = co_await proc.wait_async();
-            REQUIRE(exit_code == 0);
-        });
-    }
-    
-    SECTION("bidirectional pipe communication with child")
-    {
-        run_async_test([]() -> mh::task<void> {
-            auto stdin_pipe = mh::io::pipe::create();
-            auto stdout_pipe = mh::io::pipe::create();
-            
-            // Use a simple echo command that reads one line and echoes it back
-            mh::process proc("/bin/bash", {"/bin/bash", "-c", "read line && echo \"$line\""}, 
-                            stdin_pipe->out, stdout_pipe->in, nullptr);
-            
-            REQUIRE(proc.start());
-            
-            // Close unused ends immediately after starting the process
-            stdin_pipe->out->close();
-            stdout_pipe->in->close();
-            
-            // Send data to child with newline for proper line reading
-            const std::string test_message = "Echo this message!\n";
-            auto bytes_written = co_await stdin_pipe->in->write_async(test_message.data(), test_message.size());
-            REQUIRE(bytes_written == test_message.size());
-            stdin_pipe->in->close(); // Signal EOF
-            
-            // Read response from child
-            char buffer[1024] = {0};
-            REQUIRE(fd_ready(stdout_pipe->out->get_native_handle(), POLLIN));
-            auto bytes_read = co_await stdout_pipe->out->read_async(buffer, sizeof(buffer) - 1);
-            
-            REQUIRE(bytes_read > 0);
-            std::string received(buffer, bytes_read);
-            // The bash script should echo back the line (without the input newline but with its own)
-            REQUIRE(received == "Echo this message!\n");
-            
-            // Wait for process to complete
-            auto exit_code = co_await proc.wait_async();
-            REQUIRE(exit_code == 0);
-        });
-    }
+    run_async_test([]() -> mh::task<void> {
+        auto pipe = mh::io::pipe::create();
+
+        // Create process that outputs to stdout
+        mh::process proc("echo", {"echo", "Hello from child process!"},
+                        nullptr, pipe->in, nullptr);
+
+        REQUIRE(proc.start());
+
+        // Wait for process to complete first
+        auto exit_code = co_await proc.wait_async();
+        REQUIRE(exit_code == 0);
+
+        // Now read from the pipe (data should be buffered)
+        char buffer[1024] = {0};
+        REQUIRE(fd_ready(pipe->out->get_native_handle(), POLLIN));
+        auto bytes_read = co_await pipe->out->read_async(buffer, sizeof(buffer) - 1);
+
+        REQUIRE(bytes_read > 0);
+        REQUIRE(std::string(buffer, bytes_read) == "Hello from child process!\n");
+    });
 }
 
-TEST_CASE("pipe redirection scenarios", "[io][pipe]")
+TEST_CASE("pipe to child process stdin", "[io][pipe][process]")
 {
-    SECTION("stderr redirection through pipe")
-    {
-        run_async_test([]() -> mh::task<void> {
-            auto pipe = mh::io::pipe::create();
-            
-            // Use a command that writes to stderr - bash -c allows us to redirect
-            mh::process proc("/bin/bash", {"/bin/bash", "-c", "echo 'Error message to stderr!' >&2"}, 
-                            nullptr, nullptr, pipe->in);
-            
-            REQUIRE(proc.start());
-            
-            // Close write end in parent
-            pipe->in->close();
-            
-            // Read from child's stderr
-            char buffer[1024] = {0};
-            REQUIRE(fd_ready(pipe->out->get_native_handle(), POLLIN));
-            auto bytes_read = co_await pipe->out->read_async(buffer, sizeof(buffer) - 1);
-            
-            REQUIRE(bytes_read > 0);
-            REQUIRE(std::string(buffer, bytes_read) == "Error message to stderr!\n");
-            
-            auto exit_code = co_await proc.wait_async();
-            REQUIRE(exit_code == 0);
-        });
-    }
-    
-    SECTION("multiple pipe chain simulation")
-    {
-        run_async_test([]() -> mh::task<void> {
-            // Simulate: echo "hello" | wc -c
-            auto pipe1 = mh::io::pipe::create(); // echo -> wc
-            
-            // First process: echo "hello"
-            mh::process echo_proc("echo", {"echo", "hello"}, 
-                                 nullptr, pipe1->in, nullptr);
-            
-            REQUIRE(echo_proc.start());
-            pipe1->in->close(); // Close write end in parent
-            
-            // Second process: wc -c (count characters)
-            auto pipe2 = mh::io::pipe::create();
-            mh::process wc_proc("wc", {"wc", "-c"}, 
-                               pipe1->out, pipe2->in, nullptr);
-            
-            REQUIRE(wc_proc.start());
-            pipe1->out->close(); // Close read end after connecting to wc
-            pipe2->in->close();  // Close write end in parent
-            
-            // Read result from wc
-            char buffer[1024] = {0};
-            REQUIRE(fd_ready(pipe2->out->get_native_handle(), POLLIN));
-            auto bytes_read = co_await pipe2->out->read_async(buffer, sizeof(buffer) - 1);
-            
-            REQUIRE(bytes_read > 0);
-            // wc -c outputs "6\n" for "hello\n" (several characters including newline)
-            std::string result(buffer, bytes_read);
-            REQUIRE(result.find("6") != std::string::npos);
-            
-            // Wait for both processes
-            auto echo_exit = co_await echo_proc.wait_async();
-            auto wc_exit = co_await wc_proc.wait_async();
-            REQUIRE(echo_exit == 0);
-            REQUIRE(wc_exit == 0);
-        });
-    }
+    run_async_test([]() -> mh::task<void> {
+        auto pipe = mh::io::pipe::create();
+
+        // Create process that reads from stdin and prints to stdout
+        // Using echo since cat may buffer input
+        mh::process proc("/bin/bash", {"/bin/bash", "-c", "read line && echo \"Received: $line\""},
+                        pipe->out, nullptr, nullptr);
+
+        REQUIRE(proc.start());
+
+        // Write to child's stdin via pipe
+        const std::string test_message = "Input for child process!\n";
+        auto bytes_written = co_await pipe->in->write_async(test_message.data(), test_message.size());
+        REQUIRE(bytes_written == test_message.size());
+
+        // Close write end to signal EOF
+        pipe->in->close();
+
+        // Wait for process to complete
+        auto exit_code = co_await proc.wait_async();
+        REQUIRE(exit_code == 0);
+    });
+}
+
+TEST_CASE("bidirectional pipe communication with child", "[io][pipe][process]")
+{
+    run_async_test([]() -> mh::task<void> {
+        auto stdin_pipe = mh::io::pipe::create();
+        auto stdout_pipe = mh::io::pipe::create();
+
+        // Use a simple echo command that reads one line and echoes it back
+        mh::process proc("/bin/bash", {"/bin/bash", "-c", "read line && echo \"$line\""},
+                        stdin_pipe->out, stdout_pipe->in, nullptr);
+
+        REQUIRE(proc.start());
+
+        // Close unused ends immediately after starting the process
+        stdin_pipe->out->close();
+        stdout_pipe->in->close();
+
+        // Send data to child with newline for proper line reading
+        const std::string test_message = "Echo this message!\n";
+        auto bytes_written = co_await stdin_pipe->in->write_async(test_message.data(), test_message.size());
+        REQUIRE(bytes_written == test_message.size());
+        stdin_pipe->in->close(); // Signal EOF
+
+        // Read response from child
+        char buffer[1024] = {0};
+        REQUIRE(fd_ready(stdout_pipe->out->get_native_handle(), POLLIN));
+        auto bytes_read = co_await stdout_pipe->out->read_async(buffer, sizeof(buffer) - 1);
+
+        REQUIRE(bytes_read > 0);
+        std::string received(buffer, bytes_read);
+        // The bash script should echo back the line (without the input newline but with its own)
+        REQUIRE(received == "Echo this message!\n");
+
+        // Wait for process to complete
+        auto exit_code = co_await proc.wait_async();
+        REQUIRE(exit_code == 0);
+    });
+}
+
+TEST_CASE("pipe stderr redirection through pipe", "[io][pipe][process]")
+{
+    run_async_test([]() -> mh::task<void> {
+        auto pipe = mh::io::pipe::create();
+
+        // Use a command that writes to stderr - bash -c allows us to redirect
+        mh::process proc("/bin/bash", {"/bin/bash", "-c", "echo 'Error message to stderr!' >&2"},
+                        nullptr, nullptr, pipe->in);
+
+        REQUIRE(proc.start());
+
+        // Close write end in parent
+        pipe->in->close();
+
+        // Read from child's stderr
+        char buffer[1024] = {0};
+        REQUIRE(fd_ready(pipe->out->get_native_handle(), POLLIN));
+        auto bytes_read = co_await pipe->out->read_async(buffer, sizeof(buffer) - 1);
+
+        REQUIRE(bytes_read > 0);
+        REQUIRE(std::string(buffer, bytes_read) == "Error message to stderr!\n");
+
+        auto exit_code = co_await proc.wait_async();
+        REQUIRE(exit_code == 0);
+    });
+}
+
+TEST_CASE("pipe chain between two child processes", "[io][pipe][process]")
+{
+    run_async_test([]() -> mh::task<void> {
+        // Simulate: echo "hello" | wc -c
+        auto pipe1 = mh::io::pipe::create(); // echo -> wc
+
+        // First process: echo "hello"
+        mh::process echo_proc("echo", {"echo", "hello"},
+                             nullptr, pipe1->in, nullptr);
+
+        REQUIRE(echo_proc.start());
+        pipe1->in->close(); // Close write end in parent
+
+        // Second process: wc -c (count characters)
+        auto pipe2 = mh::io::pipe::create();
+        mh::process wc_proc("wc", {"wc", "-c"},
+                           pipe1->out, pipe2->in, nullptr);
+
+        REQUIRE(wc_proc.start());
+        pipe1->out->close(); // Close read end after connecting to wc
+        pipe2->in->close();  // Close write end in parent
+
+        // Read result from wc
+        char buffer[1024] = {0};
+        REQUIRE(fd_ready(pipe2->out->get_native_handle(), POLLIN));
+        auto bytes_read = co_await pipe2->out->read_async(buffer, sizeof(buffer) - 1);
+
+        REQUIRE(bytes_read > 0);
+        // wc -c outputs "6\n" for "hello\n" (several characters including newline)
+        std::string result(buffer, bytes_read);
+        REQUIRE(result.find("6") != std::string::npos);
+
+        // Wait for both processes
+        auto echo_exit = co_await echo_proc.wait_async();
+        auto wc_exit = co_await wc_proc.wait_async();
+        REQUIRE(echo_exit == 0);
+        REQUIRE(wc_exit == 0);
+    });
 }
 
 TEST_CASE("concurrent pipe operations", "[io][pipe]")
