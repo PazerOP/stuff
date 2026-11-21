@@ -5,8 +5,8 @@
 
 namespace mh
 {
-	// For when you want to pass a pointer to a function as an optional output parameter,
-	// but simplifies the handling of logic inside that function so you don't have to care
+	// For when you want to pass a pointer to a function as an optional output parameter.
+	// But simplifies the handling of logic inside that function so you don't have to care
 	// if the pointer is null or not.
 	template<typename T>
 	class optional_ref final

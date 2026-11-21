@@ -114,9 +114,6 @@ namespace mh
 		const TFunc& func)
 	{
 #ifdef __GLIBC__
-		// glibc requires optind = 0 (not 1) to fully reinitialize getopt's internal
-		// scan state. A previous scan that encountered non-option arguments leaves
-		// permutation bookkeeping behind that corrupts a rescan started with optind = 1.
 		const detail::getopt_hpp::variable_pusher<int> optind_pusher(optind, 0);
 #else
 		const detail::getopt_hpp::variable_pusher<int> optind_pusher(optind, 1);

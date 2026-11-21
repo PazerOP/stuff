@@ -5,9 +5,9 @@
 
 TEST_CASE("heap - initializer_list constructor establishes the heap invariant", "[containers][heap]")
 {
-	// The initializer_list constructor must produce a valid heap: front() is the
+	// The initializer_list constructor must produce a valid heap. Front() is the
 	// largest element and repeated pop() yields the values in descending order,
-	// exactly as if every element had been push()ed individually.
+	// exactly as. This holds if every element had been push()ed individually.
 	mh::heap<int> h({3, 1, 4, 1, 5, 9, 2, 6});
 	REQUIRE(h.size() == 8);
 	REQUIRE(h.front() == 9);
