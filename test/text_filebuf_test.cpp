@@ -93,6 +93,29 @@ TEST_CASE("filebuf overflow", "[text][filebuf]")
 	REQUIRE(std::strcmp(buf, "ABCDEFGHIJ") == 0);
 }
 
+TEST_CASE("filebuf reports write errors from the FILE", "[text][filebuf]")
+{
+	// /dev/full accepts opens but fails every write with ENOSPC
+	FILE* f = fopen("/dev/full", "w");
+	if (!f)
+		SKIP("/dev/full not available on this system");
+
+	// unbuffered, so each fputc/fwrite hits the failing device immediately
+	setvbuf(f, nullptr, _IONBF, 0);
+
+	mh::filebuf fb(f);
+
+	// single characters: overflow must report EOF instead of claiming success
+	CHECK(fb.sputc('x') == EOF);
+
+	// bulk writes: a short (zero) fwrite must propagate as a stream error
+	std::ostream os(&fb);
+	os << "hello";
+	CHECK(os.bad());
+
+	fclose(f);
+}
+
 TEST_CASE("filebuf with format", "[text][filebuf]")
 {
 	char buf[256] = {};

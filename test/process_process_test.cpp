@@ -134,14 +134,23 @@ TEST_CASE("process - terminate ends a long-running child", "[process]")
 	disp.register_for_current_thread();
 
 	mh::process p("/bin/sleep", {"30"});
+
+	// terminating a process that was never started has nothing to signal
+	CHECK_FALSE(p.terminate(false));
+	CHECK_FALSE(p.terminate(true));
+
 	REQUIRE(p.start());
 	REQUIRE(p.is_running());
+	CHECK_FALSE(p.start()); // start is one-shot
 
 	auto t = p.wait_async();
 	REQUIRE(p.terminate(true)); // SIGKILL
 	REQUIRE(pump_until_ready(disp, t));
 	CHECK(t.get() == -SIGKILL); // signaled exits report -signo
 	CHECK_FALSE(p.is_running());
+
+	// completed: terminate refuses too (the pid may already be reused)
+	CHECK_FALSE(p.terminate(true));
 }
 
 #endif // __unix__

@@ -4,6 +4,7 @@
 #define MH_COMPILE_LIBRARY_INLINE inline
 #endif
 
+#include <algorithm>
 #include <random>
 
 #undef min
@@ -30,7 +31,11 @@ namespace mh
 		if constexpr (std::is_floating_point_v<T>)
 		{
 			std::uniform_real_distribution<T> dist(min_inclusive, std::nextafter(max_inclusive, std::numeric_limits<T>::max()));
-			return dist(detail::random_hpp::s_Engine);
+			// uniform_real_distribution may produce its upper bound b due to
+			// floating-point rounding (LWG 2524), and b here is one ULP PAST
+			// max_inclusive; clamp so max_inclusive stays the true maximum
+			// (with min == max, ~50% of draws exceeded it).
+			return std::min(dist(detail::random_hpp::s_Engine), max_inclusive);
 		}
 		else if constexpr (std::is_same_v<T, int8_t>)
 		{
