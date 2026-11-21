@@ -82,10 +82,33 @@ TEST_CASE("case insensitive traits - wchar_t", "[text][case_insensitive_string]"
 	CHECK(wtraits::eq(L'\x3B1', L'\x3B1'));
 	CHECK_FALSE(wtraits::eq(L'\x3B1', L'A'));
 
+	// lt compares the uppercased characters
+	CHECK(wtraits::lt(L'a', L'B'));
+	CHECK_FALSE(wtraits::lt(L'b', L'A'));
+	CHECK_FALSE(wtraits::lt(L'a', L'A')); // equal after uppercasing
+
 	const auto wv = mh::case_insensitive_view(L"WORLD");
 	CHECK(wv.find(L'w') == 0);
 	CHECK(wv.find(L'D') == 4);
 	CHECK(wv.find(L'q') == wv.npos);
 
 	REQUIRE(mh::case_insensitive_view(L"hello world") == mh::case_insensitive_view(L"HELLO WORLD"));
+}
+
+TEST_CASE("case insensitive traits - construction from the base traits", "[text][case_insensitive_string]")
+{
+	using traits = mh::case_insensitive_char_traits<std::char_traits<char>>;
+	using wtraits = mh::case_insensitive_char_traits<std::char_traits<wchar_t>>;
+
+	const std::char_traits<char> narrowBase{};
+	const traits fromCopy(narrowBase);
+	const traits fromMove(std::char_traits<char>{});
+	CHECK(fromCopy.eq('x', 'X'));
+	CHECK(fromMove.eq('y', 'Y'));
+
+	const std::char_traits<wchar_t> wideBase{};
+	const wtraits wideFromCopy(wideBase);
+	const wtraits wideFromMove(std::char_traits<wchar_t>{});
+	CHECK(wideFromCopy.eq(L'x', L'X'));
+	CHECK(wideFromMove.eq(L'y', L'Y'));
 }

@@ -119,6 +119,17 @@ TEST_CASE("error_code formatter", "[text][format]")
 	CHECK_FALSE(mh::format("{}", cond).empty());
 }
 
+TEST_CASE("error_code formatter rejects invalid specs", "[text][format]")
+{
+	const std::error_code ec(ENOENT, std::generic_category());
+
+	// unknown presentation character
+	CHECK_THROWS_AS(mh::format("{:z}", ec), mh::format_error);
+
+	// unterminated format spec
+	CHECK_THROWS_AS(mh::format("{:m", ec), mh::format_error);
+}
+
 namespace
 {
 	static std::string short_file_name(const mh::source_location& loc)
