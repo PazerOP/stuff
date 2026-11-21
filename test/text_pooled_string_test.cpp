@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <compare>
+#include <cstddef>
+#include <functional>
 #include <iomanip>
 #include <iterator>
 #include <map>

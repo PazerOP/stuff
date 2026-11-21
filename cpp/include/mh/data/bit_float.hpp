@@ -281,7 +281,7 @@ namespace mh
 						if (sign)
 						{
 							// We are negative, and the new bits don't have a sign bit.
-							// Clamp to 0.
+							// Clamp to a set limit.
 							return new_bits_t{};
 						}
 					}
@@ -305,7 +305,7 @@ namespace mh
 								m = typename mantissa_t::value_t(m << 1);
 								shift++;
 							}
-							m = typename mantissa_t::value_t(m << 1); // drop the implicit leading 1
+							m = typename mantissa_t::value_t(m << 1);
 
 							const int actual = exponent_t::min().actual_value() - 1 - int(shift);
 							constexpr int new_offset = ((1 << new_bit_float::ExponentBits) / 2) - 1;
@@ -316,7 +316,6 @@ namespace mh
 								sign);
 						}
 					}
-					// +-0 stays 0; denormals narrower than the target range flush to +-0
 					return new_bit_float::components_to_bits({}, {}, sign);
 				}
 
@@ -324,7 +323,6 @@ namespace mh
 
 				if constexpr (new_bit_float::ExponentBits < ExponentBits)
 				{
-					// exponent underflow: flush to +-0 (no denormal generation)
 					if (new_exponent.value == 0)
 						return new_bit_float::components_to_bits({}, new_exponent, sign);
 				}
@@ -366,7 +364,7 @@ namespace mh
 		}
 
 		// Hidden friend so ADL can find it: MantissaBits/ExponentBits/SignBit are
-		// non-deducible from bits_t, so a namespace-scope operator template can
+		// non-deducible from bits_t. A namespace-scope operator template can
 		// never be selected for this enum.
 		template<typename CharT, typename Traits>
 		friend std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os, bits_t bits)
