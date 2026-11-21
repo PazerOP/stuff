@@ -5,7 +5,6 @@
 
 #include <string>
 #include <type_traits>
-#include "last_include.hpp"
 
 TEST_CASE("http client - API surface", "[http]")
 {

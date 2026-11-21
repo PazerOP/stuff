@@ -3,7 +3,9 @@
 #include <catch2/catch_all.hpp>
 
 #include <cstdint>
+#include <limits>
 #include <thread>
+#include <type_traits>
 #include "last_include.hpp"
 
 // get_random is seeded from std::random_device: only deterministic properties
