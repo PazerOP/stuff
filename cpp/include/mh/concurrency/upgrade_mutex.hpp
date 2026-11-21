@@ -11,23 +11,36 @@
 
 namespace mh
 {
-	/**An upgradable shared mutex modeled on Boost.Thread's UpgradeLockable concept.
-	 * Ownership levels: - shared: any number of threads at once. - upgrade: at most
-	 * ONE thread, coexists with shared owners. Invariants/semantics: -
-	 * unlock_upgrade_and_lock() marks an upgrade transition as pending, then waits
-	 * for existing shared owners to drain. From that instant, new lock_shared()
-	 * callers block and try_lock_shared() fails until the upgrader has taken (and
-	 * released) its exclusive hold. lock_upgrade()/try_lock_upgrade() likewise. The
-	 * transition is non-preemptible: upgrade ownership is retained until the
-	 * conversion completes. No lock() caller can take exclusive ownership between
-	 * the drain and the conversion. Only the upgrade transition has priority over
-	 * new shared acquires. Plain lock() has no such priority and can starve under
-	 * continuous shared load. - Downgrades (exclusive->upgrade, exclusive->shared,
-	 * upgrade->shared) never block. - No recursion. Unlocking a mode the calling
-	 * thread does not hold is undefined behavior. Meets the standard SharedLockable
-	 * requirements, so std::shared_lock and std::unique_lock work unmodified.
-	 * mh::upgrade_lock is the RAII guard for upgrade ownership, and
-	 * mh::upgrade_to_unique_lock is a scoped upgrade. */
+	/**
+	 * An upgradable shared mutex modeled on Boost.Thread's UpgradeLockable concept.
+	 *
+	 * ownership levels:
+	 * - shared: any number of threads at once.
+	 * - upgrade: at most ONE thread, coexists with shared owners. Holding upgrade
+	 *   ownership reserves the exclusive right to later upgrade to exclusive
+	 *   ownership without releasing the lock ( shared owners that both tried to
+	 *   upgrade in-place would deadlock waiting for each other to release).
+	 * - exclusive: one thread, excludes shared, upgrade, and exclusive.
+	 *
+	 * Invariants/semantics:
+	 * - unlock_upgrade_and_lock() marks an upgrade transition as pending, then waits
+	 *   for existing shared owners to drain. From that instant, new lock_shared()
+	 *   callers block and try_lock_shared() fails until the upgrader has taken (and
+	 *   released) its exclusive hold; lock_upgrade()/try_lock_upgrade() likewise.
+	 * - The transition is non-preemptible: upgrade ownership is retained until the
+	 *   conversion completes, so no lock() caller can take exclusive ownership
+	 *   between the drain and the conversion.
+	 * - Only the upgrade transition has priority over new shared acquires. Plain
+	 *   lock() has no such priority and can starve under continuous shared load.
+	 * - Downgrades (exclusive->upgrade, exclusive->shared, upgrade->shared) never
+	 *   block.
+	 * - No recursion. Unlocking a mode the calling thread does not hold is
+	 *   undefined behavior.
+	 *
+	 * Meets the standard SharedLockable requirements, so std::shared_lock and
+	 * std::unique_lock work unmodified. mh::upgrade_lock is the RAII guard for
+	 * upgrade ownership, and mh::upgrade_to_unique_lock is a scoped upgrade.
+	 */
 	class upgrade_mutex
 	{
 	public:

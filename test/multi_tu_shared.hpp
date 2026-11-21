@@ -1,7 +1,6 @@
 #pragma once
 
-// Shared include set + cross-TU probes for the multi-translation-unit link
-// test.
+// Shared include set + cross-TU probes for the multi-translation-unit link test.
 
 // thread_sentinel.hpp goes first: it must compile without MH_STUFF_API having
 // been defined by an earlier include or the build system.
@@ -16,6 +15,7 @@
 #include <mh/coroutine/task.hpp>
 #include <mh/coroutine/thread.hpp>
 #include <mh/future.hpp>
+#include <mh/text/pooled_string.hpp>
 
 #include <thread>
 
@@ -29,6 +29,9 @@ bool is_main_thread_tu_a();
 bool is_main_thread_tu_b();
 
 void check_thread_sentinel_tu_b();
+
+mh::pooled_string pooled_string_tu_a(std::string_view str);
+mh::pooled_string pooled_string_tu_b(std::string_view str);
 
 #ifdef MH_COROUTINES_SUPPORTED
 mh::dispatcher* try_get_dispatcher_tu_a();

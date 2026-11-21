@@ -108,10 +108,8 @@ namespace mh
 
 		template<typename TFunc> constexpr void debug([[maybe_unused]] const TFunc& f)
 		{
-#if (__cpp_lib_is_constant_evaluated >= 201811)
 			//if (!std::is_constant_evaluated())
 			//	f();
-#endif
 		}
 
 		template<unsigned shift_left, unsigned shift_right, typename T = void>

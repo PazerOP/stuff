@@ -1,7 +1,10 @@
 #include "mh/math/interpolation.hpp"
 #include <catch2/catch_all.hpp>
+#include <cmath>
 #include <iomanip>
+#include <limits>
 #include "last_include.hpp"
+
 
 TEST_CASE("lerp", "[math][interpolation]")
 {
@@ -118,9 +121,12 @@ TEST_CASE("specific failing case analysis", "[math][interpolation]")
 	
 	CAPTURE(lerp_clamped_result, lerp_slow_clamped_result);
 	
-	// The clamped versions no longer round, they preserve floating point precision
-	// Both should give approximately the same result (small floating point differences expected)
-	REQUIRE(lerp_clamped_result == Catch::Approx(lerp_slow_clamped_result).epsilon(1e-6));
+	// The clamped versions no longer round, they preserve floating point precision.
+	// Hold both to that error budget instead of a result-relative tolerance nothing
+	// can meet.
+	const auto slow_error_budget = 4 * std::numeric_limits<float>::epsilon() * std::abs(float(max_val));
+	REQUIRE(lerp_clamped_result == Catch::Approx(lerp_slow_clamped_result).margin(slow_error_budget));
+
 }
 
 TEST_CASE("lerp_slow", "[math][interpolation]")
@@ -129,6 +135,7 @@ TEST_CASE("lerp_slow", "[math][interpolation]")
 		std::numeric_limits<float>::max()) == Catch::Approx(0));
 	REQUIRE(mh::lerp_slow(0.5f, std::numeric_limits<double>::lowest(),
 		std::numeric_limits<double>::max()) == Catch::Approx(0));
+
 	// REQUIRE(mh::lerp_slow(0.5f, std::numeric_limits<long double>::lowest(),
 	//	std::numeric_limits<long double>::max()) == Catch::Approx(0));
 
@@ -141,10 +148,17 @@ TEST_CASE("lerp_slow", "[math][interpolation]")
 		CAPTURE(t, min, max);
 
 		if (min != max) {  // Avoid division by zero case
+			// lerp and lerp_slow are algebraically equal but evaluate different
+			// formulas. A result-relative tolerance cannot hold there. Hold both
+			// to the cancellation error of the larger operands, which is still
+			// orders of magnitude below any wrong-formula or wrong-clamp error.
+			const auto slow_error_budget = 4 * std::numeric_limits<float>::epsilon() * std::abs(float(max));
+
 			REQUIRE(mh::lerp(t, min, max) ==
 				Catch::Approx(mh::lerp_slow(t, min, max)).epsilon(0.0005));
-			REQUIRE(mh::lerp_clamped(t, min, max) == Catch::Approx(mh::lerp_slow_clamped(t, min, max)).epsilon(1e-5));
+			REQUIRE(mh::lerp_clamped(t, min, max) == Catch::Approx(mh::lerp_slow_clamped(t, min, max)).margin(slow_error_budget));
 		}
+
 	}
 }
 
@@ -152,6 +166,7 @@ TEST_CASE("no unwanted rounding - float to float", "[math][interpolation]")
 {
 	// Test that float-to-float interpolation preserves exact floating point values
 	// and doesn't apply any rounding
+
 
 	// Test case where result should be exactly representable
 	float t = 0.25f;
@@ -267,6 +282,7 @@ TEST_CASE("round function comparison", "[math_interpolation]")
 {
 	// Test the custom round function vs std::round
 	std::vector<float> test_values = {-31.5f, -31.4f, -31.6f, -32.5f, -32.4f, -32.6f, 31.5f, 31.4f, 31.6f, 32.5f, 32.4f, 32.6f, -0.5f, -0.4f, -0.6f, 0.5f, 0.4f, 0.6f, -1.5f, -1.4f, -1.6f, 1.5f, 1.4f, 1.6f, -2.5f, -2.4f, -2.6f, 2.5f, 2.4f, 2.6f};
+
 
 	for (float val : test_values)
 	{
@@ -527,6 +543,14 @@ TEST_CASE("remap - basic runtime remapping", "[math][interpolation]")
 
 	REQUIRE(mh::remap_clamped(15, 0, 10, 0.0f, 1.0f) == Catch::Approx(1.0f));
 	REQUIRE(mh::remap_clamped(-5, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.0f));
+}
+
+TEST_CASE("lerp_clamped - in-range values pass through unclamped", "[math][interpolation]")
+{
+	// the all-floating clamp arm's pass-through return: a strictly in-range
+	// value comes back as itself, not either bound
+	REQUIRE(mh::lerp_clamped(0.25f, 0.0f, 8.0f) == Catch::Approx(2.0f));
+	REQUIRE(mh::remap_clamped(5, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.5f));
 }
 
 TEST_CASE("round function constant evaluation", "[math_interpolation]")

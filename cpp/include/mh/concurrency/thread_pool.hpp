@@ -44,6 +44,13 @@ namespace mh
 
 		MH_STUFF_API thread_pool();
 		MH_STUFF_API thread_pool(size_t threadCount);
+
+		/**
+		 * Closes the pool's dispatcher and joins every worker thread. Tasks
+		 * that are already running or queued complete first; delay tasks whose
+		 * deadline has not been reached complete exceptionally instead of
+		 * being waited out.
+		 */
 		MH_STUFF_API ~thread_pool();
 
 		MH_STUFF_API detail::thread_pool_hpp::dispatcher_task_wrapper co_add_task();

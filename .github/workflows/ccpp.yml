@@ -14,13 +14,14 @@ defaults:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-latest
+    # Pinned because Ubuntu 24.04 is the image that ships every compiler in the matrix below: g++-12, g++-13 and clang++-14/15 with libc++. ubuntu-latest now resolves to Ubuntu 26.04, where the clang-14/15 and libc++-14/15 packages no longer exist, so their apt-get install fails before the build starts.
+    runs-on: ubuntu-24.04
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         MH_STUFF_COMPILE_LIBRARY: [true, false]
         compiler:
-          # Modern compilers available on ubuntu-latest (Ubuntu 22.04/24.04) 'gcov' selects the matching gcov for coverage; coverage is GCC-only (clang would need its profile runtime + llvm-cov, which we don't install)
+          # Compilers available in the Ubuntu 24.04 image pinned above. 'gcov' selects the matching gcov for coverage; coverage is GCC-only (clang would need its profile runtime + llvm-cov, which we don't install)
           - exe: g++-12
             deps: g++-12
             gcov: gcov-12
@@ -76,9 +77,9 @@ jobs:
     - name: Generate coverage report
       if: matrix.compiler.gcov != ''
       run: |
-        cd build
         gcovr --version
-        gcovr --gcov-executable "${{ matrix.compiler.gcov }}" --root "../" --exclude ".*/catch.hpp" --exclude ".*/test_compile_file/.*" --exclude ".*/test/.*" --sort uncovered-percent --html-details "results_${{ matrix.compiler.exe }}.html" .
+        # Run gcovr from the REPO ROOT with the build dir as the search path. Running it from inside the build dir with --root ../ made gcovr silently drop every file outside the build dir (all of cpp/include, cpp/src and test/) - the uploaded report contained nothing. However, Catch2/_deps sources. The explicit --filter keeps the report to library code, which also covers everything the old --exclude list (catch.hpp, test/, generated test_compile_file TUs) was for.
+        gcovr --gcov-executable "${{ matrix.compiler.gcov }}" --root . --filter 'cpp/include/' --filter 'cpp/src/' --sort uncovered-percent --html-details "build/results_${{ matrix.compiler.exe }}.html" build
 
     - name: Save test results
       if: matrix.MH_STUFF_COMPILE_LIBRARY && matrix.compiler.gcov != ''
@@ -89,7 +90,7 @@ jobs:
 
 
 
-  # build-windows: runs-on: windows-latest strategy: fail-fast: false matrix: MH_STUFF_COMPILE_LIBRARY. [true, false] steps: - uses: actions/checkout@v4 - uses: lukka/run-vcpkg@v11 with: vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }} - uses: seanmiddleditch/gha-setup-ninja@v5 - name. Setup compiler paths uses. ilammy/msvc-dev-cmd@v1 - name: Build run: | mkdir build cd build cmake -G Ninja \ -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \. DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \ ../ cmake --build . - name. Run tests run: | cd build ctest --output-on-failure registry-update: needs: [build-linux] runs-on: ubuntu-latest steps: - uses. This covers PazerOP/vcpkg-registry-update@HEAD with: port-name: mh-stuff workflow-pat: ${{ secrets.WORKFLOW_PAT }}
+  # build-windows: runs-on: windows-latest strategy: fail-fast: false matrix: MH_STUFF_COMPILE_LIBRARY. [true, false] steps: - uses: actions/checkout@v4 - uses: lukka/run-vcpkg@v11 with: vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }} - uses: seanmiddleditch/gha-setup-ninja@v5 - name. Setup compiler paths uses. ilammy/msvc-dev-cmd@v1 - name: Build run: | mkdir build cd build cmake -G Ninja \ -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \ -DMH_STUFF_COMPILE_LIBRARY=${{. matrix.MH_STUFF_COMPILE_LIBRARY }} \ ../ cmake --build . - name. Run tests run: | cd build ctest --output-on-failure registry-update: needs: [build-linux] runs-on: ubuntu-latest steps: - uses. This covers PazerOP/vcpkg-registry-update@HEAD with: port-name: mh-stuff workflow-pat: ${{ secrets.WORKFLOW_PAT }}
 
 
 
@@ -101,9 +102,10 @@ jobs:
 
 
   sanitizers:
-    runs-on: ubuntu-latest
+    # Pinned for the same reason as build-linux: clang-15 and libc++-15 only exist in the Ubuntu 24.04 image, not in 26.04.
+    runs-on: ubuntu-24.04
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         sanitizer:
           - name: asan
@@ -120,6 +122,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y clang-15 libc++-15-dev libc++abi-15-dev ninja-build libcurl4-openssl-dev
+        clang++-15 --version
+        ninja --version
 
     - name: Build with ${{ matrix.sanitizer.name }}
       env:
@@ -138,6 +142,7 @@ jobs:
         UBSAN_OPTIONS: print_stacktrace=1:abort_on_error=1
       run: |
         cd build
+        ctest --version
         ctest --output-on-failure
 
   all-checks-passed:
@@ -146,8 +151,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Verify all checks passed
-      if: ${{ !(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
-      run: echo "All checks passed!"
-    - name: Fail if any check failed
-      if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
-      run: exit 1
+      run: |
+        if [[ "${{ needs.build-linux.result }}" != "success" ]]; then
+          echo "build-linux failed: ${{ needs.build-linux.result }}"
+          exit 1
+        fi
+        if [[ "${{ needs.sanitizers.result }}" != "success" ]]; then
+          echo "sanitizers failed: ${{ needs.sanitizers.result }}"
+          exit 1
+        fi
+        echo "All checks passed!"

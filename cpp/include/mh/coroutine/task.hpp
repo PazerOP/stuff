@@ -124,9 +124,7 @@ namespace mh
 				if (!valid())
 					throw std::future_error(std::future_errc::no_state);
 
-				// Wait until the coroutine has finished executing (reached final_suspend)
-				// Not until the value is ready - the worker thread might still be
-				// executing between set_state() and final_suspend()
+				// Wait until the coroutine has finished executing (reached final_suspend).
 				std::unique_lock lock(m_Mutex);
 				m_ValueReadyCV.wait(lock, [&] { return is_ready_unlocked() && m_FinalSuspendHasRun; });
 				assert(is_ready_unlocked());

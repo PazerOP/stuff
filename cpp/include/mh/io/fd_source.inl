@@ -88,6 +88,22 @@ namespace mh::io
 
         return std::make_shared<fd_source>(fd, true);
     }
+
+    MH_COMPILE_LIBRARY_INLINE source_ptr source::stdout_source()
+    {
+        // Duplicate the descriptor rather than taking ownership: closing the
+        // shared source must not close this process's stdout.
+        static auto instance = std::make_shared<fd_source>(STDOUT_FILENO, false);
+        return instance;
+    }
+
+    MH_COMPILE_LIBRARY_INLINE source_ptr source::stderr_source()
+    {
+        // Duplicate the descriptor rather than taking ownership: closing the
+        // shared source must not close this process's stderr.
+        static auto instance = std::make_shared<fd_source>(STDERR_FILENO, false);
+        return instance;
+    }
 #endif
 
     MH_COMPILE_LIBRARY_INLINE source_ptr source::stdout_source()

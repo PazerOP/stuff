@@ -10,7 +10,7 @@ This is **mh_stuff**, a C++20 utility library containing reusable components for
 
 ## Build and Test Commands
 
-This project uses CMake with CPM (CMake Package Manager) for dependency management and Just for build task automation. The main dependencies are `mh-cmake-common` for build utilities and `Catch2` for testing.
+This project uses CMake with CPM (CMake Package Manager) for dependency management and for build task automation.
 
 ### Building the Project
 

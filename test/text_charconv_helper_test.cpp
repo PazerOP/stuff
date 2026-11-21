@@ -1,9 +1,5 @@
 #include "mh/text/charconv_helper.hpp"
-#include "mh/text/string_insertion.hpp"
-#include "last_include.hpp"
 #include <catch2/catch_all.hpp>
-
-#if __cpp_lib_to_chars >= 201611
 
 #if __cpp_lib_to_chars >= 201611
 
@@ -60,6 +56,11 @@ TEST_CASE("from_chars - bool", "[text][charconv_helper]")
 	REQUIRE(value == false);
 
 	REQUIRE(!mh::from_chars(std::string_view("2"), value));
+
+	// a bool parse whose underlying integer parse fails propagates that
+	// failure (not just the out-of-range rejection above)
+	REQUIRE(!mh::from_chars(std::string_view("x"), value));
+	REQUIRE(!mh::from_chars(std::string_view(""), value));
 }
 
 TEST_CASE("to_chars", "[text][charconv_helper]")

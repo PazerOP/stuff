@@ -6,11 +6,103 @@
 
 #include <atomic>
 #include <chrono>
+#include <latch>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 #include "last_include.hpp"
 
 using namespace std::chrono_literals;
+
+TEST_CASE("thread_pool - default constructor uses hardware_concurrency")
+{
+	mh::thread_pool tp;
+	REQUIRE(tp.thread_count() == std::thread::hardware_concurrency());
+	REQUIRE(tp.thread_count() >= 1);
+
+	// the default-constructed pool must actually run work
+	auto t = tp.add_task([] { return 17; });
+	REQUIRE(t.get() == 17);
+}
+
+TEST_CASE("thread_pool - zero threads is rejected")
+{
+	REQUIRE_THROWS_AS(mh::thread_pool(0), std::invalid_argument);
+}
+
+TEST_CASE("thread_pool - task_count reflects queued work")
+{
+	mh::thread_pool tp(1);
+	REQUIRE(tp.task_count() == 0);
+
+	// Occupy the single pool thread, then queue a second task: it must sit in
+	// the dispatcher's queue (one count) until the first task unblocks.
+	std::latch blockerStarted(1);
+	std::latch releaseBlocker(1);
+
+	mh::task<> blocker = [](mh::thread_pool& pool, std::latch& started, std::latch& release) -> mh::task<>
+	{
+		co_await pool.co_add_task();
+		started.count_down();
+		release.wait();
+	}(tp, blockerStarted, releaseBlocker);
+
+	blockerStarted.wait(); // the pool thread is now inside the blocker task
+
+	std::atomic<bool> secondRan = false;
+	mh::task<> second = [](mh::thread_pool& pool, std::atomic<bool>& ran) -> mh::task<>
+	{
+		co_await pool.co_add_task();
+		ran = true;
+	}(tp, secondRan);
+
+	REQUIRE(tp.task_count() == 1); // parked behind the blocker
+	REQUIRE_FALSE(secondRan);
+
+	releaseBlocker.count_down();
+	blocker.wait();
+	second.wait();
+	REQUIRE(secondRan);
+	REQUIRE(tp.task_count() == 0);
+}
+
+TEST_CASE("thread_pool - co_delay_until delays at least until the deadline")
+{
+	mh::thread_pool tp(1);
+
+	const auto start = mh::thread_pool::clock_t::now();
+	const auto deadline = start + 50ms;
+
+	mh::task<> t = [](mh::thread_pool& pool, mh::thread_pool::clock_t::time_point when) -> mh::task<>
+	{
+		co_await pool.co_delay_until(when);
+	}(tp, deadline);
+
+	t.wait();
+	// the contract is "not before the deadline"; no upper bound (loaded CI)
+	REQUIRE(mh::thread_pool::clock_t::now() >= deadline);
+}
+
+TEST_CASE("thread_pool - co_add_task from a pool thread continues inline")
+{
+	mh::thread_pool tp(1);
+
+	std::thread::id firstHop{}, secondHop{};
+	mh::task<> t = [](mh::thread_pool& pool, std::thread::id& first, std::thread::id& second) -> mh::task<>
+	{
+		co_await pool.co_add_task();
+		first = std::this_thread::get_id();
+
+		// already on a pool thread: this wrapper must be a ready no-op awaiter
+		// (no re-queue, no thread hop)
+		co_await pool.co_add_task();
+		second = std::this_thread::get_id();
+	}(tp, firstHop, secondHop);
+
+	t.wait();
+	REQUIRE(firstHop != std::this_thread::get_id()); // really moved to the pool
+	REQUIRE(firstHop == secondHop);                  // and stayed there
+}
 
 TEST_CASE("thread_pool - add_task runs the callable and returns its result")
 {
@@ -98,6 +190,75 @@ TEST_CASE("thread_pool - repeated construction and shutdown with work in flight"
 	} // pool destroyed while its threads may still be in their wait/run cycle
 
 	REQUIRE(completed == POOLS * TASKS);
+}
+
+TEST_CASE("thread_pool - destruction joins workers and completes queued work")
+{
+	// The destructor used to detach() the pool threads, so queued work raced
+	// pool destruction and could be silently abandoned. Now the destructor
+	// closes the dispatcher and join()s. Work that was already queued is
+	// guaranteed to have completed by the time the destructor returns.
+	std::atomic<bool> firstStarted = false;
+	std::atomic<bool> firstDone = false;
+	std::atomic<bool> secondDone = false;
+
+	mh::task<> first, second;
+	{
+		mh::thread_pool tp(1);
+
+		first = [](mh::thread_pool& pool, std::atomic<bool>& started, std::atomic<bool>& done) -> mh::task<>
+		{
+			co_await pool.co_add_task();
+			started = true;
+			std::this_thread::sleep_for(100ms); // keep the (only) worker busy
+			done = true;
+		}(tp, firstStarted, firstDone);
+
+		second = [](mh::thread_pool& pool, std::atomic<bool>& done) -> mh::task<>
+		{
+			co_await pool.co_add_task();
+			done = true;
+		}(tp, secondDone);
+
+		while (!firstStarted)
+			std::this_thread::yield();
+	} // destroyed with `first` mid-execution and `second` still queued
+
+	REQUIRE(firstDone);
+	REQUIRE(secondDone);
+	first.wait();
+	second.wait();
+	REQUIRE(first.get_exception() == nullptr);
+	REQUIRE(second.get_exception() == nullptr);
+}
+
+TEST_CASE("thread_pool - destruction with a pending delay is prompt and completes it exceptionally")
+{
+	// A delay task parked far in the future must not stall the destructor,
+	// but it must not be leaked either (a leaked frame means anyone waiting
+	// on the task blocks forever). Closing the dispatcher flushes it, a
+	// worker resumes it, and the co_await completes by throwing - the task
+	// reaches a terminal state. Its waiters wake up.
+	std::atomic<bool> bodyCompleted = false;
+	mh::task<> delayed;
+
+	const auto start = std::chrono::steady_clock::now();
+	{
+		mh::thread_pool tp(2);
+
+		delayed = [](mh::thread_pool& pool, std::atomic<bool>& completed) -> mh::task<>
+		{
+			co_await pool.co_delay_for(10s);
+			completed = true;
+		}(tp, bodyCompleted);
+	}
+	const auto elapsed = std::chrono::steady_clock::now() - start;
+
+	REQUIRE(elapsed < 5s); // destruction must not wait out the 10s deadline
+	delayed.wait();        // terminal state reached - this must not hang
+	REQUIRE_FALSE(bodyCompleted);
+	REQUIRE(delayed.get_exception() != nullptr);
+	REQUIRE_THROWS_AS(std::rethrow_exception(delayed.get_exception()), std::runtime_error);
 }
 
 #endif

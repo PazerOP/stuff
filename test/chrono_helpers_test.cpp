@@ -13,7 +13,7 @@ namespace
 	constexpr std::time_t KNOWN_EPOCH = 946782245;
 	constexpr std::time_t KNOWN_EPOCH_SUMMER = 962452800;
 
-	// Forces a specific (non-UTC) time. Zone for the duration of a test so that
+	// Forces a specific (non-UTC) time zone for the duration of a test. So that
 	// UTC conversions which accidentally use local time produce a visibly wrong
 	// result. Local-time conversions get exercised against DST rules,
 	// independent of the machine's real configuration.

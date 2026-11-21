@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef __unix__
+
 #include "sink.hpp"
 #include "source.hpp"
 
@@ -34,3 +36,5 @@ MH_STUFF_API pipe_ptr connect_io(const source_ptr& source, const sink_ptr& sink)
 #ifndef MH_COMPILE_LIBRARY
 #include "pipe.inl"
 #endif
+
+#endif // __unix__

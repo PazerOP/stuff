@@ -27,6 +27,7 @@ namespace mh
 			}
 			catch (...)
 			{
+				// Exception does not inherit from std::exception; it cannot be inspected for further nesting, so stop here.
 			}
 		}
 	}

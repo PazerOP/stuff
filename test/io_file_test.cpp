@@ -1,34 +1,10 @@
-// The header must be usable standalone. It has to provide its own MH_STUFF_API
-// fallback even when the build system's definition is not in effect.
-#ifdef MH_STUFF_API
-#undef MH_STUFF_API
-#endif
-#include "mh/io/file.hpp"
-
-#include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
-
+#include <mh/io/file.hpp>
 #include <filesystem>
 #include <fstream>
-#include <locale>
-#include <string>
-#include "last_include.hpp"
 
 using namespace std::string_literals;
-
-namespace
-{
-	struct global_locale_restorer
-	{
-		std::locale previous = std::locale();
-		~global_locale_restorer() { std::locale::global(previous); }
-	};
-
-	std::filesystem::path temp_file(const char* name)
-	{
-		return std::filesystem::temp_directory_path() / name;
-	}
-}
 
 TEST_CASE("read_file with char", "[io][file]")
 {
@@ -219,6 +195,24 @@ TEST_CASE("large file operations", "[io][file]")
     std::filesystem::remove(test_file);
 }
 
+#include <locale>
+#include <string>
+#include "last_include.hpp"
+
+namespace
+{
+	struct global_locale_restorer
+	{
+		std::locale previous = std::locale();
+		~global_locale_restorer() { std::locale::global(previous); }
+	};
+
+	std::filesystem::path temp_file(const char* name)
+	{
+		return std::filesystem::temp_directory_path() / name;
+	}
+}
+
 TEST_CASE("read_file/write_file - byte round trip", "[io][file]")
 {
 	const auto path = temp_file("mh_stuff_io_file_test.txt");
@@ -275,4 +269,18 @@ TEST_CASE("read_file - reads that extract fewer chars than bytes are not errors"
 TEST_CASE("read_file - missing file still throws", "[io][file]")
 {
 	CHECK_THROWS(mh::read_file(temp_file("mh_stuff_io_file_does_not_exist.txt")));
+}
+
+TEST_CASE("write_file - wide string", "[io][file]")
+{
+	const auto path = temp_file("mh_stuff_io_file_wide.txt");
+
+	mh::write_file(path, std::wstring_view(L"wide line\n"));
+	CHECK(mh::read_file(path) == "wide line\n");
+
+	// the const TChar* convenience overload deduces the view type
+	mh::write_file(path, L"replaced");
+	CHECK(mh::read_file(path) == "replaced");
+
+	std::filesystem::remove(path);
 }

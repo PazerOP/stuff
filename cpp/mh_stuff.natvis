@@ -11,6 +11,12 @@
 		</Expand>
 	</Type>
 
+	<Type Name="mh::pooled_string">
+		<DisplayString Condition="m_Str == 0">""</DisplayString>
+		<DisplayString>{m_Str,s8}</DisplayString>
+		<StringView>m_Str,s8</StringView>
+	</Type>
+
 	<Type Name="std::coroutine_handle&lt;*&gt;" Priority="Low">
 		<Intrinsic Name="promise" Expression="($T1 *)((char*)_Ptr + 0x10)" />
 		<DisplayString>{*promise()}</DisplayString>
