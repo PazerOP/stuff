@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 #include <atomic>
+#include <chrono>
 #include <fstream>
 #include <filesystem>
 
@@ -30,7 +31,14 @@ void run_async_test(Func&& func)
     }
 
     auto task = func();
-    disp->run_while([&]() { return !task.is_ready(); });
+
+    // Bounded so a coroutine that nothing resumes turns into a test failure
+    // instead of a hung CI job.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+    while (!task.is_ready() && std::chrono::steady_clock::now() < deadline)
+        disp->run_for(std::chrono::milliseconds(5));
+
+    REQUIRE(task.is_ready());
 }
 
 #include "last_include.hpp"
@@ -428,15 +436,21 @@ TEST_CASE("concurrent pipe operations", "[io][pipe]")
         
         std::vector<std::thread> writers;
         std::atomic<int> completed_writes{0};
+        std::atomic<int> failed_writes{0};
         
         // Start writer threads
         for (int t = 0; t < num_threads; ++t) {
-            writers.emplace_back([&pipe, &completed_writes, t]() {
+            writers.emplace_back([&pipe, &completed_writes, &failed_writes, t]() {
                 for (int i = 0; i < messages_per_thread; ++i) {
                     std::string message = "Thread" + std::to_string(t) + "Msg" + std::to_string(i) + "\n";
                     auto bytes_written = pipe->in->write_async(message.data(), message.size()).get();
-                    REQUIRE(bytes_written == message.size());
-                    completed_writes++;
+                    // No Catch2 assertion on this thread: Catch2's assertion
+                    // machinery is not thread-safe (ThreadSanitizer reports the
+                    // races). Record the outcome and check it on the test thread.
+                    if (bytes_written == message.size())
+                        completed_writes++;
+                    else
+                        failed_writes++;
                 }
             });
         }
@@ -477,6 +491,7 @@ TEST_CASE("concurrent pipe operations", "[io][pipe]")
         
         // Verify we received the expected number of messages
         REQUIRE(received_messages.size() == num_threads * messages_per_thread);
+        REQUIRE(failed_writes == 0);
         REQUIRE(completed_writes == num_threads * messages_per_thread);
     }
 }
