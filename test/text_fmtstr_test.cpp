@@ -70,3 +70,25 @@ TEST_CASE("format_string - construct, assign, append", "[text][fmtstr]")
 	REQUIRE(t.str() == "bar 1");
 }
 #endif // MH_FORMATTER != MH_FORMATTER_NONE
+
+TEST_CASE("format string buffers - constexpr puts", "[text][fmtstr]")
+{
+	// puts's element-by-element copy branch runs only under constant
+	// evaluation (the runtime branch uses memcpy); pin it at compile time,
+	// including the max_size() truncation clamp. All checks happen inside the
+	// lambda: returning the buffer itself would copy-construct it, and
+	// base_format_string's user-declared copy assignment makes the implicit
+	// copy constructor a -Wdeprecated-copy error on clang.
+	constexpr bool ok = []
+	{
+		mh::base_format_string<8> str;
+		str.puts("hi");
+		str.puts(" there, this gets truncated");
+
+		return str.size() == mh::base_format_string<8>::max_size()
+			&& str.view() == "hi ther"
+			&& str.c_str()[7] == '\0';
+	}();
+
+	STATIC_CHECK(ok);
+}
