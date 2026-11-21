@@ -12,6 +12,7 @@
 #include <vector>
 #include <atomic>
 #include <chrono>
+#include <exception>
 #include <poll.h>
 #include <fstream>
 #include <filesystem>
@@ -43,7 +44,8 @@ void run_async_test(Func&& func)
 
     // An assertion that fails inside the coroutine is stored in the task and
     // would otherwise be dropped: rethrow it so it fails the test.
-    task.get();
+    if (auto exception = task.get_exception())
+        std::rethrow_exception(exception);
 }
 
 // The fd sources and sinks do blocking reads/writes. These tests run them on the
