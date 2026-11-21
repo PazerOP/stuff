@@ -102,7 +102,7 @@ jobs:
 
 
   sanitizers:
-    # Pinned for the same reason as build-linux: clang-15 and libc++-15 only exist in the Ubuntu 24.04 image, not in 26.04.
+    # Pinned because the g++-12 below is installed from this image's archive.
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -118,16 +118,17 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # The sanitizers run on GCC/libstdc++ rather than clang/libc++. With clang and the system libc++ runtimes, throwing through std::invalid_argument aborts under ASan with "alloc-dealloc-mismatch (operator new vs free)". The exception's message is allocated by operator new in this executable and freed by libc++abi's destructor in the shared runtime. The abort is a property of that header/runtime pairing, not of the code under test. GCC's sanitizers instrument the same code and the whole test suite with a consistent standard library.
     - name: Install tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y clang-15 libc++-15-dev libc++abi-15-dev ninja-build libcurl4-openssl-dev
-        clang++-15 --version
+        sudo apt-get install -y g++-12 ninja-build libcurl4-openssl-dev
+        g++-12 --version
         ninja --version
 
     - name: Build with ${{ matrix.sanitizer.name }}
       env:
-        CXX: clang++-15
+        CXX: g++-12
         CXXFLAGS: ${{ matrix.sanitizer.flags }} -g -O1
       run: |
         mkdir build
