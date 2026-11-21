@@ -24,7 +24,7 @@ TEST_CASE("shared_ptr_to_member - aliases the member the caller asked for", "[me
 	REQUIRE(first.get() == &owner->m_First);
 	REQUIRE(*first == 1);
 
-	// all three share the owner's control block
+	// all of them share the owner's control block
 	REQUIRE(owner.use_count() == 3);
 
 	// writes through the alias hit the owning object

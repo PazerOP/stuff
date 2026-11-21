@@ -44,11 +44,11 @@ TEST_CASE("read_file - empty file", "[io][file]")
 TEST_CASE("read_file - reads that extract fewer chars than bytes are not errors", "[io][file]")
 {
 	// regression: read_file sized the string from tellg() (external BYTE length),
-	// enabled failbit exceptions, then read() exactly that many CHARACTERS.
-	// Whenever the stream shrinks the data - CRLF translation on Windows, or any
-	// multi-byte codecvt for wide streams - read() hit EOF short and THREW on a
-	// perfectly valid file. A UTF-8 global locale + wide read reproduces this
-	// portably on Linux: 8 bytes -> 6 wide characters.
+	// enabled failbit exceptions, then read() exactly that many CHARACTERS. Or
+	// any multi-byte codecvt for wide streams - read() hit EOF short and THREW on
+	// a perfectly valid file. This happens whenever the stream shrinks the data -
+	// CRLF translation on Windows. A UTF-8 global locale + wide read reproduces
+	// this portably on Linux: several bytes -> 6 wide characters.
 	std::locale utf8_locale;
 	try
 	{
