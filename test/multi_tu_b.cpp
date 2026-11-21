@@ -19,6 +19,11 @@ void check_thread_sentinel_tu_b()
 	sentinel.check(MH_SOURCE_LOCATION_CURRENT());
 }
 
+mh::pooled_string pooled_string_tu_b(std::string_view str)
+{
+	return mh::pooled_string(str);
+}
+
 #ifdef MH_COROUTINES_SUPPORTED
 
 mh::dispatcher* try_get_dispatcher_tu_b()
