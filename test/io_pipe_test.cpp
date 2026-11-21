@@ -18,10 +18,19 @@
 template<typename Func>
 void run_async_test(Func&& func)
 {
-    // Get the current thread's registered dispatcher
-    auto& disp = mh::dispatcher::get();
+    // Pump the dispatcher registered on this thread, or a local one when the
+    // test has not registered its own. The pipe/process coroutines only make
+    // progress while a dispatcher is run.
+    mh::dispatcher local_dispatcher;
+    mh::dispatcher* disp = mh::dispatcher::try_get();
+    if (!disp)
+    {
+        local_dispatcher.register_for_current_thread();
+        disp = &local_dispatcher;
+    }
+
     auto task = func();
-    disp.run_while([&]() { return !task.is_ready(); });
+    disp->run_while([&]() { return !task.is_ready(); });
 }
 
 #include "last_include.hpp"
