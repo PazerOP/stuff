@@ -5,6 +5,7 @@
 
 #include <catch2/catch_all.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -98,6 +99,9 @@ TEST_CASE("dispatcher - a newly added delay task wakes a parked waiter")
 }
 
 #ifndef _WIN32
+#include <fcntl.h>
+#include <cerrno>
+
 namespace
 {
 	struct pipe_pair
@@ -113,6 +117,41 @@ namespace
 
 		int fd[2] = { -1, -1 };
 	};
+
+	// Fills a pipe's kernel buffer (write end must be O_NONBLOCK) so the fd stops
+	// being write-ready. Returns the number of bytes stuffed in.
+	size_t fill_pipe(int writeFd)
+	{
+		REQUIRE(fcntl(writeFd, F_SETFL, O_NONBLOCK) == 0);
+
+		size_t total = 0;
+		char buf[4096] = {};
+		while (true)
+		{
+			const ssize_t written = write(writeFd, buf, sizeof(buf));
+			if (written < 0)
+			{
+				REQUIRE((errno == EAGAIN || errno == EWOULDBLOCK));
+				break;
+			}
+			total += static_cast<size_t>(written);
+		}
+
+		REQUIRE(total > 0);
+		return total;
+	}
+
+	// Reads and discards exactly `bytes` bytes so the write end becomes ready again.
+	void drain_pipe(int readFd, size_t bytes)
+	{
+		char buf[4096];
+		while (bytes > 0)
+		{
+			const ssize_t got = read(readFd, buf, std::min(bytes, sizeof(buf)));
+			REQUIRE(got > 0);
+			bytes -= static_cast<size_t>(got);
+		}
+	}
 }
 
 TEST_CASE("dispatcher - resumes every coroutine whose fd is ready")
@@ -147,6 +186,106 @@ TEST_CASE("dispatcher - resumes every coroutine whose fd is ready")
 
 	t1.wait();
 	t2.wait();
+}
+
+TEST_CASE("dispatcher - co_wait_fd_write suspends until the fd is writable")
+{
+	pipe_pair pipe1;
+	const size_t stuffed = fill_pipe(pipe1.fd[1]); // full pipe: not write-ready
+
+	mh::dispatcher d;
+	bool done = false;
+
+	mh::task<> t = [](mh::dispatcher& disp, int fd, bool& doneFlag) -> mh::task<>
+	{
+		co_await disp.co_wait_fd_write(fd);
+		doneFlag = true;
+	}(d, pipe1.fd[1], done);
+
+	REQUIRE(d.task_count() == 1);
+
+	// The pipe is full: the write task must NOT resume
+	REQUIRE(d.run() == 0);
+	REQUIRE_FALSE(done);
+	REQUIRE(d.task_count() == 1);
+
+	// Draining the pipe makes the fd writable again
+	drain_pipe(pipe1.fd[0], stuffed);
+	REQUIRE(d.run() == 1);
+	REQUIRE(done);
+	REQUIRE(d.task_count() == 0);
+
+	t.wait();
+}
+
+TEST_CASE("dispatcher - not-ready fds are kept while other fds resume")
+{
+	// One poll pass with a mixed bag: a ready write fd + a not-ready read fd
+	// (and vice versa). The ready task must resume; the not-ready task must
+	// stay registered (not be dropped) and resume once its fd becomes ready.
+	pipe_pair readPipe, writePipe;
+
+	mh::dispatcher d;
+	bool readDone = false, writeDone = false;
+
+	mh::task<> readTask = [](mh::dispatcher& disp, int fd, bool& doneFlag) -> mh::task<>
+	{
+		co_await disp.co_wait_fd_read(fd);
+		doneFlag = true;
+	}(d, readPipe.fd[0], readDone);
+
+	SECTION("ready write fd, not-ready read fd")
+	{
+		// writePipe is empty: its write end is ready immediately; readPipe has no
+		// data: its read end is not.
+		mh::task<> writeTask = [](mh::dispatcher& disp, int fd, bool& doneFlag) -> mh::task<>
+		{
+			co_await disp.co_wait_fd_write(fd);
+			doneFlag = true;
+		}(d, writePipe.fd[1], writeDone);
+
+		REQUIRE(d.task_count() == 2);
+		REQUIRE(d.run() == 1);
+		REQUIRE(writeDone);
+		REQUIRE_FALSE(readDone);
+		REQUIRE(d.task_count() == 1);
+
+		// Now satisfy the reader too
+		REQUIRE(write(readPipe.fd[1], "x", 1) == 1);
+		REQUIRE(d.run() == 1);
+		REQUIRE(readDone);
+		REQUIRE(d.task_count() == 0);
+
+		writeTask.wait();
+		readTask.wait();
+	}
+
+	SECTION("ready read fd, not-ready write fd")
+	{
+		const size_t stuffed = fill_pipe(writePipe.fd[1]); // full: not write-ready
+
+		mh::task<> writeTask = [](mh::dispatcher& disp, int fd, bool& doneFlag) -> mh::task<>
+		{
+			co_await disp.co_wait_fd_write(fd);
+			doneFlag = true;
+		}(d, writePipe.fd[1], writeDone);
+
+		REQUIRE(write(readPipe.fd[1], "x", 1) == 1); // read end becomes ready
+
+		REQUIRE(d.task_count() == 2);
+		REQUIRE(d.run() == 1);
+		REQUIRE(readDone);
+		REQUIRE_FALSE(writeDone);
+		REQUIRE(d.task_count() == 1);
+
+		drain_pipe(writePipe.fd[0], stuffed);
+		REQUIRE(d.run() == 1);
+		REQUIRE(writeDone);
+		REQUIRE(d.task_count() == 0);
+
+		writeTask.wait();
+		readTask.wait();
+	}
 }
 #endif
 
@@ -226,5 +365,77 @@ TEST_CASE("dispatcher - registration slot is cleared on destruction")
 	REQUIRE_NOTHROW(d2.register_for_current_thread());
 	REQUIRE(mh::dispatcher::try_get() == &d2);
 } // d2 unregisters itself here, leaving the thread clean for other tests
+
+TEST_CASE("dispatcher - get() and duplicate registration throw")
+{
+	REQUIRE(mh::dispatcher::try_get() == nullptr);
+
+	// No dispatcher registered on this thread
+	REQUIRE_THROWS_AS(mh::dispatcher::get(), std::runtime_error);
+
+	{
+		mh::dispatcher d1;
+		d1.register_for_current_thread();
+
+		// The slot is taken: neither the same dispatcher nor another one can register
+		REQUIRE_THROWS_AS(d1.register_for_current_thread(), std::runtime_error);
+
+		mh::dispatcher d2;
+		REQUIRE_THROWS_AS(d2.register_for_current_thread(), std::runtime_error);
+
+		// The failed registrations must not have clobbered the slot
+		REQUIRE(mh::dispatcher::try_get() == &d1);
+	}
+
+	REQUIRE(mh::dispatcher::try_get() == nullptr);
+}
+
+TEST_CASE("dispatcher - delay tasks fire in deadline order, not insertion order")
+{
+	// The delay queue is a heap ordered by task_delay_data::operator< (reversed
+	// comparison = min-heap on deadline): a task added LATER but due EARLIER
+	// must run first.
+	mh::dispatcher d(false);
+
+	std::vector<int> order;
+	auto delayTask = [](mh::dispatcher& disp, mh::dispatcher::clock_t::time_point when,
+		std::vector<int>& orderRef, int id) -> mh::task<>
+	{
+		co_await disp.co_delay_until(when);
+		orderRef.push_back(id);
+	};
+
+	const auto now = mh::dispatcher::clock_t::now();
+	mh::task<> late = delayTask(d, now + 120ms, order, 1);  // added first, due later
+	mh::task<> early = delayTask(d, now + 40ms, order, 2);  // added second, due earlier
+	REQUIRE(d.task_count() == 2);
+
+	const auto deadline = std::chrono::steady_clock::now() + 30s;
+	while (order.size() < 2 && std::chrono::steady_clock::now() < deadline)
+	{
+		(void)d.wait_tasks_for(10ms);
+		(void)d.run();
+	}
+
+	REQUIRE(order == std::vector<int>{ 2, 1 });
+	late.wait();
+	early.wait();
+}
+
+TEST_CASE("dispatcher - an already-expired delay awaiter declines suspension")
+{
+	// The coroutine machinery skips await_suspend() when await_ready() is true,
+	// but the deadline can also pass BETWEEN those two calls; await_suspend()
+	// re-checks and must refuse the suspension (returning false resumes the
+	// caller immediately) instead of parking the handle in the delay queue.
+	// Drive the awaiter interface directly to pin that race handling down.
+	mh::dispatcher d(false);
+
+	auto awaiter = d.co_delay_until(mh::dispatcher::clock_t::now() - 1s);
+	REQUIRE(awaiter.await_ready());
+	REQUIRE_FALSE(awaiter.await_suspend(nullptr));
+	REQUIRE(d.task_count() == 0); // nothing was queued
+	awaiter.await_resume(); // no-op, must not throw
+}
 
 #endif

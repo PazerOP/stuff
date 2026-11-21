@@ -312,6 +312,14 @@ TEST_CASE("remap - basic runtime remapping", "[math][interpolation]")
 	REQUIRE(mh::remap_clamped(-5, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.0f));
 }
 
+TEST_CASE("lerp_clamped - in-range values pass through unclamped", "[math][interpolation]")
+{
+	// the all-floating clamp arm's pass-through return: a strictly in-range
+	// value comes back as itself, not either bound
+	REQUIRE(mh::lerp_clamped(0.25f, 0.0f, 8.0f) == Catch::Approx(2.0f));
+	REQUIRE(mh::remap_clamped(5, 0, 10, 0.0f, 1.0f) == Catch::Approx(0.5f));
+}
+
 TEST_CASE("round function constant evaluation", "[math_interpolation]")
 {
 	using mh::detail::interpolation_hpp::round;

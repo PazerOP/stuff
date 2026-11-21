@@ -248,6 +248,177 @@ TEST_CASE("memstream works for wchar_t", "[text][memstream]")
 	CHECK(word == L"wide");
 }
 
+TEST_CASE("memstream seek with nonzero offset from current position", "[text][memstream]")
+{
+	char buf[16];
+	mh::memstream ms(buf, sizeof(buf));
+	ms << "0123456789";
+
+	REQUIRE(ms.seekg(1));
+	REQUIRE(ms.seekg(2, std::ios::cur)); // read side, relative
+	CHECK(static_cast<std::streamoff>(ms.tellg()) == 3);
+
+	char c;
+	REQUIRE(ms.get(c));
+	CHECK(c == '3');
+}
+
+TEST_CASE("memstream seekoff rejects an empty openmode", "[text][memstream]")
+{
+	char buf[8];
+	mh::memstream ms(buf, sizeof(buf));
+
+	// neither ios::in nor ios::out: there is nothing to seek
+	CHECK_THROWS_AS(ms.rdbuf()->pubseekoff(0, std::ios::cur, std::ios_base::openmode{}),
+		std::invalid_argument);
+}
+
+TEST_CASE("memstream setbuf replaces the buffer", "[text][memstream]")
+{
+	char first[8];
+	mh::memstream ms(first, sizeof(first));
+	ms << "aa";
+
+	char second[8] = {};
+	REQUIRE(ms.rdbuf()->pubsetbuf(second, sizeof(second)) == ms.rdbuf());
+
+	// writes now target the new buffer, positions reset to its start
+	ms << "zz";
+	CHECK(second[0] == 'z');
+	CHECK(second[1] == 'z');
+	CHECK(to_str(ms.view_full()) == "zz");
+}
+
+TEST_CASE("memstream wide: seeks, reads and writes", "[text][memstream]")
+{
+	wchar_t buf[16];
+	mh::basic_memstream<wchar_t> ms(buf, 16);
+
+	ms << L"0123456789";
+	REQUIRE(ms.good());
+	CHECK(std::wstring(ms.view_full()) == L"0123456789");
+
+	// tellg/tellp (seekoff fast path: cur with zero offset)
+	CHECK(static_cast<std::streamoff>(ms.tellg()) == 0);
+	CHECK(static_cast<std::streamoff>(ms.tellp()) == 10);
+
+	// absolute seek + read to the end of the data (underflow -> eof)
+	REQUIRE(ms.seekg(2));
+	std::wstring word;
+	REQUIRE(ms >> word);
+	CHECK(word == L"23456789");
+	CHECK(ms.eof());
+	ms.clear();
+
+	// relative seeks with nonzero offsets
+	REQUIRE(ms.seekg(0));
+	REQUIRE(ms.seekg(3, std::ios::cur));
+	CHECK(static_cast<std::streamoff>(ms.tellg()) == 3);
+
+	REQUIRE(ms.seekp(0));
+	REQUIRE(ms.seekp(4, std::ios::cur));
+	CHECK(static_cast<std::streamoff>(ms.tellp()) == 4);
+
+	// seeks relative to the end
+	REQUIRE(ms.seekg(-2, std::ios::end));
+	CHECK(static_cast<std::streamoff>(ms.tellg()) == 8);
+
+	REQUIRE(ms.seekp(-8, std::ios::end)); // the put area's end is the full capacity
+	CHECK(static_cast<std::streamoff>(ms.tellp()) == 8);
+
+	ms << L"AB";
+	REQUIRE(ms.good());
+	REQUIRE(ms.seekg(0));
+	CHECK(std::wstring(ms.view()) == L"01234567AB");
+}
+
+TEST_CASE("memstream wide: pubseekpos with in|out moves both positions", "[text][memstream]")
+{
+	wchar_t buf[16];
+	mh::basic_memstream<wchar_t> ms(buf, 16);
+	ms << L"0123456789";
+
+	const auto pos = ms.rdbuf()->pubseekpos(5, std::ios::in | std::ios::out);
+	CHECK(static_cast<std::streamoff>(pos) == 5);
+	CHECK(static_cast<std::streamoff>(ms.tellg()) == 5);
+	CHECK(static_cast<std::streamoff>(ms.tellp()) == 5);
+}
+
+TEST_CASE("memstream wide: full buffer", "[text][memstream]")
+{
+	wchar_t buf[4];
+	mh::basic_memstream<wchar_t> ms(buf, 4);
+	mh::basic_memstreambuf<wchar_t>& sb = ms;
+
+	// xsputn always reserves one final slot
+	CHECK(sb.sputn(L"abcdef", 6) == 3);
+	CHECK(std::wstring(ms.view_full()) == L"abc");
+
+	// ...which is reachable one character at a time
+	CHECK(sb.sputc(L'd') != std::char_traits<wchar_t>::eof());
+	CHECK(std::wstring(ms.view_full()) == L"abcd");
+
+	// writing past the end reports eof via overflow, existing data is intact
+	CHECK(sb.sputc(L'X') == std::char_traits<wchar_t>::eof());
+	CHECK(sb.sputn(L"Y", 1) == 0);
+	CHECK(std::wstring(ms.view_full()) == L"abcd");
+}
+
+TEST_CASE("memstream wide: single-character writes are visible", "[text][memstream]")
+{
+	wchar_t buf[8];
+	mh::basic_memstream<wchar_t> ms(buf, 8);
+
+	ms.put(L'x');
+	ms.put(L'y');
+	REQUIRE(ms.good());
+
+	std::wstring word;
+	REQUIRE(ms >> word); // exercises underflow with a stale get area
+	CHECK(word == L"xy");
+}
+
+TEST_CASE("memstream wide: setbuf replaces the buffer", "[text][memstream]")
+{
+	wchar_t first[8];
+	mh::basic_memstream<wchar_t> ms(first, 8);
+	ms << L"aa";
+
+	wchar_t second[8] = {};
+	REQUIRE(ms.rdbuf()->pubsetbuf(second, 8) == ms.rdbuf());
+
+	ms << L"zz";
+	CHECK(second[0] == L'z');
+	CHECK(second[1] == L'z');
+	CHECK(std::wstring(ms.view_full()) == L"zz");
+}
+
+namespace
+{
+	// exposes the protected virtual for direct testing
+	template<typename CharT>
+	struct exposed_memstreambuf final : mh::basic_memstreambuf<CharT>
+	{
+		using mh::basic_memstreambuf<CharT>::basic_memstreambuf;
+		using mh::basic_memstreambuf<CharT>::overflow;
+	};
+}
+
+TEST_CASE("memstream overflow stores a character when there is room", "[text][memstream]")
+{
+	using traits = std::char_traits<wchar_t>;
+
+	wchar_t buf[4];
+	exposed_memstreambuf<wchar_t> sb(buf, 4);
+
+	// called with eof, overflow is a no-op query
+	CHECK(sb.overflow() == traits::eof());
+
+	// called with a character while there is room, overflow stores it
+	CHECK(sb.overflow(traits::to_int_type(L'Q')) == traits::to_int_type(L'Q'));
+	CHECK(std::wstring(sb.view_full()) == L"Q");
+}
+
 TEST_CASE("memstream is not default constructible", "[text][memstream]")
 {
 	// a default-constructed memstream would have no buffer to point at

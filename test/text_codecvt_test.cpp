@@ -3,9 +3,49 @@
 #include <mh/text/codecvt.hpp>
 
 #include <cstdint>
+#include <locale>
 #include <stdexcept>
+#include <string>
 
 using namespace std::string_view_literals;
+
+namespace
+{
+	struct global_locale_restorer
+	{
+		std::locale previous = std::locale();
+		~global_locale_restorer() { std::locale::global(previous); }
+	};
+
+	// The char <-> wchar_t conversions use the C library's mbrtowc/wcrtomb,
+	// which follow the global locale. A UTF-8 locale makes multi-byte inputs
+	// (and their error cases) deterministic.
+	std::locale try_get_utf8_locale()
+	{
+		try
+		{
+			return std::locale("C.UTF-8");
+		}
+		catch (const std::exception&)
+		{
+			try
+			{
+				return std::locale("en_US.UTF-8");
+			}
+			catch (const std::exception&)
+			{
+				return std::locale::classic();
+			}
+		}
+	}
+
+#define MH_TEST_REQUIRE_UTF8_LOCALE() \
+	const std::locale utf8_locale = try_get_utf8_locale(); \
+	if (utf8_locale == std::locale::classic()) \
+		SKIP("no UTF-8 locale available on this system"); \
+	global_locale_restorer locale_restorer; \
+	std::locale::global(utf8_locale)
+}
 
 template<typename T>
 static void RequireEqual(const std::basic_string_view<T>& a, const std::basic_string_view<T>& b)
@@ -192,5 +232,156 @@ TEST_CASE("change_encoding - boundary code points round-trip", "[mh][text][codec
 	CHECK(mh::change_encoding<char16_t>(std::u32string(1, char32_t(0xFFFF))).size() == 1);
 	CHECK(mh::change_encoding<char16_t>(std::u32string(1, char32_t(0x10000))).size() == 2);
 	CHECK(mh::change_encoding<char16_t>(std::u32string(1, char32_t(0x10FFFF))).size() == 2);
+}
+#endif // MH_HAS_UNICODE
+
+TEST_CASE("change_encoding - identity conversions", "[mh][text][codecvt][change_encoding]")
+{
+	// To == From must produce a byte-for-byte copy, including embedded nulls
+	const auto narrow = mh::change_encoding<char>("a\0b"sv);
+	REQUIRE(narrow.size() == 3);
+	CHECK(narrow == std::string("a\0b", 3));
+
+	const auto wide = mh::change_encoding<wchar_t>(L"w\0x"sv);
+	REQUIRE(wide.size() == 3);
+	CHECK(wide == std::wstring(L"w\0x", 3));
+
+	CHECK(mh::change_encoding<char>(""sv).empty());
+}
+
+TEST_CASE("change_encoding - char <-> wchar_t ASCII round trip", "[mh][text][codecvt][change_encoding]")
+{
+	// ASCII is single-byte in every locale, including the default "C" locale
+	CompareExpected("Hello, world! 123"sv, L"Hello, world! 123"sv);
+
+	// mbrtowc reports an embedded null specially (returns 0); the conversion
+	// must store it and keep going instead of stopping at the null
+	const auto wide = mh::change_encoding<wchar_t>("a\0b"sv);
+	REQUIRE(wide.size() == 3);
+	CHECK(wide == std::wstring(L"a\0b", 3));
+
+	// ...and a null wide character must survive the trip back
+	const auto narrow = mh::change_encoding<char>(L"a\0b"sv);
+	REQUIRE(narrow.size() == 3);
+	CHECK(narrow == std::string("a\0b", 3));
+
+	CHECK(mh::change_encoding<wchar_t>(""sv).empty());
+	CHECK(mh::change_encoding<char>(L""sv).empty());
+}
+
+TEST_CASE("change_encoding - char <-> wchar_t multi-byte characters", "[mh][text][codecvt][change_encoding]")
+{
+	MH_TEST_REQUIRE_UTF8_LOCALE();
+
+	// UTF-8 -> wide: multi-byte sequences decode to single wide characters
+	const auto wide = mh::change_encoding<wchar_t>("h\xC3\xA9llo"sv); // "hello" with e-acute
+	REQUIRE(wide.size() == 5);
+	CHECK(wide == L"h\u00E9llo");
+
+	// wide -> UTF-8: every input character must be consumed exactly once.
+	// regression: the conversion advanced the input iterator by the number of
+	// OUTPUT bytes wcrtomb produced, silently dropping input characters
+	// whenever a character encoded to more than one byte
+	const auto narrow = mh::change_encoding<char>(L"\u00E9\u00E9"sv);
+	REQUIRE(narrow.size() == 4);
+	CHECK(narrow == "\xC3\xA9\xC3\xA9");
+
+	// pre-fix, a character encoding to 3+ bytes advanced the iterator PAST the
+	// end of the input, so the loop ran off the end of the string
+	const auto euro = mh::change_encoding<char>(L"\u20AC"sv);
+	REQUIRE(euro.size() == 3);
+	CHECK(euro == "\xE2\x82\xAC");
+
+	// mixed 1- and 2-byte characters round trip
+	CompareExpected("h\xC3\xA9llo w\xC3\xB6rld"sv, L"h\u00E9llo w\u00F6rld"sv);
+}
+
+TEST_CASE("change_encoding - char -> wchar_t error paths", "[mh][text][codecvt][change_encoding]")
+{
+	MH_TEST_REQUIRE_UTF8_LOCALE();
+
+	// A truncated (but so far valid) multi-byte sequence: mbrtowc returns -2
+	CHECK_THROWS_AS(mh::change_encoding<wchar_t>("\xC3"sv), std::invalid_argument);
+	CHECK_THROWS_AS(mh::change_encoding<wchar_t>("h\xC3"sv), std::invalid_argument);
+
+	// Bytes that can never begin a UTF-8 character: mbrtowc returns -1
+	CHECK_THROWS_AS(mh::change_encoding<wchar_t>("\xFF"sv), std::runtime_error);
+	CHECK_THROWS_AS(mh::change_encoding<wchar_t>("\x80"sv), std::runtime_error);
+}
+
+TEST_CASE("change_encoding - wchar_t -> char error paths", "[mh][text][codecvt][change_encoding]")
+{
+	MH_TEST_REQUIRE_UTF8_LOCALE();
+
+	// Lone surrogates are not encodable in UTF-8: wcrtomb returns -1
+	const std::wstring surrogate(1, wchar_t(0xD800));
+	CHECK_THROWS_AS(mh::change_encoding<char>(surrogate), std::invalid_argument);
+}
+
+#if MH_HAS_UNICODE
+#ifdef MH_COMPILE_LIBRARY
+// In compiled-library mode the detail helpers are compiled into the library but
+// only declared by codecvt.inl, which consumers never include. In header-only
+// mode the definitions are already visible through codecvt.hpp.
+namespace mh::detail::codecvt_hpp
+{
+#if MH_HAS_CHAR8
+	size_t convert_to_uc(char32_t in, std::basic_string<char8_t>& out);
+#endif
+	size_t convert_to_uc(char32_t in, std::basic_string<char16_t>& out);
+	size_t convert_to_uc(char32_t in, std::basic_string<char32_t>& out);
+}
+#endif
+
+#if MH_HAS_CHAR8
+TEST_CASE("codecvt detail - convert_to_uc appends UTF-8", "[mh][text][codecvt]")
+{
+	using mh::detail::codecvt_hpp::convert_to_uc;
+
+	std::u8string out;
+	CHECK(convert_to_uc(U'$', out) == 1); // '$', 1 byte
+	CHECK(convert_to_uc(char32_t(0x00A2), out) == 2); // cent sign, 2 bytes
+	CHECK(convert_to_uc(char32_t(0x20AC), out) == 3); // euro sign, 3 bytes
+	CHECK(convert_to_uc(U'\U00010348', out) == 4); // Gothic hwair, 4 bytes
+
+	// return values are the appended lengths; the string accumulates
+	CHECK(out == u8"$\u00A2\u20AC\U00010348");
+
+	// scalar values above U+10FFFF are not encodable
+	std::u8string reject;
+	CHECK_THROWS_AS(convert_to_uc(char32_t(0x110000), reject), std::invalid_argument);
+	CHECK(reject.empty());
+}
+#endif
+
+TEST_CASE("codecvt detail - convert_to_uc appends UTF-16", "[mh][text][codecvt]")
+{
+	using mh::detail::codecvt_hpp::convert_to_uc;
+
+	std::u16string out;
+	CHECK(convert_to_uc(U'$', out) == 1); // BMP: single unit
+	CHECK(convert_to_uc(U'\U00010348', out) == 2); // supplementary: surrogate pair
+
+	REQUIRE(out.size() == 3);
+	CHECK(out[0] == u'$');
+	CHECK(out[1] == char16_t(0xD800)); // high surrogate of U+10348
+	CHECK(out[2] == char16_t(0xDF48)); // low surrogate of U+10348
+
+	// surrogate code points and values above U+10FFFF are not encodable
+	std::u16string reject;
+	CHECK_THROWS_AS(convert_to_uc(char32_t(0xD800), reject), std::invalid_argument);
+	CHECK_THROWS_AS(convert_to_uc(char32_t(0x110000), reject), std::invalid_argument);
+	CHECK(reject.empty());
+}
+
+TEST_CASE("codecvt detail - convert_to_uc appends UTF-32", "[mh][text][codecvt]")
+{
+	using mh::detail::codecvt_hpp::convert_to_uc;
+
+	std::u32string out;
+	CHECK(convert_to_uc(U'$', out) == 1);
+	CHECK(convert_to_uc(U'\U0001F600', out) == 1); // always exactly one unit
+
+	CHECK(out == U"$\U0001F600");
 }
 #endif // MH_HAS_UNICODE

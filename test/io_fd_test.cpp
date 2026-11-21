@@ -140,6 +140,37 @@ TEST_CASE("fd_sink - take_ownership=false duplicates the descriptor", "[io][fd]"
 	close(fds[1]);
 }
 
+TEST_CASE("fd_source - get_native_handle exposes the wrapped descriptor", "[io][fd]")
+{
+	int fds[2];
+	REQUIRE(pipe(fds) == 0);
+
+	mh::io::fd_source owning(fds[0], true);
+	CHECK(owning.get_native_handle() == fds[0]); // owned: the very same fd
+
+	mh::io::fd_source borrowing(fds[0], false);
+	CHECK(borrowing.get_native_handle() != fds[0]); // borrowed: a dup()
+
+	close(fds[1]);
+}
+
+TEST_CASE("sink::create_file - open failure reports the real errno", "[io][fd]")
+{
+	const auto path = std::filesystem::temp_directory_path()
+		/ "mh_stuff_no_such_dir" / "unreachable.txt";
+
+	bool threw_enoent = false;
+	try
+	{
+		(void)mh::io::sink::create_file(path);
+	}
+	catch (const std::system_error& e)
+	{
+		threw_enoent = (e.code() == std::errc::no_such_file_or_directory);
+	}
+	CHECK(threw_enoent);
+}
+
 TEST_CASE("sink::create_file / source::create_file round trip", "[io][fd]")
 {
 	// regression: both factories were declared MH_STUFF_API but defined nowhere -

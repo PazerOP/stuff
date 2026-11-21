@@ -288,6 +288,17 @@ TEST_CASE("bit_copy - non-byte-aligned destination writes exact expected bytes")
 	}
 }
 
+TEST_CASE("bit_read - out-of-range bit counts throw")
+{
+	// runtime preconditions of the dynamic-count overload: the requested bits
+	// must fit both the source and the destination type
+	REQUIRE_THROWS(mh::bit_read<uint32_t>(uint8_t(0xFF), 9));    // 9 bits > 8-bit source
+	REQUIRE_THROWS(mh::bit_read<uint8_t>(uint16_t(0xFFFF), 12)); // 12 bits > 8-bit destination
+
+	// exactly at the boundary is still fine
+	REQUIRE(+mh::bit_read<uint8_t>(uint8_t(0xAB), 8) == 0xAB);
+}
+
 namespace
 {
 	// The constant-evaluation path, which the run-time word path does not cover.
