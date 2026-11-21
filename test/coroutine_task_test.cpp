@@ -336,7 +336,7 @@ TEST_CASE("task - take_value hands out the value and invalidates the state")
 	mh::detail::promise<int>* promise = new mh::detail::promise<int>();
 	mh::task<int> t(promise);
 
-	REQUIRE(t.state() == mh::task_state::running); // no value yet
+	REQUIRE(t.state() == mh::task_state::running);
 	promise->return_value(29);
 	REQUIRE(t.state() == mh::task_state::value);
 
@@ -565,7 +565,7 @@ TEST_CASE("task - co_await on a successful void task resumes normally")
 TEST_CASE("task - awaiter interface handles already-ready states directly")
 {
 	// The compiler skips await_suspend() when await_ready() returns true, but
-	// is_ready() can also flip between those two calls; await_suspend must
+	// is_ready() can also flip between those calls. await_suspend must
 	// re-check and refuse the suspension for a ready task.
 	mh::task<int> t = make_ready_coroutine_task(3);
 	t.wait();

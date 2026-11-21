@@ -34,13 +34,13 @@ TEST_CASE("locked_value - construction", "[concurrency][locked_value]")
 		const std::string initial = "hello";
 		const mh::locked_value<std::string> value(initial);
 		CHECK(value.get() == "hello");
-		CHECK(initial == "hello"); // not moved from
+		CHECK(initial == "hello");
 	}
 	SECTION("move from initial value")
 	{
 		auto initial = std::make_shared<int>(5);
 		const mh::locked_value<std::shared_ptr<int>> value(std::move(initial));
-		CHECK(initial == nullptr); // moved from
+		CHECK(initial == nullptr);
 		REQUIRE(value.get() != nullptr);
 		CHECK(*value.get() == 5);
 	}

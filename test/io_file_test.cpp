@@ -80,8 +80,6 @@ TEST_CASE("read_file - missing file still throws", "[io][file]")
 
 TEST_CASE("write_file - wide string", "[io][file]")
 {
-	// the wchar_t instantiation converts through the stream's codecvt facet;
-	// ASCII converts 1:1 in every locale
 	const auto path = temp_file("mh_stuff_io_file_wide.txt");
 
 	mh::write_file(path, std::wstring_view(L"wide line\n"));

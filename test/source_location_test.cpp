@@ -5,7 +5,7 @@
 #include <string>
 
 // When the standard library provides std::source_location, mh::source_location
-// is an alias for it and the inserter in namespace mh is NOT found by ADL (the
+// is an alias for it. The inserter in namespace mh is NOT found by ADL (the
 // argument's associated namespace is std). Callers have to import it.
 using mh::operator<<;
 
@@ -40,7 +40,7 @@ TEST_CASE("source_location - format presentations", "[source_location][format]")
 	const std::string def = mh::format("{}", loc);
 	CHECK(def == "source_location_test.cpp(" + line + "):" + function);
 
-	// an explicit spec selects exactly what was asked for
+	// an explicit spec selects exactly what was asked.
 	CHECK(mh::format("{:plf}", loc) == def);
 	CHECK(mh::format("{:p}", loc) == "source_location_test.cpp");
 	CHECK(mh::format("{:l}", loc) == "(" + line + ")");

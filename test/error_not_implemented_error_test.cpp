@@ -11,9 +11,6 @@ TEST_CASE("not_implemented_error - is a logic_error", "[error][not_implemented_e
 {
 	STATIC_CHECK(std::is_base_of_v<std::logic_error, mh::not_implemented_error>);
 
-	// Pass the location explicitly: on toolchains without std::source_location
-	// (e.g. clang-14/libc++-14), MH_SOURCE_LOCATION_AUTO degrades to a
-	// parameter with no default argument.
 	CHECK_THROWS_AS(throw mh::not_implemented_error(MH_SOURCE_LOCATION_CURRENT()), std::logic_error);
 }
 

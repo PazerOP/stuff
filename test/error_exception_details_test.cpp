@@ -264,7 +264,7 @@ TEST_CASE("exception_details - handler registry thread safety smoke", "[error][e
 
 	std::atomic<bool> stop = false;
 
-	// Two threads register/unregister their own handler types while this thread
+	// Threads register/unregister their own handler types while this thread
 	// keeps formatting exceptions through the registry.
 	std::thread toggleA([&]
 		{

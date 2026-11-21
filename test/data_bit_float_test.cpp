@@ -335,8 +335,6 @@ TEST_CASE("bit_float - narrowing conversions of overflow/inf/nan values at runti
 	REQUIRE(half_float::bits_to_mantissa(nanBits).value != 0); // NaN, not inf
 	REQUIRE(std::isnan(half_float::bits_to_native(nanBits)));
 
-	// a zero/denormal-marker exponent field (all bits 0) converts to 0 in any
-	// width, wider or narrower
 	unsigned runtimeZero = 0;
 	const mh::exponent_t<8> zeroExp8(static_cast<mh::exponent_t<8>::value_t>(runtimeZero));
 	REQUIRE(zeroExp8.convert<11>().value == 0);

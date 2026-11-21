@@ -80,7 +80,7 @@ TEST_CASE("optional_ref - move assignment moves into the target", "[data][option
 	auto source = std::make_shared<int>(9);
 	ref = std::move(source);
 
-	CHECK(source == nullptr); // moved from
+	CHECK(source == nullptr);
 	REQUIRE(target != nullptr);
 	CHECK(*target == 9);
 

@@ -273,13 +273,11 @@ TEST_CASE("uint128 - constexpr software fallbacks", "[math][uint128]")
 	using uint128 = mh::uint128;
 	constexpr uint64_t MAX = 0xFFFFFFFFFFFFFFFFull;
 
-	// On x86-64 the runtime paths use the compiler's native __uint128_t; the
-	// portable software implementations execute only during constant
-	// evaluation, where gcov cannot observe them. These checks pin their
-	// correctness at compile time (alongside the existing constexpr from_mul /
-	// shift / division / comparison checks). The `throw "Should never get
-	// here..."` arms of the shift operators remain dead defensive code: shift
-	// counts >= 128 return zero before reaching the arm chain.
+	// These checks pin their correctness at compile time (alongside the
+	// existing constexpr from_mul / shift / division / comparison checks). The
+	// `throw "Should never get here..."` arms of the shift operators remain
+	// dead defensive code: shift counts >= 128 return zero before reaching the
+	// arm chain.
 
 	// operator++: without and with carry out of the low half
 	{
@@ -305,8 +303,6 @@ TEST_CASE("uint128 - constexpr software fallbacks", "[math][uint128]")
 		STATIC_CHECK(diff.get_u64<1>() == 1);
 	}
 
-	// operator<<: the 1..63 arm (low bit carried across the halves) and the
-	// 64..127 arm
 	{
 		constexpr uint128 crossed = uint128(0x8000000000000001ull) << 1;
 		STATIC_CHECK(crossed.get_u64<0>() == 2);
@@ -321,7 +317,6 @@ TEST_CASE("uint128 - constexpr software fallbacks", "[math][uint128]")
 		STATIC_CHECK(top.get_u64<1>() == (uint64_t(1) << 63));
 	}
 
-	// operator>>: the 1..63 arm (high bit flowing down into the low half)
 	{
 		constexpr uint128 down = uint128(0, 1) >> 1;
 		STATIC_CHECK(down.get_u64<0>() == (uint64_t(1) << 63));
