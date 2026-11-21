@@ -12,6 +12,7 @@
 #include <vector>
 #include <atomic>
 #include <chrono>
+#include <poll.h>
 #include <fstream>
 #include <filesystem>
 
@@ -39,6 +40,22 @@ void run_async_test(Func&& func)
         disp->run_for(std::chrono::milliseconds(5));
 
     REQUIRE(task.is_ready());
+
+    // An assertion that fails inside the coroutine is stored in the task and
+    // would otherwise be dropped: rethrow it so it fails the test.
+    task.get();
+}
+
+// The fd sources and sinks do blocking reads/writes. These tests run them on the
+// test thread while a child process is supposed to produce or consume data. Poll
+// first, so a child that never does fails the test instead of blocking the whole
+// ctest job.
+bool fd_ready(int fd, short events, int timeoutMs = 30000)
+{
+    pollfd pfd{};
+    pfd.fd = fd;
+    pfd.events = events;
+    return ::poll(&pfd, 1, timeoutMs) > 0;
 }
 
 #include "last_include.hpp"
@@ -287,6 +304,7 @@ TEST_CASE("pipe with child process communication", "[io][pipe]")
             
             // Now read from the pipe (data should be buffered)
             char buffer[1024] = {0};
+            REQUIRE(fd_ready(pipe->out->get_native_handle(), POLLIN));
             auto bytes_read = co_await pipe->out->read_async(buffer, sizeof(buffer) - 1);
             
             REQUIRE(bytes_read > 0);
@@ -344,6 +362,7 @@ TEST_CASE("pipe with child process communication", "[io][pipe]")
             
             // Read response from child
             char buffer[1024] = {0};
+            REQUIRE(fd_ready(stdout_pipe->out->get_native_handle(), POLLIN));
             auto bytes_read = co_await stdout_pipe->out->read_async(buffer, sizeof(buffer) - 1);
             
             REQUIRE(bytes_read > 0);
@@ -376,6 +395,7 @@ TEST_CASE("pipe redirection scenarios", "[io][pipe]")
             
             // Read from child's stderr
             char buffer[1024] = {0};
+            REQUIRE(fd_ready(pipe->out->get_native_handle(), POLLIN));
             auto bytes_read = co_await pipe->out->read_async(buffer, sizeof(buffer) - 1);
             
             REQUIRE(bytes_read > 0);
@@ -410,6 +430,7 @@ TEST_CASE("pipe redirection scenarios", "[io][pipe]")
             
             // Read result from wc
             char buffer[1024] = {0};
+            REQUIRE(fd_ready(pipe2->out->get_native_handle(), POLLIN));
             auto bytes_read = co_await pipe2->out->read_async(buffer, sizeof(buffer) - 1);
             
             REQUIRE(bytes_read > 0);
