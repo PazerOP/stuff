@@ -1,7 +1,5 @@
 #include "mh/reflection/struct.hpp"
 
-#if (__cpp_concepts >= 201907) || (_MSC_VER >= 1928)
-
 #include <catch2/catch_all.hpp>
 
 #include <string>
@@ -123,5 +121,3 @@ TEST_CASE("struct reflection - member metadata", "[reflection][struct]")
 		}
 	});
 }
-
-#endif

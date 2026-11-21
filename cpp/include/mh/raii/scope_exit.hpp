@@ -1,7 +1,5 @@
 #pragma once
 
-#if (__cpp_concepts >= 201907) || (defined(_MSC_VER) && (__cpp_concepts >= 201811))
-
 #include <exception>
 #include <type_traits>
 #include <utility>
@@ -156,5 +154,3 @@ namespace mh
 	};
 	template<typename EF> scope_success(EF) -> scope_success<EF>;
 }
-
-#endif

@@ -1,8 +1,6 @@
 #pragma once
 
-#if __has_include(<compare>)
 #include <compare>
-#endif
 
 #ifdef _DEBUG
 #include <cassert>
@@ -43,11 +41,9 @@ namespace mh
 		template<typename U> friend constexpr bool operator==(const checked_ptr<U>&, const checked_ptr<U>&);
 		template<typename U> friend constexpr bool operator==(const U*, const checked_ptr<U>&);
 		template<typename U> friend constexpr bool operator==(const checked_ptr<U>&, const U*);
-#if __has_include(<compare>) && (__cpp_impl_three_way_comparison >= 201907)
 		template<typename U> friend constexpr std::strong_ordering operator<=>(const checked_ptr<U>&, const checked_ptr<U>&);
 		template<typename U> friend constexpr std::strong_ordering operator<=>(const U*, const checked_ptr<U>&);
 		template<typename U> friend constexpr std::strong_ordering operator<=>(const checked_ptr<U>&, const U*);
-#endif
 		value_type m_Ptr = nullptr;
 
 #ifdef _DEBUG
@@ -55,7 +51,6 @@ namespace mh
 #endif
 	};
 
-#if __has_include(<compare>) && (__cpp_impl_three_way_comparison >= 201907)
 	template<typename T>
 	inline constexpr std::strong_ordering operator<=>(const checked_ptr<T>& lhs, const checked_ptr<T>& rhs)
 	{
@@ -71,7 +66,6 @@ namespace mh
 	{
 		return lhs.m_Ptr <=> rhs;
 	}
-#endif
 
 	template<typename T>
 	inline constexpr bool operator==(const checked_ptr<T>& lhs, const checked_ptr<T>& rhs)
