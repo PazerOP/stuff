@@ -426,8 +426,8 @@ TEST_CASE("dispatcher - delay tasks fire in deadline order, not insertion order"
 
 TEST_CASE("dispatcher - an already-expired delay awaiter declines suspension")
 {
-	// The coroutine machinery skips await_suspend() when await_ready() is true,
-	// but the deadline can also pass BETWEEN those two calls; await_suspend()
+	// The coroutine machinery skips await_suspend() when await_ready() is true.
+	// However, the deadline can also pass BETWEEN those calls. await_suspend()
 	// re-checks and must refuse the suspension (returning false resumes the
 	// caller immediately) instead of parking the handle in the delay queue.
 	// Drive the awaiter interface directly to pin that race handling down.

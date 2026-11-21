@@ -152,7 +152,6 @@ TEST_CASE("ensure - failing check reports to stderr and passes the value through
 	const std::string output = capture.str();
 	CHECK(output.find("mh_ensure failed: zero") != std::string::npos);
 
-	// details labels are right-justified to the width of "message" (7)
 	CHECK(output.find("\n\t     in :  ") != std::string::npos);
 	CHECK(output.find("\n\t     at :  ") != std::string::npos);
 	CHECK(output.find("error_ensure_test") != std::string::npos); // file name in the "at" line

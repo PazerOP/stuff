@@ -1,8 +1,4 @@
-// NOTE: deliberately NOT an external-network test. CI must not depend on
-// network reachability, so the runtime tests below talk exclusively to an
-// in-process loopback (127.0.0.1) server on an ephemeral port; everything else
-// only checks the API surface (and, in compiled-library mode, that the symbol
-// actually links).
+// NOTE: deliberately NOT an external-network test.
 #include "mh/http/client.hpp"
 
 #include <catch2/catch_all.hpp>
@@ -58,17 +54,15 @@ TEST_CASE("http client - API surface", "[http]")
 namespace mh::http
 {
 	// Defined (with external linkage) in cpp/src/http/client.cpp but never
-	// declared in a header; declare it here so the compiled-library symbol can
+	// declared in a header. Declare it here so the compiled-library symbol can
 	// be exercised directly.
 	response get_sync(const std::string& url);
 }
 
 namespace
 {
-	// If the environment routes http:// through a proxy (http_proxy) without a
-	// no_proxy exemption, curl would send our 127.0.0.1 requests to the proxy
-	// instead of the in-process server. Set pre-main (single-threaded) and only
-	// when absent (overwrite=0) so an existing configuration is never touched.
+	// Set pre-main (single-threaded) and only when absent (overwrite=0) so an
+	// existing configuration is never touched.
 	[[maybe_unused]] const int g_no_proxy_env = (::setenv("no_proxy", "127.0.0.1", 0), 0);
 
 	[[noreturn]] void throw_errno(const char* what)
@@ -76,11 +70,10 @@ namespace
 		throw std::system_error(errno, std::generic_category(), what);
 	}
 
-	// Minimal HTTP/1.1 server on 127.0.0.1:<ephemeral>. Serves one canned
-	// response per accepted connection, in order, then exits its thread. Every
-	// blocking operation is a 100ms poll slice bounded by a 30s deadline and a
-	// stop flag, so no test can hang CI: destruction wakes the thread within
-	// ~100ms even mid-wait.
+	// Serves one canned response per accepted connection, in order, then exits
+	// its thread. Every blocking operation is a 100ms poll slice bounded by
+	// a 30s deadline and a stop flag. No test can hang CI: destruction wakes
+	// the thread within ~100ms even mid-wait.
 	class loopback_http_server
 	{
 	public:
@@ -218,8 +211,6 @@ namespace
 		std::thread m_Thread;
 	};
 
-	// "Connection: close" keeps the connection<->response mapping 1:1 (curl
-	// reconnects for a followed redirect instead of reusing the connection).
 	std::string ok_response(const std::string& body, const std::string& extraHeaders = {})
 	{
 		return
@@ -283,8 +274,6 @@ TEST_CASE("http get_sync - follows redirects", "[http]")
 	CHECK(resp.status.value == 200);
 	CHECK(resp.body == "after redirect");
 
-	// ...while the header map accumulates across hops (the 301's Location
-	// header remains visible).
 	REQUIRE(resp.headers.contains("Location"));
 	CHECK(resp.headers.at("Location") == "/target");
 

@@ -8,9 +8,6 @@
 #include <thread>
 #include <type_traits>
 
-// NOTE: all check() calls pass the location explicitly: on toolchains without
-// std::source_location (e.g. clang-14/libc++-14), MH_SOURCE_LOCATION_AUTO
-// degrades to a parameter with no default argument.
 
 TEST_CASE("thread_sentinel - check passes on the constructing thread", "[concurrency][thread_sentinel]")
 {
@@ -55,7 +52,7 @@ TEST_CASE("thread_sentinel - check from another thread throws with details", "[c
 		// the location is printed as file(line):function
 		CHECK(what.find("concurrency_thread_sentinel_test") != std::string_view::npos);
 
-		// the exception must carry the location it was triggered from
+		// the exception must carry the location it was triggered.
 		CHECK(e.location().line() == checkLocation.line());
 		CHECK(std::string_view(e.location().file_name()) == checkLocation.file_name());
 	}

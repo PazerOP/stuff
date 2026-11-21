@@ -198,9 +198,6 @@ TEST_CASE("enum reflection - enum_fmt formatter rejects invalid specs", "[reflec
 	CHECK_THROWS_AS(mh::format("{:t", mh::enum_fmt(sound::beep)), mh::format_error);
 }
 
-// NOTE: the wide (CharT != char) branch of the enum_fmt formatter cannot be
-// tested: instantiating it does not compile against fmt 9 (mh::format_to wraps
-// the format string in fmt::runtime, which fmt 9's wide format_to overloads do
-// not accept). Recorded as an open question for the maintainer.
+// Recorded as an open question for the maintainer.
 
 #endif // MH_FORMATTER != MH_FORMATTER_NONE

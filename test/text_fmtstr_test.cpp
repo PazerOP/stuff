@@ -76,7 +76,7 @@ TEST_CASE("format string buffers - constexpr puts", "[text][fmtstr]")
 	// puts's element-by-element copy branch runs only under constant
 	// evaluation (the runtime branch uses memcpy); pin it at compile time,
 	// including the max_size() truncation clamp. All checks happen inside the
-	// lambda: returning the buffer itself would copy-construct it, and
+	// lambda. Returning the buffer itself would copy-construct it. And
 	// base_format_string's user-declared copy assignment makes the implicit
 	// copy constructor a -Wdeprecated-copy error on clang.
 	constexpr bool ok = []

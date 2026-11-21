@@ -35,7 +35,7 @@ TEST_CASE("thread_pool - task_count reflects queued work")
 	REQUIRE(tp.task_count() == 0);
 
 	// Occupy the single pool thread, then queue a second task: it must sit in
-	// the dispatcher's queue (count 1) until the first task unblocks.
+	// the dispatcher's queue (one count) until the first task unblocks.
 	std::latch blockerStarted(1);
 	std::latch releaseBlocker(1);
 
