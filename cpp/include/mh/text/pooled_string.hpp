@@ -58,7 +58,7 @@ namespace mh
 			return static_cast<std::size_t>(x ^ (x >> 32));
 		}
 
-		friend constexpr bool operator==(pooled_string, pooled_string) noexcept = default;
+		friend constexpr bool operator==(pooled_string lhs, pooled_string rhs) noexcept { return lhs.m_Str == rhs.m_Str; }
 		friend bool operator==(pooled_string lhs, std::string_view rhs) noexcept { return lhs.view() == rhs; }
 
 		// Orders by the characters, not by the pointer.

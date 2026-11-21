@@ -2,6 +2,9 @@
 #include <catch2/catch_all.hpp>
 
 #include <algorithm>
+#include <compare>
+#include <iomanip>
+#include <iterator>
 #include <map>
 #include <sstream>
 #include <string>
@@ -198,9 +201,10 @@ TEST_CASE("pooled_string - many strings", "[text][pooled_string]")
 
 TEST_CASE("pooled_string - threads", "[text][pooled_string]")
 {
-	// Every thread constructs the same new strings at the same time, while the table grows.
+	// Every thread constructs the same new strings at the same time. This test adds more strings
+	// than all the other tests together, so the table must grow while the threads read it.
 	constexpr int THREADS = 8;
-	constexpr int COUNT = 20'000;
+	constexpr int COUNT = 200'000;
 	const auto make = [](int i) { return "threads/" + std::to_string(i); };
 
 	std::vector<std::vector<pooled_string>> results(THREADS);
