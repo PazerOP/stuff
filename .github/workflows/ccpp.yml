@@ -18,14 +18,14 @@ env:
 
 jobs:
   build-linux:
-    # Pinned because Ubuntu 24.04 is the image that ships every compiler in the matrix below: g++-12, g++-13 and clang++-14/15 with libc++. ubuntu-latest now resolves to Ubuntu 26.04, where the clang-14/15 and libc++-14/15 packages no longer exist. Their apt-get install fails with exit code 100 before the build starts.
+    # Pinned because Ubuntu 24.04 is the image that ships every compiler in the matrix below: g++-12, g++-13 and clang++-14/15 with libc++. ubuntu-latest now resolves to Ubuntu 26.04, where the clang-14/15 and libc++-14/15 packages no longer exist, so their apt-get install fails before the build starts.
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         MH_STUFF_COMPILE_LIBRARY: [true, false]
         compiler:
-          # Modern compilers available in the Ubuntu 24.04 image pinned above. 'gcov' selects the matching gcov for coverage; coverage is GCC-only (clang would need its profile runtime + llvm-cov, which we don't install)
+          # Compilers available in the Ubuntu 24.04 image pinned above. 'gcov' selects the matching gcov for coverage; coverage is GCC-only (clang would need its profile runtime + llvm-cov, which we don't install)
           - exe: g++-12
             deps: g++-12
             gcov: gcov-12
