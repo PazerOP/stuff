@@ -4,12 +4,6 @@
 #include <type_traits>
 #include <variant>
 
-#ifdef __cpp_consteval
-#define MH_CONSTEVAL consteval
-#else
-#define MH_CONSTEVAL constexpr
-#endif
-
 namespace mh
 {
 	namespace detail::variant
@@ -17,7 +11,7 @@ namespace mh
 		constexpr size_t INVALID_TYPE_INDEX = size_t(-1);
 
 		template<size_t Index, typename TFind, typename T, typename... TOthers>
-		MH_CONSTEVAL size_t find_type_index()
+		consteval size_t find_type_index()
 		{
 			if constexpr (std::is_same_v<TFind, T>)
 			{
@@ -40,7 +34,7 @@ namespace mh
 		}
 
 		template<typename TFind, typename TVariant, size_t Index = 0>
-		MH_CONSTEVAL size_t find_variant_index_noerror()
+		consteval size_t find_variant_index_noerror()
 		{
 			if constexpr (Index >= std::variant_size_v<TVariant>)
 			{
@@ -60,7 +54,7 @@ namespace mh
 		}
 
 		template<typename TFind, typename TVariant, size_t Index = 0>
-		MH_CONSTEVAL size_t find_variant_index()
+		consteval size_t find_variant_index()
 		{
 			constexpr size_t index = find_variant_index_noerror<TFind, TVariant, Index>();
 			static_assert(index != INVALID_TYPE_INDEX, "Type not found in variant");
@@ -69,7 +63,7 @@ namespace mh
 	}
 
 	template<typename TFind, typename... Types>
-	MH_CONSTEVAL size_t variant_type_index(const std::variant<Types...>&)
+	consteval size_t variant_type_index(const std::variant<Types...>&)
 	{
 		return detail::variant::find_type_index<0, TFind, Types...>();
 	}
@@ -77,5 +71,3 @@ namespace mh
 	template<typename TVariant, typename TFind> constexpr size_t variant_type_index_v =
 		detail::variant::find_variant_index<TFind, TVariant>();
 }
-
-#undef MH_CONSTEVAL

@@ -3,7 +3,7 @@
 
 #include <compare>
 #include <cstring>
-#include "last_include.hpp"
+#include <utility>
 
 TEST_CASE("buffer - common", "[memory][buffer]")
 {
@@ -87,6 +87,22 @@ TEST_CASE("buffer - constructor - initial data", "[memory][buffer]")
 	REQUIRE(!std::memcmp(buf.data(), TEST_DATA, sizeof(TEST_DATA)));
 }
 
+TEST_CASE("buffer - constructor - move constructor", "[memory][buffer]")
+{
+	constexpr const char TEST_DATA[] = "very cool test framework";
+	mh::buffer src((const std::byte*)TEST_DATA, sizeof(TEST_DATA));
+	const std::byte* const srcData = src.data();
+
+	mh::buffer moved(std::move(src));
+	REQUIRE(moved.size() == sizeof(TEST_DATA));
+	REQUIRE(moved.data() == srcData); // the allocation is transferred, not copied
+	REQUIRE(!std::memcmp(moved.data(), TEST_DATA, sizeof(TEST_DATA)));
+
+	// the moved-from buffer is empty and safe to destroy (no double free)
+	REQUIRE(src.size() == 0);
+	REQUIRE(src.data() == nullptr);
+}
+
 TEST_CASE("buffer - constructor - copy constructor", "[memory][buffer]")
 {
 	constexpr const char TEST_DATA[] = "very cool test framework";
@@ -141,7 +157,7 @@ TEST_CASE("buffer - empty buffer copies", "[memory][buffer]")
 }
 
 // mirrors the feature guard around buffer's operator<=>
-#if ((__cpp_lib_three_way_comparison >= 201907) || defined(_MSC_VER)) && (__cpp_impl_three_way_comparison >= 201907)
+#if (__cpp_lib_three_way_comparison >= 201907) || defined(_MSC_VER)
 TEST_CASE("buffer - three-way comparison", "[memory][buffer]")
 {
 	SECTION("empty <=> empty")

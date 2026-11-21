@@ -1,16 +1,8 @@
 #pragma once
 
-#if __has_include(<version>)
-#include <version>
-#endif
-
 #include <array>
-#if __has_include(<bit>)
 #include <bit>
-#endif
-#if (__cpp_impl_three_way_comparison >= 201907)
 #include <compare>
-#endif
 #include <cstdint>
 #include <iosfwd>
 #include <iostream>
@@ -24,22 +16,11 @@ namespace mh
 {
 	namespace detail::uint128_hpp
 	{
-		constexpr bool is_constant_evaluated()
-		{
-#if __cpp_lib_is_constant_evaluated >= 201811
-			return std::is_constant_evaluated();
-#else
-			return true;
-#endif
-		}
-
 		template <typename TFunc>
 		static constexpr void debug([[maybe_unused]] const TFunc &f)
 		{
-#if __cpp_lib_is_constant_evaluated >= 201811
-			// if (!detail::is_constant_evaluated())
+			// if (!std::is_constant_evaluated())
 			//	f();
-#endif
 		}
 
 #if (defined(__x86_64__)) && (defined(__GNUC__) || defined(__clang__))
@@ -50,36 +31,6 @@ namespace mh
 #endif
 
 #endif
-
-		template <typename T>
-		static constexpr int countl_zero(T x) noexcept
-		{
-#if __cpp_lib_bitops >= 201907
-			return std::countl_zero<T>(x);
-#else
-			constexpr int DIGITS = sizeof(T) * std::numeric_limits<unsigned char>::digits;
-			if (x == T(0))
-				return DIGITS;
-
-#if defined(__GNUC__) || defined(__clang__)
-			if constexpr (std::is_same_v<T, uint64_t>)
-				return __builtin_clzl(x);
-			else
-				return __builtin_clz(x);
-#else
-			int bits = 0;
-			for (T i = (T(1) << (DIGITS - 1)); i != 0; i >>= 1)
-			{
-				if (i & x)
-					break;
-
-				bits++;
-			}
-
-			return bits;
-#endif
-#endif
-		}
 	}
 
 	union uint128
@@ -107,7 +58,7 @@ namespace mh
 		static constexpr uint128 from_mul(uint64_t a, uint64_t b)
 		{
 			uint128 retVal;
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 				retVal.u128 = a;
@@ -139,7 +90,7 @@ namespace mh
 		constexpr uint128 &operator++()
 		{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 				u128++;
 			}
@@ -164,7 +115,7 @@ namespace mh
 		constexpr uint128 operator+(uint64_t rhs) const
 		{
 			uint128 retVal;
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 				retVal.u128 = u128 + rhs;
@@ -191,7 +142,7 @@ namespace mh
 		constexpr uint128 operator-(const uint128 &rhs) const { return uint128(*this) -= rhs; }
 		constexpr uint128 &operator-=(const uint128 &rhs)
 		{
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 				u128 -= rhs.u128;
@@ -214,10 +165,10 @@ namespace mh
 
 		constexpr uint8_t leading_zeros() const
 		{
-			if (auto z = detail::uint128_hpp::countl_zero(u64[1]); z != 64)
+			if (auto z = std::countl_zero(u64[1]); z != 64)
 				return z;
 
-			return 64 + detail::uint128_hpp::countl_zero(u64[0]);
+			return 64 + std::countl_zero(u64[0]);
 		}
 
 		template <typename T>
@@ -233,7 +184,7 @@ namespace mh
 			if (static_cast<std::make_unsigned_t<T>>(bits) >= 128u)
 				return retVal; // shifted fully out: zero (a full-width platform u128 shift would be UB)
 
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 				retVal.u128 = u128 << bits;
@@ -276,7 +227,7 @@ namespace mh
 			if (static_cast<std::make_unsigned_t<T>>(bits) >= 128u)
 				return retVal; // shifted fully out: zero (a full-width platform u128 shift would be UB)
 
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 				retVal.u128 = u128 >> bits;
@@ -325,29 +276,20 @@ namespace mh
 
 		constexpr detail::uint128_hpp::platform_uint128_t get_u128() const
 		{
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 				return u128;
 
-#if __cpp_lib_bit_cast >= 201806
 			return std::bit_cast<detail::uint128_hpp::platform_uint128_t>(u64);
-#else
-			return (detail::uint128_hpp::platform_uint128_t(get_u64<1>()) << 64) | get_u64<0>();
-#endif
 		}
 		constexpr void set_u128(detail::uint128_hpp::platform_uint128_t value)
 		{
-			if (!detail::uint128_hpp::is_constant_evaluated())
+			if (!std::is_constant_evaluated())
 			{
 				u128 = value;
 				return;
 			}
 
-#if __cpp_lib_bit_cast >= 201806
 			u64 = std::bit_cast<std::array<uint64_t, 2>>(value);
-#else
-			set_u64<0>(value);
-			set_u64<1>(value >> 64);
-#endif
 		}
 #endif
 	};
@@ -361,7 +303,6 @@ namespace mh
 		return !(lhs == rhs);
 	}
 
-#if (__cpp_impl_three_way_comparison >= 201907)
 	inline constexpr std::strong_ordering operator<=>(
 		const mh::uint128 &lhs, const mh::uint128 &rhs)
 	{
@@ -386,7 +327,7 @@ namespace mh
 
 		const auto rhs64 = static_cast<uint64_t>(rhs);
 
-		if (!mh::detail::uint128_hpp::is_constant_evaluated())
+		if (!std::is_constant_evaluated())
 		{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 			return lhs.u128 <=> mh::detail::uint128_hpp::platform_uint128_t(rhs64);
@@ -410,7 +351,7 @@ namespace mh
 
 		const auto lhs64 = static_cast<uint64_t>(lhs);
 
-		if (!mh::detail::uint128_hpp::is_constant_evaluated())
+		if (!std::is_constant_evaluated())
 		{
 #ifdef MH_UINT128_ENABLE_PLATFORM_UINT128
 			return mh::detail::uint128_hpp::platform_uint128_t(lhs64) <=> rhs.u128;
@@ -422,23 +363,6 @@ namespace mh
 
 		return lhs64 <=> rhs.get_u64<0>();
 	}
-#else
-	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator<(const mh::uint128 &lhs, T rhs)
-	{
-		return !lhs.get_u64<1>() && lhs.get_u64<0>() < rhs;
-	}
-	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator<(T lhs, const mh::uint128 &rhs)
-	{
-		return rhs.get_u64<1>() || lhs < rhs.get_u64<0>();
-	}
-	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	constexpr bool operator>=(const mh::uint128 &lhs, T rhs)
-	{
-		return !(lhs < rhs);
-	}
-#endif
 
 	template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
 	constexpr bool operator==(const mh::uint128 &lhs, T rhs)
@@ -504,7 +428,7 @@ namespace mh
 
 			uint64_t buffer = get_u64<0>();
 
-			const uint8_t skip = (remainder64 == 0 && buffer != 0) ? detail::uint128_hpp::countl_zero(buffer) : 0;
+			const uint8_t skip = (remainder64 == 0 && buffer != 0) ? std::countl_zero(buffer) : 0;
 			buffer <<= skip;
 			uint8_t count = 64 - skip;
 

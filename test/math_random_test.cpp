@@ -1,296 +1,64 @@
 #include "mh/math/random.hpp"
+
 #include <catch2/catch_all.hpp>
 
-#include <set>
-#include <unordered_set>
-#include <algorithm>
-#include <numeric>
-#include <cmath>
+#include <cstdint>
 #include <thread>
-#include <limits>
-#include "last_include.hpp"
 
-TEST_CASE("get_random integer types", "[math][random]")
+// get_random is seeded from std::random_device: only deterministic properties
+// are asserted (range bounds, degenerate ranges, absence of crashes) — never
+// specific values or distribution shape.
+
+namespace
 {
-	SECTION("int32_t range")
+	template<typename T>
+	void check_in_bounds(T min, T max)
 	{
-		constexpr int32_t min_val = 10;
-		constexpr int32_t max_val = 20;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
-
-	SECTION("uint32_t range")
-	{
-		constexpr uint32_t min_val = 100u;
-		constexpr uint32_t max_val = 200u;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
-
-	SECTION("int64_t range")
-	{
-		constexpr int64_t min_val = 1000LL;
-		constexpr int64_t max_val = 2000LL;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
-
-	SECTION("uint64_t range")
-	{
-		constexpr uint64_t min_val = 10000ULL;
-		constexpr uint64_t max_val = 20000ULL;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
-
-	SECTION("int16_t range")
-	{
-		constexpr int16_t min_val = 100;
-		constexpr int16_t max_val = 200;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
-
-	SECTION("uint16_t range")
-	{
-		constexpr uint16_t min_val = 300;
-		constexpr uint16_t max_val = 400;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
-
-	SECTION("int8_t range")
-	{
-		constexpr int8_t min_val = 10;
-		constexpr int8_t max_val = 20;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
-
-	SECTION("uint8_t range")
-	{
-		constexpr uint8_t min_val = 50;
-		constexpr uint8_t max_val = 60;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
+		for (int i = 0; i < 1000; i++)
+		{
+			const T value = mh::get_random<T>(min, max);
+			CHECK(value >= min);
+			CHECK(value <= max);
 		}
 	}
 }
 
-TEST_CASE("get_random floating point types", "[math][random]")
+TEMPLATE_TEST_CASE("get_random - integer bounds", "[math][random]",
+	int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t)
 {
-	SECTION("float range")
-	{
-		constexpr float min_val = 1.0f;
-		constexpr float max_val = 2.0f;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
+	check_in_bounds<TestType>(0, 9);
+	check_in_bounds<TestType>(TestType(17), TestType(17)); // degenerate range
 
-	SECTION("double range")
-	{
-		constexpr double min_val = 10.5;
-		constexpr double max_val = 20.5;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
+	if constexpr (std::is_signed_v<TestType>)
+		check_in_bounds<TestType>(TestType(-50), TestType(-40));
 
-	SECTION("float negative range")
-	{
-		constexpr float min_val = -5.0f;
-		constexpr float max_val = -1.0f;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
-
-	SECTION("double zero-crossing range")
-	{
-		constexpr double min_val = -2.5;
-		constexpr double max_val = 2.5;
-		
-		for (int i = 0; i < 100; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
+	// full domain (for the 8-bit types this exercises the widen-to-16-bit
+	// delegation with values a plain cast round-trip must preserve)
+	check_in_bounds<TestType>(std::numeric_limits<TestType>::min(), std::numeric_limits<TestType>::max());
 }
 
-TEST_CASE("get_random edge cases", "[math][random]")
+TEMPLATE_TEST_CASE("get_random - floating point bounds", "[math][random]", float, double)
 {
-	SECTION("single value range")
-	{
-		constexpr int value = 42;
-		for (int i = 0; i < 10; ++i) {
-			auto result = mh::get_random(value, value);
-			REQUIRE(result == value);
-		}
-	}
+	check_in_bounds<TestType>(TestType(0), TestType(1));
+	check_in_bounds<TestType>(TestType(-2.5), TestType(2.5));
 
-	SECTION("zero range for integers")
-	{
-		for (int i = 0; i < 10; ++i) {
-			auto result = mh::get_random(0, 0);
-			REQUIRE(result == 0);
-		}
-	}
-
-	SECTION("zero range for floats")
-	{
-		constexpr float zero = 0.0f;
-		for (int i = 0; i < 10; ++i) {
-			auto result = mh::get_random(zero, zero);
-			// When min == max for floating point, should return exactly that value
-			// or be very close to it (implementation may use nextafter)
-			REQUIRE(result == Catch::Approx(static_cast<double>(zero)).margin(std::numeric_limits<float>::epsilon() * 2));
-		}
-	}
-
-	SECTION("maximum integer range")
-	{
-		// Test with smaller range to avoid overflow issues
-		constexpr int16_t min_val = std::numeric_limits<int16_t>::min();
-		constexpr int16_t max_val = std::numeric_limits<int16_t>::max();
-		
-		for (int i = 0; i < 50; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			REQUIRE(result >= min_val);
-			REQUIRE(result <= max_val);
-		}
-	}
+	// max_inclusive is nudged with nextafter, so a degenerate range's only
+	// representable result is the bound itself
+	for (int i = 0; i < 100; i++)
+		CHECK(mh::get_random<TestType>(TestType(3.25), TestType(3.25)) == TestType(3.25));
 }
 
-TEST_CASE("get_random distribution quality", "[math][random]")
+TEST_CASE("get_random - engine is usable from any thread", "[math][random]")
 {
-	SECTION("integer distribution coverage")
-	{
-		constexpr int min_val = 1;
-		constexpr int max_val = 10;
-		std::unordered_set<int> seen_values;
-		
-		// Generate many values to see good coverage
-		for (int i = 0; i < 1000; ++i) {
-			auto result = mh::get_random(min_val, max_val);
-			seen_values.insert(result);
-		}
-		
-		// Should see most or all values in the range
-		REQUIRE(seen_values.size() >= 7);
-		
-		// Verify all seen values are in range
-		for (auto value : seen_values) {
-			REQUIRE(value >= min_val);
-			REQUIRE(value <= max_val);
-		}
-	}
+	// the engine is thread_local and lazily seeded per thread; a fresh thread
+	// must get its own working engine
+	int value = -1;
+	std::thread thread([](int& valueOut)
+		{
+			valueOut = mh::get_random<int>(0, 100);
+		}, std::ref(value));
+	thread.join();
 
-	SECTION("float distribution spread")
-	{
-		constexpr float min_val = 0.0f;
-		constexpr float max_val = 1.0f;
-		std::vector<float> values;
-		
-		for (int i = 0; i < 1000; ++i) {
-			values.push_back(mh::get_random(min_val, max_val));
-		}
-		
-		// Calculate mean and verify it's approximately in the middle
-		float mean = std::accumulate(values.begin(), values.end(), 0.0f) / values.size();
-		REQUIRE(mean == Catch::Approx(0.5f).margin(0.1f));
-		
-		// Verify we have good spread (min and max should be reasonably close to bounds)
-		auto [min_it, max_it] = std::minmax_element(values.begin(), values.end());
-		REQUIRE(*min_it < 0.2f); // Should get close to minimum
-		REQUIRE(*max_it > 0.8f); // Should get close to maximum
-	}
-}
-
-TEST_CASE("get_random thread safety", "[math][random]")
-{
-	SECTION("multiple threads don't interfere")
-	{
-		constexpr int num_threads = 4;
-		constexpr int values_per_thread = 100;
-		
-		std::vector<std::thread> threads;
-		std::vector<std::vector<int>> thread_results(num_threads);
-		
-		for (int t = 0; t < num_threads; ++t) {
-			threads.emplace_back([&thread_results, t, values_per_thread]() {
-				for (int i = 0; i < values_per_thread; ++i) {
-					thread_results[t].push_back(mh::get_random(1, 1000));
-				}
-			});
-		}
-		
-		for (auto& thread : threads) {
-			thread.join();
-		}
-		
-		// Verify all threads generated valid values
-		for (int t = 0; t < num_threads; ++t) {
-			REQUIRE(thread_results[t].size() == values_per_thread);
-			for (auto value : thread_results[t]) {
-				REQUIRE(value >= 1);
-				REQUIRE(value <= 1000);
-			}
-		}
-		
-		// Verify threads generated different sequences (very high probability)
-		bool sequences_differ = false;
-		for (int t1 = 0; t1 < num_threads - 1; ++t1) {
-			for (int t2 = t1 + 1; t2 < num_threads; ++t2) {
-				if (thread_results[t1] != thread_results[t2]) {
-					sequences_differ = true;
-					break;
-				}
-			}
-			if (sequences_differ) break;
-		}
-		REQUIRE(sequences_differ); // Extremely unlikely that all sequences are identical
-	}
+	CHECK(value >= 0);
+	CHECK(value <= 100);
 }

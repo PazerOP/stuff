@@ -25,7 +25,7 @@ jobs:
       matrix:
         MH_STUFF_COMPILE_LIBRARY: [true, false]
         compiler:
-          # Modern compilers available in the Ubuntu 24.04 image pinned above. 'gcov' selects the matching gcov for coverage; coverage is GCC-only (clang would need its profile runtime + llvm-cov, which we don't install)
+          # Compilers available in the Ubuntu 24.04 image pinned above. 'gcov' selects the matching gcov for coverage; coverage is GCC-only (clang would need its profile runtime + llvm-cov, which we don't install)
           - exe: g++-12
             deps: g++-12
             gcov: gcov-12
@@ -86,9 +86,9 @@ jobs:
     - name: Generate coverage report
       if: matrix.compiler.gcov != ''
       run: |
-        cd build
         gcovr --version
-        gcovr --gcov-executable "${{ matrix.compiler.gcov }}" --root "../" --exclude ".*/catch.hpp" --exclude ".*/test_compile_file/.*" --exclude ".*/test/.*" --sort uncovered-percent --html-details "results_${{ matrix.compiler.exe }}.html" .
+        # Run gcovr from the REPO ROOT with the build dir as the search path. Running it from inside the build dir with --root ../ made gcovr silently drop every file outside the build dir (all of cpp/include, cpp/src and test/) - the uploaded report contained nothing. However, Catch2/_deps sources. The explicit --filter keeps the report to library code, which also covers everything the old --exclude list (catch.hpp, test/, generated test_compile_file TUs) was for.
+        gcovr --gcov-executable "${{ matrix.compiler.gcov }}" --root . --filter 'cpp/include/' --filter 'cpp/src/' --sort uncovered-percent --html-details "build/results_${{ matrix.compiler.exe }}.html" build
 
     - name: Save test results
       if: matrix.MH_STUFF_COMPILE_LIBRARY && matrix.compiler.gcov != ''

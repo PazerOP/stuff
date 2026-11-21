@@ -63,7 +63,7 @@ MH_COMPILE_LIBRARY_INLINE bool mh::buffer::reserve(size_t minSize)
 	return false;
 }
 
-#if ((__cpp_lib_three_way_comparison >= 201907) || defined(_MSC_VER)) && (__cpp_impl_three_way_comparison >= 201907)
+#if (__cpp_lib_three_way_comparison >= 201907) || defined(_MSC_VER)
 MH_COMPILE_LIBRARY_INLINE std::strong_ordering mh::buffer::operator<=>(const mh::buffer& other) const
 {
 	if (auto result = m_Size <=> other.m_Size; std::is_neq(result))
