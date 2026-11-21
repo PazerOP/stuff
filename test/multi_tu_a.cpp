@@ -20,12 +20,27 @@ bool is_main_thread_tu_a()
 	return mh::is_main_thread();
 }
 
+mh::pooled_string pooled_string_tu_a(std::string_view str)
+{
+	return mh::pooled_string(str);
+}
+
 #ifdef MH_COROUTINES_SUPPORTED
 mh::dispatcher* try_get_dispatcher_tu_a()
 {
 	return mh::dispatcher::try_get();
 }
 #endif
+
+TEST_CASE("multi-TU - pooled_string uses one pool for all TUs")
+{
+	// With one pool per TU, equal strings would compare unequal.
+	const auto a = pooled_string_tu_a("multi-TU pooled string");
+	const auto b = pooled_string_tu_b("multi-TU pooled string");
+	REQUIRE(a == b);
+	REQUIRE(a.data() == b.data());
+	REQUIRE(pooled_string_tu_a("") == pooled_string_tu_b(""));
+}
 
 TEST_CASE("multi-TU - header entities are program-wide, not per-TU")
 {

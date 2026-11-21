@@ -8,11 +8,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
 endif()
 
 # Build Catch2 with the same C++ standard as the tests that link it. Catch2 only
-# requires cxx_std_14 (a minimum), so on compilers whose default is pre-C++17
-# (clang < 16) libCatch2.a would otherwise lack symbols. That its headers
-# declare for C++17+ consumers (e.g.
-# Catch::StringMaker<std::string_view>::convert), breaking the link of any C++20
-# test that stringifies a string_view.
+# requires cxx_std_14 (a minimum). So on compilers whose default is pre-C++17
+# (clang < 16) libCatch2.a would otherwise lack symbols that its headers declare
+# for C++17+ consumers (e.g. Catch::StringMaker<std::string_view>::convert).
+# Those compilers are breaking the link of any C++20 test that stringifies a
+# string_view.
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -54,27 +54,40 @@ function(mh_test name)
 endfunction()
 
 mh_test(algorithm_algorithm_test)
+mh_test(algorithm_algorithm_generic_test)
+mh_test(algorithm_multi_compare_test)
 mh_test(chrono_helpers_test)
 mh_test(concurrency_dispatcher_test)
+mh_test(concurrency_locked_value_test)
+mh_test(concurrency_main_thread_test)
 mh_test(concurrency_thread_pool_test)
+mh_test(concurrency_thread_sentinel_test)
 mh_test(concurrency_upgrade_mutex_test)
 mh_test(containers_heap_test)
 mh_test(coroutine_generator_test)
 mh_test(coroutine_task_test)
+mh_test(coroutine_thread_test)
 mh_test(data_bit_float_test)
 mh_test(data_bit_stream_test)
 mh_test(data_bits_test)
+mh_test(data_lazy_test)
+mh_test(data_optional_ref_test)
 mh_test(data_variable_pusher_test)
 mh_test(error_ensure_test)
+mh_test(error_error_code_exception_test)
+mh_test(error_exception_details_test)
 mh_test(error_expected_test)
 mh_test(error_nested_exception_test)
+mh_test(error_not_implemented_error_test)
 mh_test(error_status_test)
 mh_test(future_test)
 mh_test(http_client_test)
 mh_test(io_fd_test)
 mh_test(io_file_test)
+mh_test(io_filesystem_helpers_test)
 mh_test(math_angles_test)
 mh_test(math_interpolation_test)
+mh_test(math_random_test)
 mh_test(math_uint128_test)
 mh_test(memory_buffer_test)
 mh_test(memory_cached_variable_test)
@@ -83,7 +96,9 @@ mh_test(memory_helpers_test)
 mh_test(memory_unique_object_test)
 mh_test(process_process_test)
 mh_test(raii_scope_exit_test)
+mh_test(reflection_enum_test)
 mh_test(reflection_struct_test)
+mh_test(source_location_test)
 mh_test(text_case_insensitive_string_test)
 mh_test(text_codecvt_test)
 mh_test(text_charconv_helper_test)
@@ -91,10 +106,16 @@ mh_test(text_filebuf_test)
 mh_test(text_fmtstr_test)
 mh_test(text_indenting_ostream_test)
 mh_test(text_insertion_conversion_test)
+mh_test(text_memstream_seekdir_test)
 mh_test(text_memstream_test)
+mh_test(text_multi_char_test)
+mh_test(text_pooled_string_test)
 mh_test(text_string_insertion_test)
 mh_test(text_stringops_test)
+mh_test(synchronization_semaphore_test)
+mh_test(types_enum_class_bit_ops_test)
 mh_test(types_test)
+mh_test(utility_test)
 mh_test(variant_test)
 
 # text_format_test gets a second, test-case-free translation unit. Formatting a
@@ -104,8 +125,8 @@ mh_test(text_format_test)
 target_sources(text_format_test PRIVATE text_format_link_tu.cpp)
 
 # Multi-TU link test. Deliberately does NOT link mh::stuff. It must build with
-# only the include directory, so that the build system's injected defines
-# (e.g. MH_STUFF_API=). And compiled-library mode cannot mask header-only-mode
+# only the include directory. So that the build system's injected defines
+# (e.g. MH_STUFF_API=) and compiled-library mode cannot mask header-only-mode
 # bugs (missing MH_COMPILE_LIBRARY_INLINE markers -> multiple-definition link
 # errors, per-TU copies of program-wide entities, headers that rely on
 # build-system macros). Linking this executable is the core of the test.

@@ -1,13 +1,15 @@
 #include "mh/memory/unique_object.hpp"
 #include <catch2/catch_all.hpp>
 
+#include <sstream>
 #include <utility>
 
 namespace
 {
-	// Mirrors the shape of an fd-style traits type (mh::io's fd_traits), but
-	// counts "closes" instead of touching real file descriptors. So lifetime bugs
-	// (double close, closing the first handle) show up as assertion failures.
+	// Mirrors the shape of an fd-style traits type (mh::io's fd_traits). However,
+	// the shape counts "closes" instead of touching real file descriptors, so
+	// lifetime bugs (double close, closing the first handle) show up as assertion
+	// failures.
 	struct counting_handle_traits
 	{
 		static constexpr int invalid() { return -1; }
@@ -179,4 +181,21 @@ TEST_CASE("unique_object - supports move-only object types", "[memory][unique_ob
 	mh::unique_object<move_only, move_only_traits> holder{ move_only{} };
 	holder.reset(move_only{});
 	REQUIRE(static_cast<bool>(holder));
+}
+
+TEST_CASE("unique_object - stream insertion prints the value or (empty)", "[memory][unique_object]")
+{
+	counting_handle_traits::s_CloseCount = 0;
+
+	{
+		std::ostringstream os;
+		os << counting_handle(42);
+		REQUIRE(os.str() == "42");
+	}
+
+	{
+		std::ostringstream os;
+		os << counting_handle(); // invalid handle
+		REQUIRE(os.str() == "(empty)");
+	}
 }

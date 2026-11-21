@@ -3,6 +3,7 @@
 
 #include <compare>
 #include <cstring>
+#include <utility>
 
 TEST_CASE("buffer - common", "[memory][buffer]")
 {
@@ -84,6 +85,22 @@ TEST_CASE("buffer - constructor - initial data", "[memory][buffer]")
 	mh::buffer buf((const std::byte*)TEST_DATA, sizeof(TEST_DATA));
 	REQUIRE(buf.size() == sizeof(TEST_DATA));
 	REQUIRE(!std::memcmp(buf.data(), TEST_DATA, sizeof(TEST_DATA)));
+}
+
+TEST_CASE("buffer - constructor - move constructor", "[memory][buffer]")
+{
+	constexpr const char TEST_DATA[] = "very cool test framework";
+	mh::buffer src((const std::byte*)TEST_DATA, sizeof(TEST_DATA));
+	const std::byte* const srcData = src.data();
+
+	mh::buffer moved(std::move(src));
+	REQUIRE(moved.size() == sizeof(TEST_DATA));
+	REQUIRE(moved.data() == srcData); // the allocation is transferred, not copied
+	REQUIRE(!std::memcmp(moved.data(), TEST_DATA, sizeof(TEST_DATA)));
+
+	// the moved-from buffer is empty and safe to destroy (no double free)
+	REQUIRE(src.size() == 0);
+	REQUIRE(src.data() == nullptr);
 }
 
 TEST_CASE("buffer - constructor - copy constructor", "[memory][buffer]")
