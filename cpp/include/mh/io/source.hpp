@@ -40,6 +40,12 @@ namespace mh::io
 
         // Static factory methods for creating platform-specific sources
         MH_STUFF_API static source_ptr create_file(const std::filesystem::path& filepath);
+
+        // Shared source for standard output, created on first use
+        MH_STUFF_API static source_ptr stdout_source();
+
+        // Shared source for standard error, created on first use
+        MH_STUFF_API static source_ptr stderr_source();
     };
 }
 

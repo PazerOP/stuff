@@ -172,5 +172,9 @@ foreach (F IN LISTS MH_HPP_FILES)
 		"${GENERATED_FILE}"
 	)
 
+	# The generated source includes "last_include.hpp" from this directory, which
+	# is not on the include path the mh::stuff target exports.
+	target_include_directories(test_compile_file_${SAFE_FILENAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
 	target_link_libraries(test_compile_file_${SAFE_FILENAME} PUBLIC mh::stuff)
 endforeach()
