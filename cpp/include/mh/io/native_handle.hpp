@@ -14,20 +14,22 @@ namespace mh::io
         struct fd_traits
         {
             static constexpr int invalid() { return -1; }
-            
-            void delete_obj(int fd) const
+
+            void delete_obj(int& fd) const
             {
-                if (fd >= 0)
+                if (fd >= 0) {
                     close(fd);
+                    fd = invalid();
+                }
             }
-            
+
             int release_obj(int& fd) const
             {
                 int temp = fd;
                 fd = invalid();
                 return temp;
             }
-            
+
             bool is_obj_valid(int fd) const
             {
                 return fd >= 0;
@@ -41,7 +43,7 @@ namespace mh::io
     using native_handle = int; // File descriptor on Unix
 
     // RAII wrapper for native handles
-    using unique_native_handle = mh::unique_object<native_handle, 
+    using unique_native_handle = mh::unique_object<native_handle,
         detail::native_handle_hpp::fd_traits>;
 #endif
 }

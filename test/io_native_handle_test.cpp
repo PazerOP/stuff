@@ -230,13 +230,13 @@ TEST_CASE("unique_native_handle with pipe", "[io][native_handle]")
         // Test writing and reading
         const char* message = "test message";
         ssize_t written = write(write_end.value(), message, strlen(message));
-        REQUIRE(written == strlen(message));
+        REQUIRE(written == static_cast<ssize_t>(strlen(message)));
         
         write_end.reset(); // Close write end to signal EOF
         
         char buffer[100] = {0};
         ssize_t read_bytes = read(read_end.value(), buffer, sizeof(buffer) - 1);
-        REQUIRE(read_bytes == strlen(message));
+        REQUIRE(read_bytes == static_cast<ssize_t>(strlen(message)));
         REQUIRE(strcmp(buffer, message) == 0);
         
         // Handles will automatically close the pipe fds

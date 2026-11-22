@@ -4,6 +4,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include "last_include.hpp"
 
 TEST_CASE("heap basic construction", "[containers][heap]")
 {

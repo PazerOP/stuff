@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iomanip>
 #include <limits>
+#include "last_include.hpp"
 
 
 TEST_CASE("lerp", "[math][interpolation]")

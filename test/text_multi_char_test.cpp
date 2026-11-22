@@ -1,5 +1,6 @@
 #include "mh/text/multi_char.hpp"
 #include <catch2/catch_all.hpp>
+#include "last_include.hpp"
 
 TEST_CASE("multi_char stores all representations", "[text][multi_char]")
 {

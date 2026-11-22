@@ -9,6 +9,7 @@
 #include <string_view>
 #include <thread>
 #include <utility>
+#include "last_include.hpp"
 
 namespace
 {

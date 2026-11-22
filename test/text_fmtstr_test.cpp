@@ -3,6 +3,7 @@
 
 #include <string>
 #include <string_view>
+#include "last_include.hpp"
 
 TEST_CASE("printf_string - basic formatting and truncation", "[text][fmtstr]")
 {

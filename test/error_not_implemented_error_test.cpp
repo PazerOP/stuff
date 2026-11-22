@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include "last_include.hpp"
 
 TEST_CASE("not_implemented_error - is a logic_error", "[error][not_implemented_error]")
 {

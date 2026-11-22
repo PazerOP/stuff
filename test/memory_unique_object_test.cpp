@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include <utility>
+#include "last_include.hpp"
 
 namespace
 {

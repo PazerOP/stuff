@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ostream>
+#include "last_include.hpp"
 
 // fmemopen is POSIX-only, not available on Windows
 #ifdef __unix__

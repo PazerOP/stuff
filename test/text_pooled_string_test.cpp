@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include "last_include.hpp"
 
 using mh::pooled_string;
 using namespace std::string_literals;

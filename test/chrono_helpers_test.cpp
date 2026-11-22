@@ -6,6 +6,7 @@
 #include <ctime>
 #include <optional>
 #include <string>
+#include "last_include.hpp"
 
 namespace
 {

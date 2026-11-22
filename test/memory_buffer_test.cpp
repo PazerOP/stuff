@@ -4,6 +4,7 @@
 #include <compare>
 #include <cstring>
 #include <utility>
+#include "last_include.hpp"
 
 TEST_CASE("buffer - common", "[memory][buffer]")
 {

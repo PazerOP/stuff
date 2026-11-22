@@ -50,6 +50,7 @@ TEST_CASE("http client - API surface", "[http]")
 #include <system_error>
 #include <thread>
 #include <vector>
+#include "last_include.hpp"
 
 namespace mh::http
 {

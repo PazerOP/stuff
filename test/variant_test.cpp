@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <variant>
+#include "last_include.hpp"
 
 TEST_CASE("variant_type_index - finds every alternative position", "[variant]")
 {

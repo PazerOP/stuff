@@ -11,6 +11,7 @@
 #include <string.h>
 #include <utility>
 #include <vector>
+#include "last_include.hpp"
 
 TEST_CASE("getopt")
 {

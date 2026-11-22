@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include "last_include.hpp"
 
 TEST_CASE("locked_value - type aliases", "[concurrency][locked_value]")
 {

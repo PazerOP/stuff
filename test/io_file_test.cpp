@@ -197,6 +197,7 @@ TEST_CASE("large file operations", "[io][file]")
 
 #include <locale>
 #include <string>
+#include "last_include.hpp"
 
 namespace
 {

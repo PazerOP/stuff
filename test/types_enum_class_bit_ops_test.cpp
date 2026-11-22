@@ -3,6 +3,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <cstdint>
+#include "last_include.hpp"
 
 namespace
 {

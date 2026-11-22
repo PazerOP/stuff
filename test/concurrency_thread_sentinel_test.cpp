@@ -7,6 +7,7 @@
 #include <string_view>
 #include <thread>
 #include <type_traits>
+#include "last_include.hpp"
 
 
 TEST_CASE("thread_sentinel - check passes on the constructing thread", "[concurrency][thread_sentinel]")

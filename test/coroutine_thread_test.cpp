@@ -7,6 +7,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <thread>
+#include "last_include.hpp"
 
 TEST_CASE("co_create_thread - resumes on a new thread", "[coroutine][thread]")
 {

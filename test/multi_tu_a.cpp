@@ -9,6 +9,7 @@
 #include "multi_tu_shared.hpp"
 
 #include <catch2/catch_all.hpp>
+#include "last_include.hpp"
 
 const std::thread::id* main_thread_id_address_tu_a()
 {

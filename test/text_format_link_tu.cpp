@@ -5,6 +5,7 @@
 #include "mh/source_location.hpp"
 
 #include <string>
+#include "last_include.hpp"
 
 #if MH_FORMATTER != MH_FORMATTER_NONE
 

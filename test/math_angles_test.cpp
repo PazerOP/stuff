@@ -4,6 +4,7 @@
 
 #include <numbers>
 #include <type_traits>
+#include "last_include.hpp"
 
 TEST_CASE("deg2rad / rad2deg", "[math][angles]")
 {

@@ -13,6 +13,7 @@
 
 #ifndef _WIN32
 #include <unistd.h>
+#include "last_include.hpp"
 #endif
 
 using namespace std::chrono_literals;
@@ -102,6 +103,7 @@ TEST_CASE("dispatcher - a newly added delay task wakes a parked waiter")
 #ifndef _WIN32
 #include <fcntl.h>
 #include <cerrno>
+#include "last_include.hpp"
 
 namespace
 {

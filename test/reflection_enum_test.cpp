@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include "last_include.hpp"
 
 namespace mh_enum_test
 {

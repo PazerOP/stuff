@@ -6,6 +6,7 @@
 #include <string_view>
 #include <system_error>
 #include <type_traits>
+#include "last_include.hpp"
 
 TEST_CASE("error_code_exception - type aliases", "[error][error_code_exception]")
 {

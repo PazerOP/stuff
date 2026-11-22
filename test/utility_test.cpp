@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include "last_include.hpp"
 
 TEST_CASE("mh::copy", "[utility]")
 {

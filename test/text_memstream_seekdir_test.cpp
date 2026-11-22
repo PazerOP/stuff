@@ -13,6 +13,7 @@
 
 #include <stdexcept>
 #include <string>
+#include "last_include.hpp"
 
 namespace
 {

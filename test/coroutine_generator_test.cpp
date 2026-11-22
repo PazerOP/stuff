@@ -6,6 +6,7 @@
 
 #include <array>
 #include <stdexcept>
+#include "last_include.hpp"
 
 namespace
 {

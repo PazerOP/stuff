@@ -2,6 +2,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <compare>
+#include "last_include.hpp"
 
 TEST_CASE("checked_ptr - has_value/get basics", "[memory][checked_ptr]")
 {

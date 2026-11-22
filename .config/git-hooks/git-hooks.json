@@ -1,0 +1,5 @@
+{
+	"$schema": "lib/git-hooks.schema.json",
+	"version": 1,
+	"hooks": {}
+}

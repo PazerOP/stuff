@@ -9,6 +9,7 @@
 
 #include <sys/mman.h>
 #include <unistd.h>
+#include "last_include.hpp"
 
 namespace
 {

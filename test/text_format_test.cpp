@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include "last_include.hpp"
 
 TEST_CASE("format - a known formatter backend is selected", "[text][format]")
 {

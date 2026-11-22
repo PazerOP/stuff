@@ -3,6 +3,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <thread>
+#include "last_include.hpp"
 
 TEST_CASE("main_thread - is_main_thread on the main thread", "[concurrency][main_thread]")
 {

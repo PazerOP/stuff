@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <limits>
 #include <sstream>
+#include "last_include.hpp"
 
 using half_float = mh::half_float;
 using native_float = mh::native_float;

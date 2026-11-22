@@ -3,6 +3,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <string_view>
+#include "last_include.hpp"
 
 TEST_CASE("any/none/all_compare with a custom comparison", "[algorithm][multi_compare]")
 {

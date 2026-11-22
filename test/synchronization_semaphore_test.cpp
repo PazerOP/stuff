@@ -5,6 +5,7 @@
 #include <future>
 #include <iterator>
 #include <thread>
+#include "last_include.hpp"
 
 TEST_CASE("semaphore_basics")
 {

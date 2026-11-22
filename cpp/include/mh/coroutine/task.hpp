@@ -124,8 +124,9 @@ namespace mh
 				if (!valid())
 					throw std::future_error(std::future_errc::no_state);
 
+				// Wait until the coroutine has finished executing (reached final_suspend).
 				std::unique_lock lock(m_Mutex);
-				m_ValueReadyCV.wait(lock, [&] { return is_ready_unlocked(); });
+				m_ValueReadyCV.wait(lock, [&] { return is_ready_unlocked() && m_FinalSuspendHasRun; });
 				assert(is_ready_unlocked());
 			}
 			template<typename Rep, typename Period>
@@ -135,10 +136,10 @@ namespace mh
 					throw std::future_error(std::future_errc::no_state);
 
 				std::unique_lock lock(m_Mutex);
-				if (is_ready_unlocked())
+				if (is_ready_unlocked() && m_FinalSuspendHasRun)
 					return std::future_status::ready;
 
-				if (!m_ValueReadyCV.wait_for(lock, timeout_duration, [&] { return is_ready_unlocked(); }))
+				if (!m_ValueReadyCV.wait_for(lock, timeout_duration, [&] { return is_ready_unlocked() && m_FinalSuspendHasRun; }))
 					return std::future_status::timeout;
 
 				assert(is_ready_unlocked());
@@ -151,10 +152,10 @@ namespace mh
 					throw std::future_error(std::future_errc::no_state);
 
 				std::unique_lock lock(m_Mutex);
-				if (is_ready_unlocked())
+				if (is_ready_unlocked() && m_FinalSuspendHasRun)
 					return std::future_status::ready;
 
-				if (!m_ValueReadyCV.wait_until(lock, timeout_time, [&] { return is_ready_unlocked(); }))
+				if (!m_ValueReadyCV.wait_until(lock, timeout_time, [&] { return is_ready_unlocked() && m_FinalSuspendHasRun; }))
 					return std::future_status::timeout;
 
 				assert(is_ready_unlocked());
@@ -206,6 +207,7 @@ namespace mh
 					{
 						std::lock_guard lock(m_Promise->m_Mutex);
 						m_Promise->m_FinalSuspendHasRun = true;
+						m_Promise->m_ValueReadyCV.notify_all();
 						destroy = (m_Promise->m_RefCount == 0);
 					}
 
@@ -286,6 +288,15 @@ namespace mh
 			}
 
 			bool final_suspend_has_run() const noexcept { return m_FinalSuspendHasRun; }
+
+			// A promise that no coroutine owns (mh::promise, make_ready_task) never
+			// reaches final_suspend.
+			void mark_final_suspend_has_run() noexcept
+			{
+				std::lock_guard lock(m_Mutex);
+				m_FinalSuspendHasRun = true;
+				m_ValueReadyCV.notify_all();
+			}
 			int32_t get_ref_count() const noexcept { return m_RefCount; }
 
 			template<typename TFreeFunc>
@@ -402,7 +413,11 @@ namespace mh
 				m_IsCoroutine(false)
 			{
 				if (promise_type* promise = try_get_promise())
+				{
 					promise->add_ref();
+					// No coroutine drives this promise, so there is no final_suspend to wait for.
+					promise->mark_final_suspend_has_run();
+				}
 			}
 
 			task_base(const task_base& other) noexcept :

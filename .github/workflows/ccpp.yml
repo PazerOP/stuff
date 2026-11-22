@@ -12,10 +12,6 @@ defaults:
   run:
     shell: bash
 
-env:
-  # Use a recent stable vcpkg baseline from official Microsoft repo
-  VCPKG_COMMIT: de46587b4beaa638743916fe5674825cecfb48b3
-
 jobs:
   build-linux:
     # Pinned because Ubuntu 24.04 is the image that ships every compiler in the matrix below: g++-12, g++-13 and clang++-14/15 with libc++. ubuntu-latest now resolves to Ubuntu 26.04, where the clang-14/15 and libc++-14/15 packages no longer exist, so their apt-get install fails before the build starts.
@@ -40,14 +36,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - uses: lukka/run-vcpkg@main
-      with:
-        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
-
     - name: Install compilers and tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.compiler.deps }} ninja-build
+        sudo apt-get install -y ${{ matrix.compiler.deps }} ninja-build libcurl4-openssl-dev
         pip3 install gcovr
 
         echo "Ensuring programs work..."
@@ -68,7 +60,6 @@ jobs:
         cmake --version
 
         cmake -G Ninja \
-          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
           -DMH_STUFF_COMPILE_LIBRARY=${{ matrix.MH_STUFF_COMPILE_LIBRARY }} \
           ../
 
@@ -110,15 +101,64 @@ jobs:
 
 
 
+  sanitizers:
+    # Pinned because the g++-12 below is installed from this image's archive.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer:
+          - name: asan
+            flags: -fsanitize=address -fno-omit-frame-pointer
+          - name: tsan
+            flags: -fsanitize=thread
+          - name: ubsan
+            flags: -fsanitize=undefined -fno-omit-frame-pointer
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # The sanitizers run on GCC/libstdc++ rather than clang/libc++. With clang and the system libc++ runtimes, throwing through std::invalid_argument aborts under ASan with "alloc-dealloc-mismatch (operator new vs free)". The exception's message is allocated by operator new in this executable and freed by libc++abi's destructor in the shared runtime. The abort is a property of that header/runtime pairing, not of the code under test. GCC's sanitizers instrument the same code and the whole test suite with a consistent standard library.
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y g++-12 ninja-build libcurl4-openssl-dev
+        g++-12 --version
+        ninja --version
+
+    - name: Build with ${{ matrix.sanitizer.name }}
+      env:
+        CXX: g++-12
+        CXXFLAGS: ${{ matrix.sanitizer.flags }} -g -O1
+      run: |
+        mkdir build
+        cd build
+        cmake -G Ninja -DMH_STUFF_COMPILE_LIBRARY=ON ../
+        cmake --build .
+
+    - name: Run tests with ${{ matrix.sanitizer.name }}
+      env:
+        ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+        TSAN_OPTIONS: abort_on_error=1
+        UBSAN_OPTIONS: print_stacktrace=1:abort_on_error=1
+      run: |
+        cd build
+        ctest --version
+        ctest --output-on-failure
+
   all-checks-passed:
     if: always()
-    needs: [build-linux]
+    needs: [build-linux, sanitizers]
     runs-on: ubuntu-latest
     steps:
     - name: Verify all checks passed
       run: |
         if [[ "${{ needs.build-linux.result }}" != "success" ]]; then
           echo "build-linux failed: ${{ needs.build-linux.result }}"
+          exit 1
+        fi
+        if [[ "${{ needs.sanitizers.result }}" != "success" ]]; then
+          echo "sanitizers failed: ${{ needs.sanitizers.result }}"
           exit 1
         fi
         echo "All checks passed!"

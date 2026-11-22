@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include "last_include.hpp"
 
 TEST_CASE("insertion_conversion - wide string into narrow ostream", "[text][insertion_conversion]")
 {

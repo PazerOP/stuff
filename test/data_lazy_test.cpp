@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include "last_include.hpp"
 
 TEST_CASE("lazy - type aliases", "[data][lazy]")
 {

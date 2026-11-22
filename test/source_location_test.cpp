@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include <string>
+#include "last_include.hpp"
 
 // When the standard library provides std::source_location, mh::source_location
 // is an alias for it. The inserter in namespace mh is NOT found by ADL (the

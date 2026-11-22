@@ -11,6 +11,12 @@ project(
 	LANGUAGES CXX
 )
 
+# The vendored build helpers (mh_basic_install and friends) are plain .cmake
+# modules: without this include CMake dies at configure time on
+# "Unknown CMake command mh_basic_install".
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mh-cmake-common")
+include(mh-cmake-common-config)
+
 option(MH_STUFF_BUILD_SHARED_LIBS "Build stuff as a shared lib" OFF)
 if (MH_STUFF_BUILD_SHARED_LIBS)
 	set(BUILD_SHARED_LIBS ON)
@@ -34,11 +40,6 @@ add_library(${PROJECT_NAME} ${MH_INTERFACE_OR_EMPTY}
 	${MH_HEADER_FILES}
 )
 add_library(mh::stuff ALIAS ${PROJECT_NAME})
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mh-cmake-common")
-include(mh-BasicInstall)
-include(mh-CheckCoroutineSupport)
-
 
 if (MH_STUFF_COMPILE_LIBRARY)
 	find_package(CURL REQUIRED)
@@ -91,9 +92,6 @@ else()
 	)
 endif()
 
-mh_check_cxx_coroutine_support(SUPPORTS_COROUTINES COROUTINES_FLAGS)
-target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} ${COROUTINES_FLAGS})
-
 # Optional fmt support: the vcpkg manifest has always shipped fmt, but nothing
 # ever put its headers on the include path. This is text/format.hpp's
 # __has_include(<fmt/format.h>) was false and the whole fmt-backed formatter
@@ -140,8 +138,6 @@ elseif (fmt_FOUND)
 	# MH_FORMATTER).
 	target_compile_definitions(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} "MH_FORMATTER=MH_FORMATTER_NONE")
 endif()
-
-
 target_include_directories(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE}
 	"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cpp/include>"
 	"$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
@@ -166,6 +162,7 @@ endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 	target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -pthread)
+	target_compile_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -Wno-missing-field-initializers)
 	target_link_options(${PROJECT_NAME} ${MH_PUBLIC_OR_INTERFACE} -pthread)
 endif()
 
@@ -174,7 +171,6 @@ endif()
 # PUBLIC/INTERFACE injected it into every consumer TU (and, being exported,
 # flipped platform detection of unrelated third-party headers on platforms
 # like macOS that do not predefine it).
-
 
 if (NOT MSVC)
 	include(CheckCXXCompilerFlag)
@@ -219,5 +215,4 @@ mh_basic_install(
 	PROJ_INCLUDE_DIRS "cpp/include/"
 	FIND_DEPENDENCIES ${MH_STUFF_INSTALL_DEPS}
 )
-
 

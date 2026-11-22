@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "last_include.hpp"
 
 TEST_CASE("for_each_multimap_group", "[algorithm]")
 {

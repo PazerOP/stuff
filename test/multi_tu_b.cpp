@@ -1,6 +1,7 @@
 // Second translation unit of the multi-TU link test. See multi_tu_shared.hpp
 // for what this pair of files is protecting against.
 #include "multi_tu_shared.hpp"
+#include "last_include.hpp"
 
 const std::thread::id* main_thread_id_address_tu_b()
 {

@@ -3,6 +3,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <filesystem>
+#include "last_include.hpp"
 
 using std::filesystem::path;
 
