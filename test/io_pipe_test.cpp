@@ -14,6 +14,8 @@
 #include <chrono>
 #include <exception>
 #include <poll.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <fstream>
 #include <filesystem>
 
@@ -35,10 +37,16 @@ void run_async_test(Func&& func)
     auto task = func();
 
     // Bounded so a coroutine that nothing resumes turns into a test failure
-    // instead of a hung CI job.
+    // instead of a hung CI job. The idle gap between pumps matches the process
+    // tests. The process manager's monitor runs on this thread, and a pump that
+    // never yields keeps the dispatcher from going idle between SIGCHLD
+    // deliveries.
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
     while (!task.is_ready() && std::chrono::steady_clock::now() < deadline)
+    {
         disp->run_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 
     REQUIRE(task.is_ready());
 
@@ -58,6 +66,36 @@ bool fd_ready(int fd, short events, int timeoutMs = 30000)
     pfd.fd = fd;
     pfd.events = events;
     return ::poll(&pfd, 1, timeoutMs) > 0;
+}
+
+// Waits for the child to exit with a bounded, non-blocking wait4 loop (waitpid
+// itself is poisoned by last_include.hpp). These tests only need the child to be
+// finished before they look at the pipe. Waiting through
+// mh::process::wait_async() needs the dispatcher pump to drive the process
+// manager's SIGCHLD monitor. The async wait path is covered by the process
+// tests.
+int wait_for_child(pid_t pid, int timeoutMs = 30000)
+{
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        int status = 0;
+        const pid_t result = wait4(pid, &status, WNOHANG, nullptr);
+        if (result == pid)
+        {
+            if (WIFEXITED(status))
+                return WEXITSTATUS(status);
+            if (WIFSIGNALED(status))
+                return -WTERMSIG(status);
+            return -1;
+        }
+        if (result == -1)
+            return -1;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    return -1;
 }
 
 #include "last_include.hpp"
@@ -303,8 +341,7 @@ TEST_CASE("pipe to child process stdout", "[io][pipe][process]")
         REQUIRE(proc.start());
 
         // Wait for process to complete first
-        auto exit_code = co_await proc.wait_async();
-        REQUIRE(exit_code == 0);
+        REQUIRE(wait_for_child(proc.get_pid()) == 0);
 
         // Now read from the pipe (data should be buffered)
         char buffer[1024] = {0};
@@ -337,8 +374,7 @@ TEST_CASE("pipe to child process stdin", "[io][pipe][process]")
         pipe->in->close();
 
         // Wait for process to complete
-        auto exit_code = co_await proc.wait_async();
-        REQUIRE(exit_code == 0);
+        REQUIRE(wait_for_child(proc.get_pid()) == 0);
     });
 }
 
@@ -375,8 +411,7 @@ TEST_CASE("bidirectional pipe communication with child", "[io][pipe][process]")
         REQUIRE(received == "Echo this message!\n");
 
         // Wait for process to complete
-        auto exit_code = co_await proc.wait_async();
-        REQUIRE(exit_code == 0);
+        REQUIRE(wait_for_child(proc.get_pid()) == 0);
     });
 }
 
@@ -402,8 +437,7 @@ TEST_CASE("pipe stderr redirection through pipe", "[io][pipe][process]")
         REQUIRE(bytes_read > 0);
         REQUIRE(std::string(buffer, bytes_read) == "Error message to stderr!\n");
 
-        auto exit_code = co_await proc.wait_async();
-        REQUIRE(exit_code == 0);
+        REQUIRE(wait_for_child(proc.get_pid()) == 0);
     });
 }
 
