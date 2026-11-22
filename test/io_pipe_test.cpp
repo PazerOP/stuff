@@ -474,10 +474,8 @@ TEST_CASE("pipe chain between two child processes", "[io][pipe][process]")
         REQUIRE(result.find("6") != std::string::npos);
 
         // Wait for both processes
-        auto echo_exit = co_await echo_proc.wait_async();
-        auto wc_exit = co_await wc_proc.wait_async();
-        REQUIRE(echo_exit == 0);
-        REQUIRE(wc_exit == 0);
+        REQUIRE(wait_for_child(echo_proc.get_pid()) == 0);
+        REQUIRE(wait_for_child(wc_proc.get_pid()) == 0);
     });
 }
 
